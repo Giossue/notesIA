@@ -1,0 +1,23 @@
+{
+  "name": "@notesia/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@node-rs/argon2": "2.2.1",
+    "@notesia/config": "workspace:*",
+    "@notesia/contracts": "workspace:*",
+    "@notesia/db": "workspace:*",
+    "@notesia/domain": "workspace:*",
+    "@notesia/observability": "workspace:*",
+    "better-auth": "1.7.5",
+    "hono": "^4.9.8",
+    "kysely": "0.28.17",
+    "pg": "8.23.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.22",
+    "@types/pg": "^8.23.1"
+  }
+}

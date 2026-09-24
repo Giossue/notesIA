@@ -1,0 +1,251 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useNetInfo } from "@react-native-community/netinfo";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Button, HelperText, Surface, Text, TextInput, useTheme } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { z } from "zod";
+import { signIn, signUp } from "@/core/auth/auth-client";
+import { clearPrivateCache } from "@/core/auth/query-cache";
+import { layout, sharedStyles } from "@/core/theme/layout";
+
+const signInSchema = z.object({
+  email: z.email("Escribe un correo válido."),
+  password: z.string().min(1, "Escribe tu contraseña."),
+});
+
+const signUpSchema = signInSchema.extend({
+  name: z.string().trim().min(1, "Escribe tu nombre."),
+  password: z.string().min(12, "Usa al menos 12 caracteres."),
+});
+
+type SignInValues = z.infer<typeof signInSchema>;
+type SignUpValues = z.infer<typeof signUpSchema>;
+
+export function AuthScreen() {
+  const theme = useTheme();
+  const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
+  const offline = useNetInfo().isConnected === false;
+
+  return (
+    <SafeAreaView style={[styles.page, { backgroundColor: theme.colors.background }]}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+        <View style={styles.heading}>
+          <Text variant="headlineMedium">Planificador estudiantil</Text>
+          <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+            Organiza tus actividades y decide cómo usar tu tiempo.
+          </Text>
+        </View>
+        <Surface style={styles.form} elevation={1}>
+          <Text variant="titleLarge">{mode === "signIn" ? "Iniciar sesión" : "Crear cuenta"}</Text>
+          {offline && (
+            <Text style={{ color: theme.colors.error }}>
+              Sin conexión. Revisa tu red e inténtalo de nuevo.
+            </Text>
+          )}
+          {mode === "signIn" ? <SignInForm offline={offline} /> : <SignUpForm offline={offline} />}
+          <Button mode="text" onPress={() => setMode(mode === "signIn" ? "signUp" : "signIn")}>
+            {mode === "signIn" ? "Crear una cuenta" : "Ya tengo cuenta"}
+          </Button>
+        </Surface>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function SignInForm({ offline }: { offline: boolean }) {
+  const queryClient = useQueryClient();
+  const [visible, setVisible] = useState(false);
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignInValues>({
+    resolver: zodResolver(signInSchema),
+    defaultValues: { email: "", password: "" },
+  });
+  const mutation = useMutation({
+    mutationFn: (values: SignInValues) =>
+      signIn(values.email.trim().toLowerCase(), values.password),
+    onSuccess: async () => {
+      await clearPrivateCache(queryClient);
+      await queryClient.invalidateQueries({ queryKey: ["session"] });
+    },
+  });
+
+  return (
+    <View style={styles.fields}>
+      <Controller
+        control={control}
+        name="email"
+        render={({ field }) => (
+          <TextInput
+            label="Correo electrónico"
+            mode="outlined"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={!!errors.email}
+            accessibilityLabel="Correo electrónico"
+          />
+        )}
+      />
+      <HelperText type="error" visible={!!errors.email}>
+        {errors.email?.message}
+      </HelperText>
+      <Controller
+        control={control}
+        name="password"
+        render={({ field }) => (
+          <TextInput
+            label="Contraseña"
+            mode="outlined"
+            secureTextEntry={!visible}
+            autoComplete="current-password"
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={!!errors.password}
+            accessibilityLabel="Contraseña"
+            right={
+              <TextInput.Icon
+                icon={visible ? "eye-off" : "eye"}
+                onPress={() => setVisible(!visible)}
+                accessibilityLabel={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+              />
+            }
+          />
+        )}
+      />
+      <HelperText type="error" visible={!!errors.password}>
+        {errors.password?.message}
+      </HelperText>
+      {mutation.isError && <Text accessibilityRole="alert">{mutation.error.message}</Text>}
+      <Button
+        mode="contained"
+        loading={mutation.isPending}
+        disabled={offline || mutation.isPending}
+        onPress={() => void handleSubmit((values) => mutation.mutate(values))()}
+        contentStyle={sharedStyles.actionContent}
+      >
+        Iniciar sesión
+      </Button>
+    </View>
+  );
+}
+
+function SignUpForm({ offline }: { offline: boolean }) {
+  const queryClient = useQueryClient();
+  const [visible, setVisible] = useState(false);
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignUpValues>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: { name: "", email: "", password: "" },
+  });
+  const mutation = useMutation({
+    mutationFn: (values: SignUpValues) =>
+      signUp(values.name.trim(), values.email.trim().toLowerCase(), values.password),
+    onSuccess: async () => {
+      await clearPrivateCache(queryClient);
+      await queryClient.invalidateQueries({ queryKey: ["session"] });
+    },
+  });
+
+  return (
+    <View style={styles.fields}>
+      <Controller
+        control={control}
+        name="name"
+        render={({ field }) => (
+          <TextInput
+            label="Nombre"
+            mode="outlined"
+            autoComplete="name"
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={!!errors.name}
+            accessibilityLabel="Nombre"
+          />
+        )}
+      />
+      <HelperText type="error" visible={!!errors.name}>
+        {errors.name?.message}
+      </HelperText>
+      <Controller
+        control={control}
+        name="email"
+        render={({ field }) => (
+          <TextInput
+            label="Correo electrónico"
+            mode="outlined"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={!!errors.email}
+            accessibilityLabel="Correo electrónico"
+          />
+        )}
+      />
+      <HelperText type="error" visible={!!errors.email}>
+        {errors.email?.message}
+      </HelperText>
+      <Controller
+        control={control}
+        name="password"
+        render={({ field }) => (
+          <TextInput
+            label="Contraseña (mínimo 12 caracteres)"
+            mode="outlined"
+            secureTextEntry={!visible}
+            autoComplete="new-password"
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={!!errors.password}
+            accessibilityLabel="Contraseña nueva"
+            right={
+              <TextInput.Icon
+                icon={visible ? "eye-off" : "eye"}
+                onPress={() => setVisible(!visible)}
+                accessibilityLabel={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+              />
+            }
+          />
+        )}
+      />
+      <HelperText type="error" visible={!!errors.password}>
+        {errors.password?.message}
+      </HelperText>
+      {mutation.isError && <Text accessibilityRole="alert">{mutation.error.message}</Text>}
+      <Button
+        mode="contained"
+        loading={mutation.isPending}
+        disabled={offline || mutation.isPending}
+        onPress={() => void handleSubmit((values) => mutation.mutate(values))()}
+        contentStyle={sharedStyles.actionContent}
+      >
+        Crear cuenta
+      </Button>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: { flex: 1 },
+  content: { flexGrow: 1, justifyContent: "center", gap: 32, padding: layout.pagePadding },
+  heading: { gap: layout.itemGap },
+  form: { borderRadius: layout.cardRadius, padding: layout.pagePadding, gap: layout.sectionGap },
+  fields: { gap: 4 },
+});

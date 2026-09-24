@@ -1,0 +1,20 @@
+{
+  "name": "@notesia/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@notesia/config": "workspace:*",
+    "@notesia/db": "workspace:*",
+    "@notesia/observability": "workspace:*",
+    "@notesia/domain": "workspace:*",
+    "google-auth-library": "^11.1.0",
+    "nodemailer": "^10.0.10",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.22",
+    "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1"
+  }
+}

@@ -1,0 +1,56 @@
+# Estado verificable del backend local
+
+Fecha de revisión: 2026-09-24. Objetivo: terminar el backend del planificador,
+según `APP_CONTEXT.md`, `docs/PRODUCT_REQUIREMENTS.md` y
+`docs/IMPLEMENTATION_PLAN.md`. Esta revisión distingue implementación local de
+activación para usuarios reales. No afirma una ejecución de CI remoto ni valida el
+entorno de producción.
+
+| Etapa | Evidencia actual | Pendiente para cierre real |
+|---|---|---|
+| 0. Fundaciones | 42 migraciones aplicadas a `notesia_dev`, migración desde cero y restauración cifrada aislada; Problem Details, contratos OpenAPI y workflow de CI definidos. | Observar una ejecución de CI en el repositorio remoto. |
+| 1. Auth y privacidad | Registro, sesión cifrada y revocable, recuperación, perfil, preferencias, documentos/consentimientos versionados, exportación y eliminación condicionada por política; pruebas negativas y de acceso cruzado. | Verificación de correo para acciones sensibles; textos legales aprobados; plazos de eliminación, auditoría y backups; SMTP real. |
+| 2. Organización | Periodos, materias, actividades, subtareas, recurrencia, eventos y consultas de agenda por rango con PostgreSQL y pruebas de aislamiento. | Prueba de flujo en dispositivo para las pantallas móviles; fuera del backend. |
+| 3. Disponibilidad | Reglas, excepciones, conflictos y capacidad por zona horaria; pruebas con cambios de horario. | Ningún pendiente de código backend identificado en esta revisión. |
+| 4. Motor | Planificación determinística, preview, edición, aplicación explícita, historial, bloques bloqueados y riesgo explicado; invariantes y PostgreSQL real. | Ningún pendiente de código backend identificado en esta revisión. |
+| 5. Ejecución | Temporizador único, tiempo manual sin solapamiento, progreso, estadísticas semanales y riesgo actual. | Ningún pendiente de código backend identificado en esta revisión. |
+| 6. Offline y avisos | Idempotencia, versiones, outbox, avisos internos, horarios silenciosos, dispositivos push cifrados y adaptador FCM con pruebas simuladas. | Cola offline y conflictos visibles pertenecen al cliente móvil; entrega push real requiere proyecto y credenciales FCM. |
+| 7. IA | Gateway, cinco casos, tres adaptadores, consentimiento, fallback manual, cuota compartida, proveedor alterno por caso con transición auditada y conciliación de reservas inciertas. | Evaluar modelos, costos y políticas reales antes de habilitar una ruta. No hay conexiones configuradas. |
+| 8. Admin | API de roles, cuentas, documentos, proveedores, rutas, pruebas sintéticas, auditoría y salud, protegida con TOTP, reautenticación y rate limit. | Designar y provisionar la primera cuenta administradora; el panel visual no forma parte del backend. |
+| 9. Hardening | 99 pruebas Bun y 16 de móvil en el último pase completo, lint, tipos, contratos, builds, auditoría de dependencias de severidad alta, escaneo de bundles, prueba integrada API/DB y restauración aislada. El endpoint de salud ahora calcula señales de worker ausente, colas muertas y backlog sin exponer payloads. La carga local más reciente dio p95 de 16,8 ms en lista, 45,0 ms en creación y 84,3 ms en preview. | Faltan trazas API→BD→worker→proveedor, envío activo de alertas y señales de proveedor caído, costo anormal y error sostenido; repetir integración PostgreSQL tras las últimas ediciones y validar rendimiento, backup y entrega externa en el entorno objetivo. |
+
+## Estado observado en la base local
+
+`notesia_dev` es PostgreSQL persistente y tiene 42 migraciones. En esta revisión contenía una
+cuenta, ningún documento de privacidad publicado, ninguna cuenta con rol `admin`,
+ningún proveedor y ninguna ruta de IA. Las variables de SMTP, FCM, cifrado de IA y
+política de eliminación no estaban configuradas. Las pruebas que requieren textos
+legales usan bases aisladas con contenido sintético y las eliminan al terminar.
+
+Después del pase de 99 pruebas se amplió el test administrativo para probar el
+proveedor principal y el alterno con datos sintéticos, y se añadieron señales de
+salud. Las ediciones pasaron tipos, lint, contrato OpenAPI, builds y 12 pruebas
+puras relevantes; la integración PostgreSQL queda pendiente de repetición. El
+entorno aislado de la continuación no puede abrir sockets TCP ni alcanzar el
+PostgreSQL local. Esto limita la verificación actual, no cambia la persistencia
+de `notesia_dev` ni demuestra un fallo de la base.
+
+## Entradas necesarias para activación
+
+1. Decidir si el correo verificado se exige antes de iniciar sesión o para las
+   acciones sensibles indicadas en `docs/SECURITY_AND_PRIVACY.md`, y aprobar el
+   destino HTTPS del enlace de verificación.
+2. Entregar textos aprobados y versiones iniciales para términos, privacidad y
+   uso de IA. Publicarlos mediante una cuenta administradora designada.
+3. Aprobar días de gracia y retención de auditoría, además del tratamiento de
+   datos borrados en backups. La eliminación permanece deshabilitada sin esto.
+4. Configurar SMTP, FCM y proveedores de IA mediante el gestor de secretos del
+   entorno cuando se vaya a probar su entrega real. No copiar claves a este
+   documento ni enviarlas por chat.
+5. Indicar entorno objetivo para repetir las pruebas de rendimiento, restauración
+   y entrega externa. El resultado local no demuestra comportamiento en producción.
+
+La observabilidad operativa es un trabajo de código pendiente que no requiere
+textos ni claves reales para diseñarse y probarse. El flujo de verificación de correo y sus
+restricciones de acceso dependen de la decisión solicitada. Los textos y plazos
+aprobados son requisitos de activación, no valores que el repositorio pueda inventar.

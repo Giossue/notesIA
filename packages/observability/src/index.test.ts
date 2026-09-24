@@ -1,0 +1,57 @@
+import { expect, test } from "bun:test";
+import { httpArea, writeHttpObservation, writeWorkerObservation } from "./index";
+
+test("HTTP observations keep a fixed set of fields and classify paths without private data", () => {
+  const lines: string[] = [];
+  writeHttpObservation(
+    {
+      requestId: "request-1",
+      method: "POST",
+      area: httpArea("/v1/activities/private-id"),
+      status: 409,
+      durationMs: 12,
+      path: "/v1/activities/private-id?token=private-value",
+    } as Parameters<typeof writeHttpObservation>[0],
+    (line) => lines.push(line),
+  );
+  const event = JSON.parse(lines[0] ?? "null");
+  expect(event).toMatchObject({
+    type: "http",
+    requestId: "request-1",
+    method: "POST",
+    area: "activities",
+    status: 409,
+    durationMs: 12,
+  });
+  expect(JSON.stringify(event)).not.toContain("private-id");
+  expect(JSON.stringify(event)).not.toContain("private-value");
+  expect(httpArea("/v1/private@example.test")).toBe("unknown");
+  const unknown: string[] = [];
+  writeHttpObservation(
+    {
+      requestId: "request-2",
+      method: "private-method",
+      area: "private-area",
+      status: 400,
+      durationMs: 1,
+    },
+    (line) => unknown.push(line),
+  );
+  expect(JSON.parse(unknown[0] ?? "null")).toMatchObject({ method: "OTHER", area: "unknown" });
+});
+
+test("worker failure observations omit exception details", () => {
+  const lines: string[] = [];
+  writeWorkerObservation(
+    { outcome: "error", durationMs: 100, error: "private SQL and payload" } as Parameters<
+      typeof writeWorkerObservation
+    >[0],
+    (line) => lines.push(line),
+  );
+  expect(JSON.parse(lines[0] ?? "null")).toMatchObject({
+    type: "worker_cycle",
+    outcome: "error",
+    durationMs: 100,
+  });
+  expect(lines[0]).not.toContain("private SQL and payload");
+});

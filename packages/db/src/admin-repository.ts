@@ -1,0 +1,491 @@
+import type { Pool } from "pg";
+import { revokeUserSecureSessions } from "./auth-secure-storage";
+import type { PrivacyDocument, PrivacyLanguage, PrivacyType } from "./privacy-repository";
+
+export type AdminDocument = Omit<PrivacyDocument, "publishedAt"> & {
+  createdAt: Date;
+  cursorCreatedAt: string;
+  publishedAt: Date | null;
+};
+export type AdminAudit = {
+  id: string;
+  actorId: string;
+  action:
+    | "privacy_document.created"
+    | "privacy_document.published"
+    | "ai_provider.updated"
+    | "ai_route.updated"
+    | "ai_route.tested"
+    | "role.assigned"
+    | "role.changed"
+    | "role.removed"
+    | "account.suspended"
+    | "account.reactivated";
+  targetId: string;
+  recordedAt: Date;
+  cursorRecordedAt: string;
+};
+type Cursor = { createdAt: string; id: string };
+type CreateInput = {
+  id: string;
+  type: PrivacyType;
+  version: number;
+  language: PrivacyLanguage;
+  content: string;
+};
+
+const documentColumns = `id, tipo AS type, version, idioma AS language,
+  contenido AS content, publicado_en AS "publishedAt", creado_en AS "createdAt",
+  to_char(creado_en AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+    AS "cursorCreatedAt"`;
+
+type QueueCounts = {
+  pending: string;
+  ready: string;
+  inFlight: string;
+  dead: string;
+  oldestReadyAt: Date | null;
+};
+function safeCount(value: string | undefined) {
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < 0) throw new Error("Queue count is out of range");
+  return number;
+}
+function toQueueCounts(row: QueueCounts | undefined) {
+  return {
+    pending: safeCount(row?.pending),
+    ready: safeCount(row?.ready),
+    inFlight: safeCount(row?.inFlight),
+    dead: safeCount(row?.dead),
+    oldestReadyAt: row?.oldestReadyAt?.toISOString() ?? null,
+  };
+}
+
+export function createAdminRepository(pool: Pool, authSecret: string) {
+  return {
+    async listUsers(cursor: { createdAt: string; id: string } | null) {
+      const result = await pool.query<{
+        id: string;
+        email: string;
+        name: string;
+        role: "admin" | "support" | null;
+        suspendedAt: Date | null;
+        version: number;
+        createdAt: Date;
+        cursorCreatedAt: string;
+      }>(
+        `SELECT u.id, u.correo AS email, u.nombre AS name,
+           r.rol AS role, u.suspendido_en AS "suspendedAt",
+           u.estado_version AS version, u.creado_en AS "createdAt",
+           to_char(u.creado_en AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+             AS "cursorCreatedAt"
+         FROM autenticacion.usuarios u
+         LEFT JOIN autenticacion.roles_usuario r ON r.usuario_id = u.id
+         WHERE ($1::timestamptz IS NULL OR (u.creado_en, u.id) < ($1, $2::uuid))
+         ORDER BY u.creado_en DESC, u.id DESC LIMIT 21`,
+        [cursor?.createdAt ?? null, cursor?.id ?? null],
+      );
+      return result.rows;
+    },
+    async setSuspended(actorId: string, userId: string, suspended: boolean, version: number) {
+      if (actorId === userId) return { kind: "self_change" as const };
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query("SELECT pg_advisory_xact_lock(hashtext('notesia-admin-roles'))");
+        const found = await client.query<{
+          version: number;
+          suspendedAt: Date | null;
+          role: "admin" | "support" | null;
+        }>(
+          `SELECT u.estado_version AS version, u.suspendido_en AS "suspendedAt",
+             r.rol AS role
+           FROM autenticacion.usuarios u
+           LEFT JOIN autenticacion.roles_usuario r ON r.usuario_id = u.id
+           WHERE u.id = $1 FOR UPDATE OF u`,
+          [userId],
+        );
+        const user = found.rows[0];
+        if (!user) {
+          await client.query("ROLLBACK");
+          return { kind: "not_found" as const };
+        }
+        if (user.version !== version) {
+          await client.query("ROLLBACK");
+          return { kind: "version_conflict" as const };
+        }
+        if (Boolean(user.suspendedAt) === suspended) {
+          await client.query("COMMIT");
+          return { kind: "unchanged" as const, version, suspendedAt: user.suspendedAt };
+        }
+        if (suspended && user.role === "admin") {
+          const active = await client.query<{ count: string }>(
+            `SELECT count(*)::text AS count FROM autenticacion.roles_usuario r
+             JOIN autenticacion.usuarios u ON u.id = r.usuario_id
+             WHERE r.rol = 'admin' AND u.suspendido_en IS NULL`,
+          );
+          if (Number(active.rows[0]?.count ?? 0) <= 1) {
+            await client.query("ROLLBACK");
+            return { kind: "last_admin" as const };
+          }
+        }
+        if (suspended) await revokeUserSecureSessions(client, authSecret, userId);
+        const changed = await client.query<{ version: number; suspendedAt: Date | null }>(
+          `UPDATE autenticacion.usuarios
+           SET suspendido_en = CASE WHEN $2::boolean THEN now() ELSE NULL END,
+             estado_version = estado_version + 1
+           WHERE id = $1 RETURNING estado_version AS version, suspendido_en AS "suspendedAt"`,
+          [userId, suspended],
+        );
+        await client.query(
+          `INSERT INTO dominio.auditoria_admin (id, actor_id, accion, objetivo_id)
+           VALUES ($1,$2,$3,$4)`,
+          [
+            crypto.randomUUID(),
+            actorId,
+            suspended ? "account.suspended" : "account.reactivated",
+            userId,
+          ],
+        );
+        await client.query("COMMIT");
+        return {
+          kind: "changed" as const,
+          version: changed.rows[0]?.version as number,
+          suspendedAt: changed.rows[0]?.suspendedAt ?? null,
+        };
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+    async systemHealth() {
+      const [outbox, push, recoveryMail, heartbeat] = await Promise.all([
+        pool.query<QueueCounts>(
+          `SELECT count(*) FILTER (WHERE estado = 'pending')::text AS pending,
+             count(*) FILTER (WHERE estado = 'pending' AND disponible_en <= now())::text AS ready,
+             '0'::text AS "inFlight",
+             count(*) FILTER (WHERE estado = 'dead')::text AS dead,
+             min(disponible_en) FILTER (WHERE estado = 'pending' AND disponible_en <= now())
+               AS "oldestReadyAt"
+           FROM dominio.bandeja_salida`,
+        ),
+        pool.query<QueueCounts>(
+          `SELECT count(*) FILTER (WHERE estado = 'pending')::text AS pending,
+             count(*) FILTER (WHERE estado = 'pending' AND disponible_en <= now())::text AS ready,
+             count(*) FILTER (WHERE estado = 'sending')::text AS "inFlight",
+             count(*) FILTER (WHERE estado = 'dead')::text AS dead,
+             min(disponible_en) FILTER (WHERE estado = 'pending' AND disponible_en <= now())
+               AS "oldestReadyAt"
+           FROM dominio.envios_push`,
+        ),
+        pool.query<QueueCounts>(
+          `SELECT count(*) FILTER (WHERE estado = 'pending')::text AS pending,
+             count(*) FILTER (WHERE estado = 'pending' AND disponible_en <= now())::text AS ready,
+             count(*) FILTER (WHERE estado = 'sending')::text AS "inFlight",
+             count(*) FILTER (WHERE estado = 'dead')::text AS dead,
+             min(disponible_en) FILTER (WHERE estado = 'pending' AND disponible_en <= now())
+               AS "oldestReadyAt"
+           FROM autenticacion.correos_recuperacion`,
+        ),
+        pool.query<{ lastSeenAt: Date; seenRecently: boolean }>(
+          `SELECT visto_en AS "lastSeenAt",
+             visto_en >= now() - interval '2 minutes' AS "seenRecently"
+           FROM dominio.latido_worker WHERE id = true`,
+        ),
+      ]);
+      return {
+        outbox: toQueueCounts(outbox.rows[0]),
+        push: toQueueCounts(push.rows[0]),
+        recoveryMail: toQueueCounts(recoveryMail.rows[0]),
+        worker: {
+          lastSeenAt: heartbeat.rows[0]?.lastSeenAt?.toISOString() ?? null,
+          seenRecently: heartbeat.rows[0]?.seenRecently ?? false,
+        },
+      };
+    },
+    async isAdmin(userId: string) {
+      const result = await pool.query(
+        `SELECT 1 FROM autenticacion.roles_usuario r
+         JOIN autenticacion.usuarios u ON u.id = r.usuario_id
+         WHERE r.usuario_id = $1 AND r.rol = 'admin' AND u.suspendido_en IS NULL LIMIT 1`,
+        [userId],
+      );
+      return result.rowCount === 1;
+    },
+    async hasFreshMfaSession(userId: string, sessionCreatedAt: Date) {
+      const result = await pool.query(
+        `SELECT 1 FROM autenticacion.usuarios u
+         JOIN autenticacion.roles_usuario r ON r.usuario_id = u.id
+         WHERE u.id = $1 AND r.rol = 'admin'
+           AND u.suspendido_en IS NULL
+           AND u.segundo_factor_habilitado = true
+           AND u.segundo_factor_activado_en IS NOT NULL
+           AND $2::timestamptz > greatest(u.segundo_factor_activado_en, r.asignado_en)
+         LIMIT 1`,
+        [userId, sessionCreatedAt],
+      );
+      return result.rowCount === 1;
+    },
+    async listDocuments(cursor: Cursor | null) {
+      const result = await pool.query<AdminDocument>(
+        `SELECT ${documentColumns} FROM dominio.documentos_privacidad
+         WHERE ($1::timestamptz IS NULL OR (creado_en, id) < ($1, $2::uuid))
+         ORDER BY creado_en DESC, id DESC LIMIT 21`,
+        [cursor?.createdAt ?? null, cursor?.id ?? null],
+      );
+      return result.rows;
+    },
+    async listAudit(cursor: { recordedAt: string; id: string } | null) {
+      const result = await pool.query<AdminAudit>(
+        `SELECT id, actor_id AS "actorId", accion AS action,
+           objetivo_id AS "targetId", registrado_en AS "recordedAt",
+           to_char(registrado_en AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+             AS "cursorRecordedAt"
+         FROM dominio.auditoria_admin
+         WHERE ($1::timestamptz IS NULL OR (registrado_en, id) < ($1, $2::uuid))
+         ORDER BY registrado_en DESC, id DESC LIMIT 21`,
+        [cursor?.recordedAt ?? null, cursor?.id ?? null],
+      );
+      return result.rows;
+    },
+    async createDocument(actorId: string, input: CreateInput) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+          `admin-document:${input.type}:${input.language}`,
+        ]);
+        const latest = await client.query<{ version: number | null }>(
+          `SELECT max(version)::integer AS version FROM dominio.documentos_privacidad
+           WHERE tipo = $1 AND idioma = $2`,
+          [input.type, input.language],
+        );
+        if (input.version <= (latest.rows[0]?.version ?? 0)) {
+          await client.query("ROLLBACK");
+          return { kind: "version_conflict" as const };
+        }
+        const inserted = await client.query<AdminDocument>(
+          `INSERT INTO dominio.documentos_privacidad
+            (id, tipo, version, idioma, contenido)
+           VALUES ($1,$2,$3,$4,$5) RETURNING ${documentColumns}`,
+          [input.id, input.type, input.version, input.language, input.content],
+        );
+        await client.query(
+          `INSERT INTO dominio.auditoria_admin (id, actor_id, accion, objetivo_id)
+           VALUES ($1,$2,'privacy_document.created',$3)`,
+          [crypto.randomUUID(), actorId, input.id],
+        );
+        await client.query("COMMIT");
+        return { kind: "created" as const, row: inserted.rows[0] };
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        if ((error as { code?: string }).code === "23505")
+          return { kind: "version_conflict" as const };
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+    async publishDocument(actorId: string, id: string) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const found = await client.query<AdminDocument>(
+          `SELECT ${documentColumns} FROM dominio.documentos_privacidad
+           WHERE id = $1 FOR UPDATE`,
+          [id],
+        );
+        const document = found.rows[0];
+        if (!document) {
+          await client.query("ROLLBACK");
+          return { kind: "not_found" as const };
+        }
+        if (document.publishedAt) {
+          await client.query("COMMIT");
+          return { kind: "published" as const, row: document };
+        }
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+          `admin-document:${document.type}:${document.language}`,
+        ]);
+        const newer = await client.query(
+          `SELECT 1 FROM dominio.documentos_privacidad
+           WHERE tipo = $1 AND idioma = $2 AND publicado_en IS NOT NULL
+             AND version >= $3 LIMIT 1`,
+          [document.type, document.language, document.version],
+        );
+        if (newer.rowCount) {
+          await client.query("ROLLBACK");
+          return { kind: "version_conflict" as const };
+        }
+        const published = await client.query<AdminDocument>(
+          `UPDATE dominio.documentos_privacidad SET publicado_en = now()
+           WHERE id = $1 RETURNING ${documentColumns}`,
+          [id],
+        );
+        await client.query(
+          `INSERT INTO dominio.auditoria_admin (id, actor_id, accion, objetivo_id)
+           VALUES ($1,$2,'privacy_document.published',$3)`,
+          [crypto.randomUUID(), actorId, id],
+        );
+        await client.query("COMMIT");
+        return { kind: "published" as const, row: published.rows[0] };
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+    async listRoles(cursor: { assignedAt: string; id: string } | null) {
+      const result = await pool.query<{
+        userId: string;
+        email: string;
+        role: "admin" | "support";
+        version: number;
+        assignedAt: Date;
+        cursorAssignedAt: string;
+        updatedAt: Date;
+      }>(
+        `SELECT r.usuario_id AS "userId", u.correo AS email, r.rol AS role,
+           r.version, r.asignado_en AS "assignedAt", r.actualizado_en AS "updatedAt",
+           to_char(r.asignado_en AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+             AS "cursorAssignedAt"
+         FROM autenticacion.roles_usuario r
+         JOIN autenticacion.usuarios u ON u.id = r.usuario_id
+         WHERE ($1::timestamptz IS NULL OR (r.asignado_en, r.usuario_id) < ($1, $2::uuid))
+         ORDER BY r.asignado_en DESC, r.usuario_id DESC LIMIT 21`,
+        [cursor?.assignedAt ?? null, cursor?.id ?? null],
+      );
+      return result.rows;
+    },
+    async assignRole(actorId: string, userId: string, role: "admin" | "support", version: number) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query("SELECT pg_advisory_xact_lock(hashtext('notesia-admin-roles'))");
+        const user = await client.query<{ active: boolean }>(
+          "SELECT suspendido_en IS NULL AS active FROM autenticacion.usuarios WHERE id = $1",
+          [userId],
+        );
+        if (!user.rowCount) {
+          await client.query("ROLLBACK");
+          return { kind: "not_found" as const };
+        }
+        const existing = await client.query<{ role: "admin" | "support"; version: number }>(
+          `SELECT rol AS role, version FROM autenticacion.roles_usuario
+           WHERE usuario_id = $1 FOR UPDATE`,
+          [userId],
+        );
+        const current = existing.rows[0];
+        if ((current?.version ?? 0) !== version) {
+          await client.query("ROLLBACK");
+          return { kind: "version_conflict" as const };
+        }
+        if (userId === actorId && role !== "admin") {
+          await client.query("ROLLBACK");
+          return { kind: "self_change" as const };
+        }
+        if (current?.role === "admin" && role !== "admin" && user.rows[0]?.active) {
+          const count = await client.query<{ count: string }>(
+            `SELECT count(*)::text AS count FROM autenticacion.roles_usuario r
+             JOIN autenticacion.usuarios u ON u.id = r.usuario_id
+             WHERE r.rol = 'admin' AND u.suspendido_en IS NULL`,
+          );
+          if (Number(count.rows[0]?.count ?? 0) <= 1) {
+            await client.query("ROLLBACK");
+            return { kind: "last_admin" as const };
+          }
+        }
+        if (current?.role === role) {
+          await client.query("COMMIT");
+          return { kind: "unchanged" as const, version };
+        }
+        const action = current ? "role.changed" : "role.assigned";
+        const nextVersion = version + 1;
+        if (current) {
+          await client.query(
+            `UPDATE autenticacion.roles_usuario SET rol = $2, version = $3,
+               asignado_en = now(), actualizado_en = now() WHERE usuario_id = $1`,
+            [userId, role, nextVersion],
+          );
+        } else {
+          await client.query(
+            `INSERT INTO autenticacion.roles_usuario (usuario_id, rol)
+             VALUES ($1,$2)`,
+            [userId, role],
+          );
+        }
+        await client.query(
+          `INSERT INTO dominio.auditoria_admin (id, actor_id, accion, objetivo_id)
+           VALUES ($1,$2,$3,$4)`,
+          [crypto.randomUUID(), actorId, action, userId],
+        );
+        await client.query("COMMIT");
+        return { kind: "saved" as const, version: nextVersion };
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+    async removeRole(actorId: string, userId: string, version: number) {
+      if (actorId === userId) return { kind: "self_change" as const };
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query("SELECT pg_advisory_xact_lock(hashtext('notesia-admin-roles'))");
+        const existing = await client.query<{
+          role: "admin" | "support";
+          version: number;
+          active: boolean;
+        }>(
+          `SELECT r.rol AS role, r.version, u.suspendido_en IS NULL AS active
+           FROM autenticacion.roles_usuario r
+           JOIN autenticacion.usuarios u ON u.id = r.usuario_id
+           WHERE r.usuario_id = $1 FOR UPDATE OF r`,
+          [userId],
+        );
+        const current = existing.rows[0];
+        if (!current) {
+          await client.query("ROLLBACK");
+          return { kind: "not_found" as const };
+        }
+        if (current.version !== version) {
+          await client.query("ROLLBACK");
+          return { kind: "version_conflict" as const };
+        }
+        if (current.role === "admin" && current.active) {
+          const count = await client.query<{ count: string }>(
+            `SELECT count(*)::text AS count FROM autenticacion.roles_usuario r
+             JOIN autenticacion.usuarios u ON u.id = r.usuario_id
+             WHERE r.rol = 'admin' AND u.suspendido_en IS NULL`,
+          );
+          if (Number(count.rows[0]?.count ?? 0) <= 1) {
+            await client.query("ROLLBACK");
+            return { kind: "last_admin" as const };
+          }
+        }
+        await client.query("DELETE FROM autenticacion.roles_usuario WHERE usuario_id = $1", [
+          userId,
+        ]);
+        await client.query(
+          `INSERT INTO dominio.auditoria_admin (id, actor_id, accion, objetivo_id)
+           VALUES ($1,$2,'role.removed',$3)`,
+          [crypto.randomUUID(), actorId, userId],
+        );
+        await client.query("COMMIT");
+        return { kind: "removed" as const };
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+  };
+}
+
+export type AdminRepository = ReturnType<typeof createAdminRepository>;
