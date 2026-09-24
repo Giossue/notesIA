@@ -24,6 +24,7 @@ jobs:
       BETTER_AUTH_SECRET: backend-ci-only-secret-with-at-least-32-characters
       ALLOW_SIGNUP: "true"
       NODE_ENV: test
+      NOTESIA_CI_DATABASE_MARKER: notesia-ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -35,13 +36,16 @@ jobs:
         run: |
           psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c "create role notesia_app login password 'ci-only'"
           psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c "create database notesia_dev"
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -v marker="$NOTESIA_CI_DATABASE_MARKER" <<'SQL'
+          comment on database notesia_dev is :'marker';
+          SQL
       - run: bun run db:test:migrations:local
       - run: bun run db:migrate:local
       - run: bun run db:test:restore:local
       - run: bun run contracts:check
       - run: bun run lint
       - run: bun run typecheck
-      - run: bun test packages/config/src packages/domain/src packages/observability/src apps/api/src apps/worker/src
+      - run: bun test packages/config/src packages/db/src packages/domain/src packages/observability/src apps/api/src apps/worker/src
       - run: bun run build:api
       - run: bun run build:worker
       - run: bun run test:bundle-secrets

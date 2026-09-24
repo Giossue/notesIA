@@ -25,6 +25,13 @@ base dedicada y un rol con permiso de conexión; después completar `.env` con e
 Para desarrollo local, `.env` contiene `NODE_ENV=development` y `ALLOW_SIGNUP=true`;
 el valor predeterminado de registro es cerrado. `BETTER_AUTH_SECRET` es local y privado.
 
+Los scripts de migración y restauración aceptan directamente solo PostgreSQL en
+loopback, puerto 5432 y la base esperada. GitHub Actions usa un contenedor de servicio,
+cuya dirección vista por PostgreSQL no es loopback. En ese entorno el workflow marca
+la base efímera con el identificador del run; los scripts aceptan la excepción solo
+cuando `CI`, `GITHUB_ACTIONS`, el formato del marcador y el comentario de la base
+coinciden. Un marcador ausente o distinto conserva el rechazo del destino.
+
 Las migraciones se aplican como administrador **solo** a
 `127.0.0.1:5432/notesia_dev`. El script comprueba el destino, ejecuta todo en una
 transacción, verifica el hash de cada archivo y registra lo aplicado en
@@ -213,6 +220,25 @@ Tras construir API y worker, `test:bundle-secrets` busca los valores sensibles
 configurados en ambos bundles y, si existe, en el bundle móvil. Solo informa el
 nombre de la variable si detecta una filtración; CI ejecuta este gate después
 de los builds del backend.
+
+La API puede enviar las señales agregadas de salud a un receptor HTTPS mediante
+`OPS_ALERT_WEBHOOK_URL`, `OPS_ALERT_WEBHOOK_SECRET` y `OPS_ALERT_SOURCE`. Las tres
+variables son obligatorias para activarlo. La clave contiene 32 bytes en base64 y
+se conserva fuera del repositorio. El destino no admite credenciales, query ni
+fragmento en la URL. Por defecto la API consulta PostgreSQL cada 30 segundos y
+repite una condición activa cada 15 minutos; ambos intervalos se pueden acotar con
+las variables mostradas en `.env.example`. No se envían usuarios, payloads, SQL,
+URLs internas ni excepciones: solo el origen del despliegue, estado, fecha y los
+códigos de alerta con su cola.
+
+El cuerpo exacto se firma con HMAC-SHA256 en `X-NotesIA-Signature` y cada entrega
+incluye `Idempotency-Key`. El receptor debe verificar la firma antes de interpretar
+JSON, deduplicar esa clave y responder con `2xx`; un fallo se reintenta en el
+siguiente sondeo sin cambiar el identificador. Una primera lectura saludable no
+genera tráfico. Una transición a estado saludable envía una instantánea
+`resolved`. Varias réplicas pueden intentar el mismo evento y por eso la
+deduplicación del receptor forma parte del contrato operativo.
+
 El móvil ya ofrece registro, inicio y cierre de sesión con Better Auth y la cookie
 guardada en Android Keystore/iOS Keychain, además de consulta y edición de perfil,
 gestión de materias, actividades, subtareas y eventos fijos con control de versión. El backend

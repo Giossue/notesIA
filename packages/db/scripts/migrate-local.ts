@@ -3,6 +3,11 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "pg";
+import {
+  assertApprovedLocalDatabase,
+  type DatabaseTargetIdentity,
+  databaseTargetIdentitySql,
+} from "../src/local-database-guard";
 
 const database = process.argv[2];
 const baseline = process.argv.includes("--baseline-existing");
@@ -18,16 +23,9 @@ const client = new Client({ host: "127.0.0.1", port: 5432, user: "postgres", dat
 
 try {
   await client.connect();
-  const target = await client.query<{ db: string; localHost: boolean; port: number }>(
-    "select current_database() as db, inet_server_addr() = inet '127.0.0.1' as \"localHost\", inet_server_port() as port",
-  );
-  if (
-    target.rows[0]?.db !== database ||
-    target.rows[0]?.localHost !== true ||
-    target.rows[0]?.port !== 5432
-  ) {
-    throw new Error("Migration target is not the expected local PostgreSQL database");
-  }
+  const target = await client.query<DatabaseTargetIdentity>(databaseTargetIdentitySql);
+  if (!target.rows[0]) throw new Error("Migration target could not be identified");
+  assertApprovedLocalDatabase(target.rows[0], database, process.env);
 
   await client.query("BEGIN");
   await client.query("SELECT pg_advisory_xact_lock(hashtext('notesia-local-migrations'))");

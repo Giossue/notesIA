@@ -1,5 +1,10 @@
 import { expect, test } from "bun:test";
-import { httpArea, writeHttpObservation, writeWorkerObservation } from "./index";
+import {
+  httpArea,
+  writeHttpObservation,
+  writeOperationalMonitorObservation,
+  writeWorkerObservation,
+} from "./index";
 
 test("HTTP observations keep a fixed set of fields and classify paths without private data", () => {
   const lines: string[] = [];
@@ -54,4 +59,25 @@ test("worker failure observations omit exception details", () => {
     durationMs: 100,
   });
   expect(lines[0]).not.toContain("private SQL and payload");
+});
+
+test("operational alert observations expose only bounded delivery metadata", () => {
+  const lines: string[] = [];
+  writeOperationalMonitorObservation(
+    {
+      outcome: "error",
+      activeAlerts: 2,
+      durationMs: 50,
+      error: "private webhook URL and response",
+    } as Parameters<typeof writeOperationalMonitorObservation>[0],
+    (line) => lines.push(line),
+  );
+  expect(JSON.parse(lines[0] ?? "null")).toMatchObject({
+    type: "operational_alert_check",
+    outcome: "error",
+    activeAlerts: 2,
+    durationMs: 50,
+  });
+  expect(lines[0]).not.toContain("private");
+  expect(lines[0]).not.toContain("webhook");
 });

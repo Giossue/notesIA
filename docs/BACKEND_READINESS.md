@@ -17,7 +17,7 @@ entorno de producción.
 | 6. Offline y avisos | Idempotencia, versiones, outbox, avisos internos, horarios silenciosos, dispositivos push cifrados y adaptador FCM con pruebas simuladas. | Cola offline y conflictos visibles pertenecen al cliente móvil; entrega push real requiere proyecto y credenciales FCM. |
 | 7. IA | Gateway, cinco casos, tres adaptadores, consentimiento, fallback manual, cuota compartida, proveedor alterno por caso con transición auditada y conciliación de reservas inciertas. | Evaluar modelos, costos y políticas reales antes de habilitar una ruta. No hay conexiones configuradas. |
 | 8. Admin | API de roles, cuentas, documentos, proveedores, rutas, pruebas sintéticas, auditoría y salud, protegida con TOTP, reautenticación y rate limit. | Designar y provisionar la primera cuenta administradora; el panel visual no forma parte del backend. |
-| 9. Hardening | 99 pruebas Bun y 16 de móvil en el último pase completo, lint, tipos, contratos, builds, auditoría de dependencias de severidad alta, escaneo de bundles, prueba integrada API/DB y restauración aislada. El endpoint de salud ahora calcula señales de worker ausente, colas muertas y backlog sin exponer payloads. La carga local más reciente dio p95 de 16,8 ms en lista, 45,0 ms en creación y 84,3 ms en preview. | Faltan trazas API→BD→worker→proveedor, envío activo de alertas y señales de proveedor caído, costo anormal y error sostenido; repetir integración PostgreSQL tras las últimas ediciones y validar rendimiento, backup y entrega externa en el entorno objetivo. |
+| 9. Hardening | 104 pruebas backend pasaron en el último pase completo con PostgreSQL local; el último pase móvil conserva 16. También pasaron lint, tipos, contratos, builds, auditoría de dependencias de severidad alta y escaneo de bundles. El endpoint de salud calcula señales de worker ausente, colas muertas y backlog sin exponer payloads. La API puede entregarlas a un webhook HTTPS firmado, con idempotencia, resolución y repetición acotada. La carga local más reciente dio p95 de 16,8 ms en lista, 45,0 ms en creación y 84,3 ms en preview. | Faltan trazas API→BD→worker→proveedor y señales de proveedor caído, costo anormal y error sostenido; falta configurar y probar un receptor real y validar rendimiento, backup y entrega externa en el entorno objetivo. |
 
 ## Estado observado en la base local
 
@@ -27,13 +27,14 @@ ningún proveedor y ninguna ruta de IA. Las variables de SMTP, FCM, cifrado de I
 política de eliminación no estaban configuradas. Las pruebas que requieren textos
 legales usan bases aisladas con contenido sintético y las eliminan al terminar.
 
-Después del pase de 99 pruebas se amplió el test administrativo para probar el
-proveedor principal y el alterno con datos sintéticos, y se añadieron señales de
-salud. Las ediciones pasaron tipos, lint, contrato OpenAPI, builds y 12 pruebas
-puras relevantes; la integración PostgreSQL queda pendiente de repetición. El
-entorno aislado de la continuación no puede abrir sockets TCP ni alcanzar el
-PostgreSQL local. Esto limita la verificación actual, no cambia la persistencia
-de `notesia_dev` ni demuestra un fallo de la base.
+El pase actual ejecutó 104 pruebas backend, incluidas las integraciones con
+PostgreSQL local, sin fallos. También pasaron tipos, lint, contrato OpenAPI, builds,
+auditoría de dependencias y escaneo de secretos en bundles. Estas comprobaciones no
+validan la red, carga ni servicios externos del entorno de producción.
+
+La entrega de alertas operativas queda desactivada mientras no se configuren URL,
+clave HMAC y origen del despliegue. Su adaptador se probó con respuestas simuladas;
+no se ha enviado todavía a un receptor externo real.
 
 ## Entradas necesarias para activación
 

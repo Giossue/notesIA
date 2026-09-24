@@ -7,6 +7,8 @@ const secretNames = [
   "PUSH_ENCRYPTION_KEY",
   "SMTP_PASSWORD",
   "ACCOUNT_DELETION_AUDIT_KEY",
+  "OPS_ALERT_WEBHOOK_URL",
+  "OPS_ALERT_WEBHOOK_SECRET",
 ] as const;
 const requiredBundles = ["dist/api/index.js", "dist/worker/index.js"];
 const optionalBundles = ["dist/mobile/index.android.bundle"];

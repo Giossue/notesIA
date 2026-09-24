@@ -2,6 +2,11 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "pg";
+import {
+  assertApprovedLocalDatabase,
+  type DatabaseTargetIdentity,
+  databaseTargetIdentitySql,
+} from "../src/local-database-guard";
 
 const database = `notesia_migration_test_${crypto.randomUUID().replaceAll("-", "")}`;
 const adminConfig = { host: "127.0.0.1", port: 5432, user: "postgres" } as const;
@@ -14,17 +19,9 @@ let created = false;
 
 try {
   await admin.connect();
-  const target = await admin.query<{ db: string; localHost: boolean; port: number }>(
-    `select current_database() as db, inet_server_addr() = inet '127.0.0.1' as "localHost",
-      inet_server_port() as port`,
-  );
-  if (
-    target.rows[0]?.db !== "postgres" ||
-    target.rows[0]?.localHost !== true ||
-    target.rows[0]?.port !== 5432
-  ) {
-    throw new Error("Migration smoke test requires local PostgreSQL on 127.0.0.1:5432");
-  }
+  const target = await admin.query<DatabaseTargetIdentity>(databaseTargetIdentitySql);
+  if (!target.rows[0]) throw new Error("Migration smoke test could not identify PostgreSQL");
+  assertApprovedLocalDatabase(target.rows[0], "postgres", process.env);
   const role = await admin.query("select 1 from pg_roles where rolname = 'notesia_app'");
   if (!role.rowCount) throw new Error("Local notesia_app role is required");
   await admin.query(`create database "${database}"`);

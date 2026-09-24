@@ -1,4 +1,4 @@
-import { readDeletionPolicy } from "@notesia/config";
+import { readDeletionPolicy, readOperationalAlertConfig } from "@notesia/config";
 import {
   createAcademicPeriodRepository,
   createAccountDeletionRepository,
@@ -32,6 +32,7 @@ import { createApp } from "./app";
 import { auth } from "./auth/auth";
 import { createAiGateway } from "./modules/ai/gateway";
 import { createAiKeyCipher } from "./modules/ai/key-cipher";
+import { createOperationalMonitor } from "./operational-monitor";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -50,6 +51,11 @@ const pushCipher = process.env.PUSH_ENCRYPTION_KEY
   ? createPushTokenCipher(process.env.PUSH_ENCRYPTION_KEY)
   : null;
 const deletionPolicy = readDeletionPolicy(process.env);
+const operationalAlertConfig = readOperationalAlertConfig(process.env);
+const adminRepository = createAdminRepository(
+  repositoryPool,
+  process.env.BETTER_AUTH_SECRET as string,
+);
 const app = createApp(
   async () => {
     await database`SELECT 1`;
@@ -121,7 +127,7 @@ const app = createApp(
   },
   {
     getSession: (headers) => auth.api.getSession({ headers }),
-    admin: createAdminRepository(repositoryPool, process.env.BETTER_AUTH_SECRET as string),
+    admin: adminRepository,
     rateLimiter: createAdminRateLimiter(repositoryPool, process.env.BETTER_AUTH_SECRET as string),
     verifyPassword: async (headers, password) => {
       try {
@@ -187,3 +193,14 @@ Bun.serve({
   port: Number(process.env.PORT ?? 3000),
   fetch: app.fetch,
 });
+
+const operationalMonitor = operationalAlertConfig
+  ? createOperationalMonitor({
+      config: operationalAlertConfig,
+      readHealth: async () => {
+        const { worker, ...queues } = await adminRepository.systemHealth();
+        return { worker, queues };
+      },
+    })
+  : null;
+operationalMonitor?.start();

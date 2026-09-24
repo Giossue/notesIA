@@ -4,6 +4,12 @@ export {
   type OperationalHealth,
   type QueueHealth,
 } from "./health-alerts";
+export {
+  createOperationalAlertReporter,
+  type OperationalAlertFetch,
+  type OperationalAlertPayload,
+  type OperationalAlertReporter,
+} from "./operational-alerts";
 
 const areas = new Set([
   "auth",
@@ -93,6 +99,27 @@ export function writeWorkerObservation(
             aiReconciled: event.aiReconciled,
           }
         : {}),
+    }),
+  );
+}
+
+export type OperationalMonitorObservation = {
+  outcome: "sent" | "unchanged" | "error";
+  activeAlerts: number;
+  durationMs: number;
+};
+
+export function writeOperationalMonitorObservation(
+  event: OperationalMonitorObservation,
+  write: (line: string) => void = console.info,
+) {
+  write(
+    JSON.stringify({
+      type: "operational_alert_check",
+      at: new Date().toISOString(),
+      outcome: event.outcome,
+      activeAlerts: event.activeAlerts,
+      durationMs: event.durationMs,
     }),
   );
 }

@@ -74,8 +74,11 @@ acceder a rutas privadas. La API aplica `no-store` y `nosniff` a `/v1`. CI escan
 bundles del backend para evitar que valores sensibles configurados se incluyan
 literalmente. La API correlaciona `X-Request-Id` con Problem Details y emite
 latencia y estado HTTP en JSON sin rutas ni contenido privado; el worker emite
-contadores de trabajo y errores de ciclo sin el texto de la excepción. El gateway de IA
-tiene cinco casos acotados, tres adaptadores probados con respuestas simuladas,
+contadores de trabajo y errores de ciclo sin el texto de la excepción. La API
+también puede sondear las señales agregadas de worker y colas y entregarlas a un
+webhook HTTPS con firma HMAC, idempotencia, resolución y repetición acotada; no hay
+un receptor real configurado. El gateway de IA tiene cinco casos acotados, tres
+adaptadores probados con respuestas simuladas,
 consentimiento vigente, presupuesto y fallback manual; ningún proveedor ni modelo
 real está configurado. La reserva de cuota incluye mensaje, esquema, prompt y
 salida máxima; una prueba concurrente verifica el límite por usuario entre casos.

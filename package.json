@@ -20,7 +20,7 @@
     "contracts:check": "bun contracts/generate-openapi.ts --check",
     "lint": "biome check apps packages contracts/generate-openapi.ts",
     "typecheck": "tsc -p packages/config/tsconfig.json --noEmit && tsc -p packages/contracts/tsconfig.json --noEmit && tsc -p packages/domain/tsconfig.json --noEmit && tsc -p packages/db/tsconfig.json --noEmit && tsc -p packages/observability/tsconfig.json --noEmit && tsc -p apps/api/tsconfig.json --noEmit && tsc -p apps/worker/tsconfig.json --noEmit && tsc -p contracts/tsconfig.json --noEmit && tsc -p apps/mobile/tsconfig.json --noEmit",
-    "test": "bun test packages/config/src packages/domain/src packages/observability/src apps/api/src apps/worker/src apps/mobile/src && cd apps/mobile && bun run test:ui",
+    "test": "bun test packages/config/src packages/db/src packages/domain/src packages/observability/src apps/api/src apps/worker/src apps/mobile/src && cd apps/mobile && bun run test:ui",
     "build": "bun run build:api && bun run build:mobile",
     "build:api": "bun build apps/api/src/index.ts --target=bun --outdir=dist/api",
     "build:worker": "bun build apps/worker/src/index.ts --target=bun --outdir=dist/worker",

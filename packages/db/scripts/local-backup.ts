@@ -4,6 +4,11 @@ import { once } from "node:events";
 import { createReadStream } from "node:fs";
 import { open, unlink } from "node:fs/promises";
 import { Client } from "pg";
+import {
+  assertApprovedLocalDatabase,
+  type DatabaseTargetIdentity,
+  databaseTargetIdentitySql,
+} from "../src/local-database-guard";
 
 const host = "127.0.0.1";
 const port = 5432;
@@ -22,17 +27,9 @@ async function verifyLocalDatabase() {
   const client = new Client({ host, port, user, database });
   try {
     await client.connect();
-    const result = await client.query<{ db: string; localHost: boolean; serverPort: number }>(
-      `SELECT current_database() AS db,
-        inet_server_addr() = inet '127.0.0.1' AS "localHost",
-        inet_server_port() AS "serverPort"`,
-    );
-    if (
-      result.rows[0]?.db !== database ||
-      result.rows[0].localHost !== true ||
-      result.rows[0].serverPort !== port
-    )
-      throw new Error("Backup requires local notesia_dev on 127.0.0.1:5432");
+    const result = await client.query<DatabaseTargetIdentity>(databaseTargetIdentitySql);
+    if (!result.rows[0]) throw new Error("Backup target could not be identified");
+    assertApprovedLocalDatabase(result.rows[0], database, process.env);
   } finally {
     await client.end();
   }
@@ -123,17 +120,9 @@ export async function verifyEncryptedLocalRestore(filePath: string, encodedKey: 
   let created = false;
   try {
     await admin.connect();
-    const target = await admin.query<{ db: string; localHost: boolean; serverPort: number }>(
-      `SELECT current_database() AS db,
-        inet_server_addr() = inet '127.0.0.1' AS "localHost",
-        inet_server_port() AS "serverPort"`,
-    );
-    if (
-      target.rows[0]?.db !== "postgres" ||
-      target.rows[0].localHost !== true ||
-      target.rows[0].serverPort !== port
-    )
-      throw new Error("Restore verification requires local PostgreSQL");
+    const target = await admin.query<DatabaseTargetIdentity>(databaseTargetIdentitySql);
+    if (!target.rows[0]) throw new Error("Restore target could not be identified");
+    assertApprovedLocalDatabase(target.rows[0], "postgres", process.env);
     await admin.query(`CREATE DATABASE "${restoredName}"`);
     created = true;
     const child = spawn(

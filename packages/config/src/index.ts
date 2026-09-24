@@ -91,3 +91,84 @@ export function readDeletionPolicy(env: NodeJS.ProcessEnv): DeletionPolicy | nul
     throw new Error("ACCOUNT_DELETION_AUDIT_KEY must be canonical base64 for 32 bytes");
   return { graceDays, auditRetentionDays, auditKey };
 }
+
+export type OperationalAlertConfig = {
+  webhookUrl: string;
+  secret: Buffer;
+  source: string;
+  checkIntervalMs: number;
+  repeatIntervalMs: number;
+};
+
+function integerSeconds(
+  raw: string | undefined,
+  fallback: number,
+  name: string,
+  minimum: number,
+  maximum: number,
+) {
+  const value = Number(raw ?? fallback);
+  if (!Number.isInteger(value) || value < minimum || value > maximum)
+    throw new Error(`${name} must be an integer between ${minimum} and ${maximum}`);
+  return value;
+}
+
+export function readOperationalAlertConfig(env: NodeJS.ProcessEnv): OperationalAlertConfig | null {
+  const names = [
+    "OPS_ALERT_WEBHOOK_URL",
+    "OPS_ALERT_WEBHOOK_SECRET",
+    "OPS_ALERT_SOURCE",
+    "OPS_ALERT_CHECK_INTERVAL_SECONDS",
+    "OPS_ALERT_REPEAT_INTERVAL_SECONDS",
+  ] as const;
+  if (!names.some((name) => env[name])) return null;
+  const webhookUrl = env.OPS_ALERT_WEBHOOK_URL;
+  const encodedSecret = env.OPS_ALERT_WEBHOOK_SECRET;
+  const source = env.OPS_ALERT_SOURCE;
+  if (!webhookUrl || !encodedSecret || !source)
+    throw new Error("Operational alerts require webhook URL, webhook secret and source");
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(webhookUrl);
+  } catch {
+    throw new Error("OPS_ALERT_WEBHOOK_URL must be a valid HTTPS URL");
+  }
+  if (
+    parsedUrl.protocol !== "https:" ||
+    parsedUrl.username ||
+    parsedUrl.password ||
+    parsedUrl.search ||
+    parsedUrl.hash
+  )
+    throw new Error("OPS_ALERT_WEBHOOK_URL must be HTTPS without credentials, query or hash");
+  if (!/^[a-z0-9][a-z0-9._-]{2,63}$/.test(source))
+    throw new Error("OPS_ALERT_SOURCE must be a lowercase deployment identifier");
+  const secret = Buffer.from(encodedSecret, "base64");
+  if (secret.length !== 32 || secret.toString("base64") !== encodedSecret)
+    throw new Error("OPS_ALERT_WEBHOOK_SECRET must be canonical base64 for 32 bytes");
+  const checkIntervalSeconds = integerSeconds(
+    env.OPS_ALERT_CHECK_INTERVAL_SECONDS,
+    30,
+    "OPS_ALERT_CHECK_INTERVAL_SECONDS",
+    10,
+    300,
+  );
+  const repeatIntervalSeconds = integerSeconds(
+    env.OPS_ALERT_REPEAT_INTERVAL_SECONDS,
+    900,
+    "OPS_ALERT_REPEAT_INTERVAL_SECONDS",
+    60,
+    86400,
+  );
+  if (repeatIntervalSeconds < checkIntervalSeconds)
+    throw new Error(
+      "OPS_ALERT_REPEAT_INTERVAL_SECONDS must not be shorter than the check interval",
+    );
+  return {
+    webhookUrl: parsedUrl.toString(),
+    secret,
+    source,
+    checkIntervalMs: checkIntervalSeconds * 1000,
+    repeatIntervalMs: repeatIntervalSeconds * 1000,
+  };
+}

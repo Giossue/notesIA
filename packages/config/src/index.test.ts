@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { readDeletionPolicy, readRecoveryConfig } from "./index";
+import { readDeletionPolicy, readOperationalAlertConfig, readRecoveryConfig } from "./index";
 
 const valid = {
   PASSWORD_RESET_URL: "https://app.example.test/reset-password",
@@ -35,4 +35,52 @@ test("account deletion remains disabled until the full retention policy is confi
       ACCOUNT_DELETION_AUDIT_KEY: key,
     }),
   ).toMatchObject({ graceDays: 7, auditRetentionDays: 365 });
+});
+
+test("operational alerts require a signed HTTPS destination and bounded intervals", () => {
+  expect(readOperationalAlertConfig({})).toBeNull();
+  expect(() => readOperationalAlertConfig({ OPS_ALERT_SOURCE: "notesia-production" })).toThrow();
+  const secret = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64");
+  const valid = {
+    OPS_ALERT_WEBHOOK_URL: "https://alerts.example.test/notesia",
+    OPS_ALERT_WEBHOOK_SECRET: secret,
+    OPS_ALERT_SOURCE: "notesia-production",
+  };
+  expect(readOperationalAlertConfig(valid)).toMatchObject({
+    webhookUrl: "https://alerts.example.test/notesia",
+    source: "notesia-production",
+    checkIntervalMs: 30000,
+    repeatIntervalMs: 900000,
+  });
+  expect(readOperationalAlertConfig(valid)?.secret.equals(Buffer.from(secret, "base64"))).toBe(
+    true,
+  );
+  expect(() =>
+    readOperationalAlertConfig({ ...valid, OPS_ALERT_WEBHOOK_URL: "http://alerts.example.test" }),
+  ).toThrow();
+  expect(() =>
+    readOperationalAlertConfig({ ...valid, OPS_ALERT_WEBHOOK_URL: "not a URL with private data" }),
+  ).toThrow("OPS_ALERT_WEBHOOK_URL must be a valid HTTPS URL");
+  expect(() =>
+    readOperationalAlertConfig({
+      ...valid,
+      OPS_ALERT_WEBHOOK_URL: "https://alerts.example.test/hook?token=private",
+    }),
+  ).toThrow();
+  expect(() =>
+    readOperationalAlertConfig({ ...valid, OPS_ALERT_WEBHOOK_SECRET: "not-a-key" }),
+  ).toThrow();
+  expect(() =>
+    readOperationalAlertConfig({ ...valid, OPS_ALERT_SOURCE: "Production NotesIA" }),
+  ).toThrow();
+  expect(() =>
+    readOperationalAlertConfig({ ...valid, OPS_ALERT_CHECK_INTERVAL_SECONDS: "9" }),
+  ).toThrow();
+  expect(() =>
+    readOperationalAlertConfig({
+      ...valid,
+      OPS_ALERT_CHECK_INTERVAL_SECONDS: "120",
+      OPS_ALERT_REPEAT_INTERVAL_SECONDS: "60",
+    }),
+  ).toThrow();
 });

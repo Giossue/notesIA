@@ -65,8 +65,9 @@ administrador, con respuesta `429` y `Retry-After` al superar el límite.
   listo más antiguo. `alerts` señala un worker sin latido reciente, mensajes
   muertos y backlog de al menos 100 mensajes listos o uno listo durante más de
   cinco minutos. No contiene usuarios ni payloads; un latido reciente no prueba
-  que todos los envíos hayan terminado. Estas señales se consultan desde admin;
-  todavía falta enviarlas a un sistema de alertas operativo.
+  que todos los envíos hayan terminado. Estas señales se consultan desde admin y,
+  al configurar el webhook operativo de la API, se envían como una instantánea
+  firmada cuando cambian y periódicamente mientras siguen activas.
 
 La ruta solo opera cuando proveedor y caso están habilitados. Cada llamada reserva
 una reserva conservadora que incluye bytes UTF-8 del mensaje, esquema y prompt,
