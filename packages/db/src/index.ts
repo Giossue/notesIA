@@ -40,6 +40,11 @@ export {
 } from "./calendar-event-repository";
 export { createIdempotencyRepository, type IdempotencyRepository } from "./idempotency-repository";
 export {
+  assertApprovedLocalDatabase,
+  type DatabaseTargetIdentity,
+  databaseTargetIdentitySql,
+} from "./local-database-guard";
+export {
   createNotificationPreferenceRepository,
   type NotificationPreferenceRepository,
 } from "./notification-preference-repository";

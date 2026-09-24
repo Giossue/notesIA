@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  assertApprovedLocalDatabase,
   createActivityRepository,
   createAiContextRepository,
   createAiRepository,
@@ -16,6 +17,8 @@ import {
   createProfileRepository,
   createSubjectRepository,
   createTimeEntryRepository,
+  type DatabaseTargetIdentity,
+  databaseTargetIdentitySql,
 } from "@notesia/db";
 import { Client, Pool } from "pg";
 import { createApp } from "./app";
@@ -54,16 +57,9 @@ let created = false;
 
 beforeAll(async () => {
   await admin.connect();
-  const target = await admin.query<{ db: string; localHost: boolean; port: number }>(
-    `SELECT current_database() AS db,
-      inet_server_addr() = inet '127.0.0.1' AS "localHost", inet_server_port() AS port`,
-  );
-  if (
-    target.rows[0]?.db !== "postgres" ||
-    target.rows[0]?.localHost !== true ||
-    target.rows[0]?.port !== 5432
-  )
-    throw new Error("Backend flow tests require local PostgreSQL on 127.0.0.1:5432");
+  const target = await admin.query<DatabaseTargetIdentity>(databaseTargetIdentitySql);
+  if (!target.rows[0]) throw new Error("Backend flow database could not be identified");
+  assertApprovedLocalDatabase(target.rows[0], "postgres", process.env);
   await admin.query(`CREATE DATABASE "${testName}"`);
   created = true;
   seed = new Pool({ host: "127.0.0.1", port: 5432, user: "postgres", database: testName });

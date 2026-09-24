@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { join } from "node:path";
+import {
+  assertApprovedLocalDatabase,
+  type DatabaseTargetIdentity,
+  databaseTargetIdentitySql,
+} from "@notesia/db";
 import { Pool } from "pg";
 import { aiCases } from "./modules/ai/cases";
 
@@ -147,16 +152,9 @@ async function request(item: Route, sessionCookie?: string) {
 }
 
 beforeAll(async () => {
-  const verified = await pool.query<{ database: string; address: string; port: number }>(
-    `SELECT current_database() AS database, host(inet_server_addr()) AS address,
-       inet_server_port() AS port`,
-  );
-  if (
-    verified.rows[0]?.database !== "notesia_dev" ||
-    verified.rows[0]?.port !== 5432 ||
-    !["127.0.0.1", "::1"].includes(verified.rows[0]?.address)
-  )
-    throw new Error("Connected PostgreSQL target is not local notesia_dev");
+  const verified = await pool.query<DatabaseTargetIdentity>(databaseTargetIdentitySql);
+  if (!verified.rows[0]) throw new Error("Security test database could not be identified");
+  assertApprovedLocalDatabase(verified.rows[0], "notesia_dev", process.env);
   const reservation = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
