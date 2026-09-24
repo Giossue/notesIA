@@ -8,7 +8,7 @@ entorno de producción.
 
 | Etapa | Evidencia actual | Pendiente para cierre real |
 |---|---|---|
-| 0. Fundaciones | 42 migraciones aplicadas a `notesia_dev`, migración desde cero y restauración cifrada aislada; Problem Details, contratos OpenAPI y workflow de CI definidos. | Observar una ejecución de CI en el repositorio remoto. |
+| 0. Fundaciones | 42 migraciones aplicadas a `notesia_dev`, migración desde cero y restauración cifrada aislada; Problem Details y contratos OpenAPI. El workflow `Backend` pasó completo en GitHub Actions para `b1d137b`. | Ningún pendiente de fundación backend identificado en esta revisión. |
 | 1. Auth y privacidad | Registro, sesión cifrada y revocable, recuperación, perfil, preferencias, documentos/consentimientos versionados, exportación y eliminación condicionada por política; pruebas negativas y de acceso cruzado. | Verificación de correo para acciones sensibles; textos legales aprobados; plazos de eliminación, auditoría y backups; SMTP real. |
 | 2. Organización | Periodos, materias, actividades, subtareas, recurrencia, eventos y consultas de agenda por rango con PostgreSQL y pruebas de aislamiento. | Prueba de flujo en dispositivo para las pantallas móviles; fuera del backend. |
 | 3. Disponibilidad | Reglas, excepciones, conflictos y capacidad por zona horaria; pruebas con cambios de horario. | Ningún pendiente de código backend identificado en esta revisión. |
@@ -29,8 +29,10 @@ legales usan bases aisladas con contenido sintético y las eliminan al terminar.
 
 El pase actual ejecutó 104 pruebas backend, incluidas las integraciones con
 PostgreSQL local, sin fallos. También pasaron tipos, lint, contrato OpenAPI, builds,
-auditoría de dependencias y escaneo de secretos en bundles. Estas comprobaciones no
-validan la red, carga ni servicios externos del entorno de producción.
+auditoría de dependencias y escaneo de secretos en bundles. GitHub Actions repitió
+con éxito esos gates, además de la migración desde cero y la restauración cifrada,
+en el commit `b1d137b`. Estas comprobaciones no validan la red, carga ni servicios
+externos del entorno de producción.
 
 La entrega de alertas operativas queda desactivada mientras no se configuren URL,
 clave HMAC y origen del despliegue. Su adaptador se probó con respuestas simuladas;
