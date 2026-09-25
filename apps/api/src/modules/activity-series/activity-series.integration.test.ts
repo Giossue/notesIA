@@ -6,7 +6,6 @@ import {
   createActivityRepository,
   createActivitySeriesRepository,
   createProfileRepository,
-  createSubjectRepository,
 } from "@notesia/db";
 import { Client, Pool } from "pg";
 import { createApp } from "../../app";
@@ -62,9 +61,7 @@ beforeAll(async () => {
     async () => {},
     created.auth.handler,
     { getSession, profiles },
-    { getSession, subjects: createSubjectRepository(pool) },
     { getSession, activities, profiles },
-    undefined,
     undefined,
     undefined,
     undefined,
@@ -119,21 +116,9 @@ test("series generate scoped independent instances and replay safely", async () 
     }),
   });
   expect(profile.status).toBe(200);
-  const subjectId = crypto.randomUUID();
-  expect(
-    (
-      await app.request("/v1/subjects", {
-        method: "POST",
-        headers: headers(a),
-        body: JSON.stringify({ id: subjectId, name: "Cálculo", colorToken: "primary" }),
-      })
-    ).status,
-  ).toBe(201);
-
   const id = crypto.randomUUID();
   const input = {
     id,
-    subjectId,
     kind: "academic_task",
     title: "Repasar",
     description: null,
@@ -176,15 +161,6 @@ test("series generate scoped independent instances and replay safely", async () 
     404,
   );
   expect((await app.request("/v1/activity-series", { headers: { cookie: b } })).status).toBe(200);
-  expect(
-    (
-      await app.request("/v1/activity-series", {
-        method: "POST",
-        headers: headers(b),
-        body: JSON.stringify({ ...input, id: crypto.randomUUID() }),
-      })
-    ).status,
-  ).toBe(422);
 
   const list = await app.request(`/v1/activities?seriesId=${id}`, { headers: { cookie: a } });
   expect(list.status).toBe(200);
@@ -213,7 +189,6 @@ test("series generate scoped independent instances and replay safely", async () 
     method: "PATCH",
     headers: headers(a),
     body: JSON.stringify({
-      subjectId,
       kind: "academic_task",
       title: "Repaso cambiado",
       description: null,
@@ -289,7 +264,6 @@ test("series cursor visits every row exactly once", async () => {
       headers: headers(cookie),
       body: JSON.stringify({
         id: crypto.randomUUID(),
-        subjectId: null,
         kind: "routine",
         title: `Rutina ${index}`,
         description: null,

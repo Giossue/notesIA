@@ -18,7 +18,7 @@ const days = ["21", "22", "23", "24", "25", "26", "27"].map((day, index) => ({
   due: index === 2 ? 4 : 1,
 }));
 
-test("estadísticas muestra el avance semanal, las materias y la racha", async () => {
+test("estadísticas muestra el avance semanal, los tipos de actividad y la racha", async () => {
   (useQuery as jest.Mock).mockReturnValue({
     data: {
       day: "2026-09-23",
@@ -27,14 +27,10 @@ test("estadísticas muestra el avance semanal, las materias y la racha", async (
       inProgress: 1,
       overdue: 0,
       week: { from: "2026-09-21", through: "2026-09-28", due: 10, completedDue: 7, days },
-      subjects: [
-        {
-          subjectId: "7d1f1c0e-4f2a-4d5e-9a1b-2c3d4e5f6a7b",
-          name: "Cálculo",
-          colorToken: "secondary",
-          total: 10,
-          completed: 7,
-        },
+      categories: [
+        { category: "academic", total: 10, completed: 7 },
+        { category: "personal", total: 2, completed: 1 },
+        { category: "daily", total: 0, completed: 0 },
       ],
       streakDays: 3,
     },
@@ -51,8 +47,10 @@ test("estadísticas muestra el avance semanal, las materias y la racha", async (
   expect(screen.getAllByText("70%").length).toBeGreaterThan(0);
   expect(screen.getByText("21 – 27 sep")).toBeOnTheScreen();
   expect(screen.getByText("7 de 10 entregas de la semana")).toBeOnTheScreen();
-  expect(screen.getAllByText("Cálculo")).toHaveLength(2);
-  expect(screen.getByText("7 de 10 tareas")).toBeOnTheScreen();
+  // Leyenda de los anillos y tarjeta del tipo.
+  expect(screen.getAllByText("Académica")).toHaveLength(2);
+  expect(screen.getByText("7 de 10")).toBeOnTheScreen();
+  expect(screen.getByText("Cotidiana")).toBeOnTheScreen();
   expect(screen.getByText("Racha de 3 días")).toBeOnTheScreen();
   expect(screen.getByLabelText("Mié: 3 completadas de 4 con plazo")).toBeOnTheScreen();
 });

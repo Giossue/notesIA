@@ -10,6 +10,7 @@ import { listActivities } from "@/core/api/activities";
 import { getProfile } from "@/core/api/profile";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
+import { kindLabel } from "@/shared/activity-kinds";
 import { EmptyState } from "@/shared/EmptyState";
 import { userMessage } from "@/shared/errors";
 import { Button, Card } from "@/shared/paper";
@@ -97,14 +98,7 @@ export function ActivityListScreen() {
           <Card.Content style={sharedStyles.listItem}>
             <Text variant="titleMedium">{item.title}</Text>
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              {statusLabels[item.status]} ·{" "}
-              {item.kind === "exam"
-                ? "Examen"
-                : item.kind === "routine"
-                  ? "Rutina"
-                  : item.kind === "personal"
-                    ? "Personal"
-                    : "Tarea académica"}
+              {statusLabels[item.status]} · {kindLabel(item.kind)}
             </Text>
             {item.deadlineAt && profile.data && (
               <Text variant="bodySmall">

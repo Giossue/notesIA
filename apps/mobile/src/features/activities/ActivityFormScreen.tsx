@@ -4,7 +4,7 @@ import { localDateTimeToUtc, utcToLocalDateTime } from "@notesia/domain";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
@@ -13,18 +13,12 @@ import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import { createActivity, getActivity, updateActivity } from "@/core/api/activities";
 import { getProfile } from "@/core/api/profile";
-import { listSubjects } from "@/core/api/subjects";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
+import { kindChoices } from "@/shared/activity-kinds";
 import { userMessage } from "@/shared/errors";
-import {
-  DateTimeField,
-  DurationField,
-  FormSection,
-  LabeledField,
-  SelectField,
-} from "@/shared/fields";
-import { Button, Menu, TextInput } from "@/shared/paper";
+import { DateTimeField, DurationField, FormSection, LabeledField } from "@/shared/fields";
+import { Button, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { Tabs } from "@/shared/Tabs";
 import { ActivityActions } from "./ActivityActions";
@@ -44,7 +38,6 @@ const formSchema = z
     description: z.string().trim().max(10000),
     kind: z.enum(["academic_task", "exam", "personal", "routine"]),
     priority: z.enum(["low", "medium", "high", "critical"]),
-    subjectId: z.union([z.literal(""), z.uuid()]),
     startAfterLocal: localDateTime,
     deadlineLocal: localDateTime,
     estimatedMinutes: z
@@ -62,12 +55,6 @@ const formSchema = z
   );
 type FormValues = z.infer<typeof formSchema>;
 
-const kindLabels = {
-  academic_task: "Tarea académica",
-  exam: "Examen",
-  personal: "Personal",
-  routine: "Rutina",
-};
 const priorityLabels = {
   low: "Baja",
   medium: "Media",
@@ -154,14 +141,6 @@ function ActivityForm({
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
   const [newId] = useState(() => uuidv4());
-  const subjects = useInfiniteQuery({
-    queryKey: ["subjects", false],
-    queryFn: ({ pageParam }) => listSubjects(false, pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-    retry: false,
-  });
-  const subjectItems = subjects.data?.pages.flatMap((page) => page.items) ?? [];
   const {
     control,
     handleSubmit,
@@ -175,7 +154,6 @@ function ActivityForm({
       description: activity?.description ?? draft?.description ?? "",
       kind: activity?.kind ?? "academic_task",
       priority: activity?.priority ?? "medium",
-      subjectId: activity?.subjectId ?? "",
       startAfterLocal: activity?.startAfterAt
         ? utcToLocalDateTime(activity.startAfterAt, profile.timeZone).replace("T", " ")
         : "",
@@ -190,7 +168,6 @@ function ActivityForm({
   });
   const selectedKind = watch("kind");
   const selectedPriority = watch("priority");
-  const selectedSubject = watch("subjectId");
   const save = useMutation({
     mutationFn: (values: FormValues) => {
       const fields = {
@@ -198,7 +175,6 @@ function ActivityForm({
         title: values.title.trim(),
         description: values.description.trim() || null,
         priority: values.priority,
-        subjectId: values.subjectId || null,
         startAfterAt: toUtc(values.startAfterLocal, profile.timeZone),
         deadlineAt: toUtc(values.deadlineLocal, profile.timeZone),
         estimatedMinutes: values.estimatedMinutes ? Number(values.estimatedMinutes) : null,
@@ -260,35 +236,17 @@ function ActivityForm({
       </FormSection>
 
       <FormSection title="Clasificación">
-        <SelectField
-          label="Tipo"
-          value={selectedKind}
-          options={option(kindLabels)}
-          onChange={(value) => setValue("kind", value)}
-        />
-        <SelectField
-          label="Materia"
-          value={selectedSubject}
-          options={[
-            { value: "", label: "Ninguna" },
-            ...subjectItems.map((item) => ({ value: item.id, label: item.name })),
-          ]}
-          onChange={(value) => setValue("subjectId", value)}
-          footer={
-            subjects.hasNextPage && (
-              <Menu.Item
-                title="Cargar más materias"
-                onPress={() => void subjects.fetchNextPage()}
-              />
-            )
-          }
-        />
-        {subjects.isError && (
-          <View style={styles.message}>
-            <Text accessibilityRole="alert">{userMessage(subjects.error)}</Text>
-            <Button onPress={() => void subjects.refetch()}>Reintentar materias</Button>
-          </View>
-        )}
+        <LabeledField label="Tipo">
+          <Tabs
+            // Un examen se clasifica como académica; se conserva si no se cambia.
+            value={selectedKind === "exam" ? "academic_task" : selectedKind}
+            onValueChange={(value) => {
+              if (value === "academic_task" && selectedKind === "exam") return;
+              setValue("kind", value);
+            }}
+            buttons={[...kindChoices]}
+          />
+        </LabeledField>
         <LabeledField label="Prioridad">
           <Tabs
             value={selectedPriority}

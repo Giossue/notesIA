@@ -10,6 +10,8 @@ import { Button } from "@/shared/paper";
 const eventLabels = {
   completed: "Completada",
   reopened: "Reactivada",
+  started: "Marcada en progreso",
+  paused: "Marcada como pendiente",
   cancelled: "Cancelada",
   progress_updated: "Progreso actualizado",
   deleted: "Eliminada",

@@ -1,6 +1,7 @@
 import type { AvatarId } from "@notesia/contracts";
 import { z } from "zod";
 import { getApiBaseUrl } from "@/core/config/api";
+import { disableCurrentPushDevice } from "@/core/push/push-registration";
 import { clearSessionCookie, getSessionCookie, setSessionCookie } from "./session-storage";
 
 const userSchema = z.object({
@@ -142,6 +143,8 @@ export async function requestPasswordReset(email: string) {
 
 export async function signOut() {
   if (await getSessionCookie()) {
+    // Deja de recibir avisos de esta cuenta en este teléfono antes de salir.
+    await disableCurrentPushDevice().catch(() => {});
     await authRequest("/sign-out", { method: "POST" });
   }
   await clearSessionCookie();

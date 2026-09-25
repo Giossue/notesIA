@@ -1,9 +1,5 @@
 import { afterAll, expect, test } from "bun:test";
-import {
-  createActivityRepository,
-  createProfileRepository,
-  createSubjectRepository,
-} from "@notesia/db";
+import { createActivityRepository, createProfileRepository } from "@notesia/db";
 import { createApp } from "../../app";
 import { createAuth } from "../../auth/create-auth";
 
@@ -25,14 +21,12 @@ const { auth, pool } = createAuth({
   allowUnverifiedEmailForTests: true,
 });
 const profiles = createProfileRepository(pool);
-const subjects = createSubjectRepository(pool);
 const activities = createActivityRepository(pool);
 const getSession = (headers: Headers) => auth.api.getSession({ headers });
 const app = createApp(
   async () => {},
   auth.handler,
   { getSession, profiles },
-  { getSession, subjects },
   { getSession, activities, profiles },
 );
 
@@ -93,18 +87,9 @@ test("activities stay private, use profile time zone, and keep transition histor
   });
   expect(profile.status).toBe(200);
 
-  const subjectId = crypto.randomUUID();
-  const subject = await app.request("/v1/subjects", {
-    method: "POST",
-    headers: jsonHeaders(cookieA),
-    body: JSON.stringify({ id: subjectId, name: "Cálculo", colorToken: "primary" }),
-  });
-  expect(subject.status).toBe(201);
-
   const id = crypto.randomUUID();
   const input = {
     id,
-    subjectId,
     kind: "academic_task",
     title: "Resolver ejercicios",
     description: "Capítulo 2",
@@ -140,12 +125,6 @@ test("activities stay private, use profile time zone, and keep transition histor
   });
   expect(changedRetry.status).toBe(409);
 
-  const foreignSubject = await app.request("/v1/activities", {
-    method: "POST",
-    headers: jsonHeaders(cookieB),
-    body: JSON.stringify({ ...input, id: crypto.randomUUID() }),
-  });
-  expect(foreignSubject.status).toBe(422);
   expect((await app.request(`/v1/activities/${id}`, { headers: { cookie: cookieB } })).status).toBe(
     404,
   );
@@ -300,10 +279,34 @@ test("activities stay private, use profile time zone, and keep transition histor
   });
   expect(((await afterReactivate.json()) as { items: unknown[] }).items).toHaveLength(5);
 
+  // RF-15: pausar e iniciar cambian el estado sin tocar el avance.
+  const pause = await app.request(`/v1/activities/${id}/pause`, {
+    method: "POST",
+    headers: jsonHeaders(cookieA),
+    body: JSON.stringify({ version: 7, mutationId: crypto.randomUUID() }),
+  });
+  expect(await pause.json()).toMatchObject({ status: "backlog", progressPercent: 40, version: 8 });
+  const start = await app.request(`/v1/activities/${id}/start`, {
+    method: "POST",
+    headers: jsonHeaders(cookieA),
+    body: JSON.stringify({ version: 8, mutationId: crypto.randomUUID() }),
+  });
+  expect(await start.json()).toMatchObject({
+    status: "in_progress",
+    progressPercent: 40,
+    version: 9,
+  });
+  const startAgain = await app.request(`/v1/activities/${id}/start`, {
+    method: "POST",
+    headers: jsonHeaders(cookieA),
+    body: JSON.stringify({ version: 9, mutationId: crypto.randomUUID() }),
+  });
+  expect(startAgain.status).toBe(409);
+
   const archive = await app.request(`/v1/activities/${id}/archive`, {
     method: "POST",
     headers: jsonHeaders(cookieA),
-    body: JSON.stringify({ version: 7 }),
+    body: JSON.stringify({ version: 9 }),
   });
   expect(archive.status).toBe(200);
   expect(((await archive.json()) as { archivedAt: string | null }).archivedAt).not.toBeNull();
@@ -316,14 +319,13 @@ test("activities stay private, use profile time zone, and keep transition histor
   const restore = await app.request(`/v1/activities/${id}/restore`, {
     method: "POST",
     headers: jsonHeaders(cookieA),
-    body: JSON.stringify({ version: 8 }),
+    body: JSON.stringify({ version: 10 }),
   });
   expect(restore.status).toBe(200);
 
   await Promise.all(
     Array.from({ length: 21 }, (_, number) =>
       activities.create(a.userId, crypto.randomUUID(), {
-        subjectId: null,
         kind: "personal",
         title: `Actividad ${number}`,
         description: null,
@@ -353,7 +355,7 @@ test("activities stay private, use profile time zone, and keep transition histor
   expect(new Set([...page1.items, ...page2.items].map((row) => row.id)).size).toBe(22);
 
   const deletionPath = `/v1/activities/${id}`;
-  const deletion = { version: 9, mutationId: crypto.randomUUID() };
+  const deletion = { version: 11, mutationId: crypto.randomUUID() };
   expect(
     (
       await app.request(deletionPath, {
@@ -378,7 +380,7 @@ test("activities stay private, use profile time zone, and keep transition histor
       await app.request(deletionPath, {
         method: "DELETE",
         headers: jsonHeaders(cookieA),
-        body: JSON.stringify({ ...deletion, version: 8 }),
+        body: JSON.stringify({ ...deletion, version: 10 }),
       })
     ).status,
   ).toBe(409);
@@ -423,7 +425,6 @@ test("summary counts today, pending, in progress and overdue for the owner only"
       headers: jsonHeaders(cookieA),
       body: JSON.stringify({
         id: crypto.randomUUID(),
-        subjectId: null,
         kind: "academic_task",
         title: "Resumen",
         description: null,
@@ -453,7 +454,6 @@ test("summary counts today, pending, in progress and overdue for the owner only"
 
   const weekly = body as unknown as {
     week: { days: Array<{ date: string; completed: number; due: number }> };
-    subjects: unknown[];
     streakDays: number;
   };
   expect(weekly.week.days).toHaveLength(7);
@@ -463,10 +463,8 @@ test("summary counts today, pending, in progress and overdue for the owner only"
   const other = await app.request("/v1/activities/summary", { headers: { cookie: cookieB } });
   const otherBody = (await other.json()) as {
     pending: number;
-    subjects: unknown[];
     week: { due: number };
   };
   expect(otherBody.pending).toBe(0);
-  expect(otherBody.subjects).toHaveLength(0);
   expect(otherBody.week.due).toBe(0);
 });

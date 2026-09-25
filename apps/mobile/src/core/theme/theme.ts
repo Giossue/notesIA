@@ -1,7 +1,7 @@
 import { configureFonts, MD3DarkTheme, MD3LightTheme, type MD3Theme } from "react-native-paper";
 
 // Azul vivo como color principal; naranja, cian y rosa identifican categorías
-// (materias, tipos de evento). Rojo-rosa solo para atrasado/riesgo alto.
+// (tipos de actividad y de evento). Rojo-rosa solo para atrasado/riesgo alto.
 export const iconTint = { light: "#3468E1", dark: "#3A6EE6" } as const;
 
 export const categoryColors = {
@@ -10,13 +10,6 @@ export const categoryColors = {
 } as const;
 
 export type CategoryColor = keyof (typeof categoryColors)["light"];
-
-/** Color de categoría para el color elegido en una materia. */
-export const subjectCategory = {
-  primary: "blue",
-  secondary: "orange",
-  tertiary: "cyan",
-} as const satisfies Record<string, CategoryColor>;
 
 export const statusColors = {
   light: { done: "#15803D", ongoing: "#F97316", overdue: "#E11D48" },

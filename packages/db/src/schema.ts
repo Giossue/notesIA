@@ -59,45 +59,12 @@ export const notificationPreferences = domainSchema.table("preferencias_avisos",
   updatedAt: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const subjects = domainSchema.table("materias", {
-  id: uuid("id").primaryKey(),
-  sortOrder: bigint("orden", { mode: "bigint" }).notNull().generatedAlwaysAsIdentity(),
-  userId: uuid("usuario_id")
-    .notNull()
-    .references(() => authUsers.id, { onDelete: "cascade" }),
-  periodId: uuid("periodo_id"),
-  name: varchar("nombre", { length: 160 }).notNull(),
-  colorToken: text("color", { enum: ["primary", "secondary", "tertiary"] })
-    .notNull()
-    .default("primary"),
-  createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
-  archivedAt: timestamp("archivado_en", { withTimezone: true }),
-  deletedAt: timestamp("eliminado_en", { withTimezone: true }),
-  version: integer("version").notNull().default(1),
-});
-
-export const academicPeriods = domainSchema.table("periodos_academicos", {
-  id: uuid("id").primaryKey(),
-  sortOrder: bigint("orden", { mode: "bigint" }).notNull().generatedAlwaysAsIdentity(),
-  userId: uuid("usuario_id")
-    .notNull()
-    .references(() => authUsers.id, { onDelete: "cascade" }),
-  name: varchar("nombre", { length: 120 }).notNull(),
-  startsOn: date("inicia_el", { mode: "string" }).notNull(),
-  endsOn: date("termina_el", { mode: "string" }).notNull(),
-  version: integer("version").notNull().default(1),
-  archivedAt: timestamp("archivado_en", { withTimezone: true }),
-  updatedAt: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
-});
-
 export const activitySeries = domainSchema.table("series_actividades", {
   id: uuid("id").primaryKey(),
   sortOrder: bigint("orden", { mode: "bigint" }).notNull().generatedAlwaysAsIdentity(),
   userId: uuid("usuario_id")
     .notNull()
     .references(() => authUsers.id, { onDelete: "cascade" }),
-  subjectId: uuid("materia_id"),
   kind: text("tipo", { enum: ["academic_task", "personal", "routine"] }).notNull(),
   title: varchar("titulo", { length: 240 }).notNull(),
   description: text("descripcion"),
@@ -119,7 +86,6 @@ export const activities = domainSchema.table("actividades", {
     .references(() => authUsers.id, { onDelete: "cascade" }),
   seriesId: uuid("serie_id").references(() => activitySeries.id, { onDelete: "cascade" }),
   occursOn: date("ocurre_el", { mode: "string" }),
-  subjectId: uuid("materia_id"),
   kind: text("tipo", { enum: ["academic_task", "exam", "personal", "routine"] }).notNull(),
   title: varchar("titulo", { length: 240 }).notNull(),
   description: text("descripcion"),
@@ -147,7 +113,15 @@ export const activityHistory = domainSchema.table("historial_actividades", {
   activityId: uuid("actividad_id").notNull(),
   mutationId: uuid("mutacion_id").notNull(),
   eventType: text("tipo_evento", {
-    enum: ["completed", "reopened", "cancelled", "progress_updated", "deleted"],
+    enum: [
+      "completed",
+      "reopened",
+      "cancelled",
+      "started",
+      "paused",
+      "progress_updated",
+      "deleted",
+    ],
   }).notNull(),
   beforeStatus: text("estado_anterior").notNull(),
   afterStatus: text("estado_posterior").notNull(),
@@ -178,7 +152,6 @@ export const calendarEvents = domainSchema.table("eventos_calendario", {
   userId: uuid("usuario_id")
     .notNull()
     .references(() => authUsers.id, { onDelete: "cascade" }),
-  subjectId: uuid("materia_id"),
   kind: text("tipo", {
     enum: ["class", "work", "appointment", "personal", "unavailable", "other"],
   }).notNull(),

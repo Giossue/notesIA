@@ -17,16 +17,16 @@ import { listActivities } from "@/core/api/activities";
 import { listCalendarEvents } from "@/core/api/calendar-events";
 import { getActivePlan } from "@/core/api/plans";
 import { getProfile } from "@/core/api/profile";
-import { listSubjects } from "@/core/api/subjects";
 import { layout } from "@/core/theme/layout";
-import { type CategoryColor, categoryColors, subjectCategory } from "@/core/theme/theme";
+import { type CategoryColor, categoryColors } from "@/core/theme/theme";
 import type { RootStackParamList } from "@/navigation/types";
+import { kindColor } from "@/shared/activity-kinds";
 import { userMessage } from "@/shared/errors";
-import { clockTime, shortWeekday } from "@/shared/format";
+import { shortWeekday } from "@/shared/format";
 import { Button } from "@/shared/paper";
 import { HeaderButton } from "@/shared/ScreenHeader";
 import { ScreenLayout } from "@/shared/ScreenLayout";
-import { DayTimeline, type TimelineEntryData } from "./DayTimeline";
+import { type AgendaEntry, DayAgendaList } from "./DayAgendaList";
 
 const eventKinds: Record<
   CalendarEvent["kind"],
@@ -60,7 +60,6 @@ type TimelineItem = {
   startsAt: string;
   endsAt: string | null;
   time: string;
-  range: string;
   label: string;
   color: CategoryColor;
   title: string;
@@ -115,17 +114,6 @@ export function AgendaScreen() {
     retry: false,
   });
   const activePlan = useQuery({ queryKey: ["active-plan"], queryFn: getActivePlan, retry: false });
-  const subjects = useInfiniteQuery({
-    queryKey: ["subjects", false],
-    queryFn: ({ pageParam }) => listSubjects(false, pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-    retry: false,
-  });
-
-  const subjectById = new Map(
-    (subjects.data?.pages.flatMap((page) => page.items) ?? []).map((item) => [item.id, item]),
-  );
   const local = (instant: string) => (timeZone ? utcToLocalDateTime(instant, timeZone) : "");
   const hhmm = (instant: string) => local(instant).slice(11, 16);
   const deadlineItems = deadlines.data?.pages.flatMap((page) => page.items) ?? [];
@@ -140,7 +128,6 @@ export function AgendaScreen() {
         startsAt: item.startsAt,
         endsAt: item.endsAt,
         time: hhmm(item.startsAt),
-        range: `${clockTime(hhmm(item.startsAt))} – ${clockTime(hhmm(item.endsAt))}`,
         label: kind.label,
         color: kind.color,
         title: item.title,
@@ -151,21 +138,16 @@ export function AgendaScreen() {
     }),
     ...deadlineItems.flatMap((item) => {
       if (!item.deadlineAt || item.status === "cancelled") return [];
-      const subject = item.subjectId ? subjectById.get(item.subjectId) : undefined;
       return [
         {
           key: `deadline-${item.id}`,
           startsAt: item.deadlineAt,
           endsAt: null,
           time: hhmm(item.deadlineAt),
-          range: `Entrega ${clockTime(hhmm(item.deadlineAt))}`,
           label: "Entrega",
-          color: subject ? subjectCategory[subject.colorToken] : ("orange" as const),
+          color: kindColor(item.kind),
           title: item.title,
-          meta:
-            item.status === "completed"
-              ? "Completada"
-              : (subject?.name ?? `${item.progressPercent}% de avance`),
+          meta: item.status === "completed" ? "Completada" : `${item.progressPercent}% de avance`,
           metaIcon: item.status === "completed" ? "check-circle-outline" : "file-document-outline",
           open: () => navigation.navigate("ActivityForm", { id: item.id }),
         },
@@ -176,7 +158,6 @@ export function AgendaScreen() {
       startsAt: block.startsAt,
       endsAt: block.endsAt,
       time: hhmm(block.startsAt),
-      range: `${clockTime(hhmm(block.startsAt))} – ${clockTime(hhmm(block.endsAt))}`,
       label: "Estudio",
       color: "cyan" as const,
       title: activityTitles.get(block.activityId) ?? "Bloque de estudio",
@@ -199,11 +180,10 @@ export function AgendaScreen() {
     if (value.slice(0, 10) > (selectedDay ?? "")) return 24 * 60;
     return Number(value.slice(11, 13)) * 60 + Number(value.slice(14, 16));
   };
-  const entries: TimelineEntryData[] = dayItems.map((item) => ({
+  const entries: AgendaEntry[] = dayItems.map((item) => ({
     key: item.key,
     startMinute: minuteOf(item.startsAt),
     endMinute: item.endsAt ? minuteOf(item.endsAt) : null,
-    range: item.range,
     label: item.label,
     color: categories[item.color],
     title: item.title,
@@ -344,7 +324,7 @@ export function AgendaScreen() {
             </View>
           )}
 
-          {dayItems.length > 0 && <DayTimeline entries={entries} nowMinute={nowMinute} />}
+          {dayItems.length > 0 && <DayAgendaList entries={entries} nowMinute={nowMinute} />}
           {(events.hasNextPage || deadlines.hasNextPage) && (
             <Button
               mode="outlined"

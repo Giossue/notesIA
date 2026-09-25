@@ -10,11 +10,7 @@ jest.mock("@react-native-vector-icons/material-design-icons", () => ({
 
 function Trigger() {
   const toast = useToast();
-  return (
-    <Button onPress={() => toast.show("Ya tienes una materia activa con ese nombre.")}>
-      Guardar
-    </Button>
-  );
+  return <Button onPress={() => toast.show("No se pudo guardar la actividad.")}>Guardar</Button>;
 }
 
 test("el toast muestra el error y se puede cerrar", async () => {
@@ -27,7 +23,7 @@ test("el toast muestra el error y se puede cerrar", async () => {
   );
   const user = userEvent.setup();
   await user.press(screen.getByText("Guardar"));
-  expect(await screen.findByText("Ya tienes una materia activa con ese nombre.")).toBeOnTheScreen();
+  expect(await screen.findByText("No se pudo guardar la actividad.")).toBeOnTheScreen();
   await user.press(screen.getByText("Cerrar"));
-  expect(screen.queryByText("Ya tienes una materia activa con ese nombre.")).toBeNull();
+  expect(screen.queryByText("No se pudo guardar la actividad.")).toBeNull();
 });

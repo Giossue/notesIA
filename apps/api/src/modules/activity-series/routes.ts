@@ -106,8 +106,6 @@ export function registerActivitySeriesRoutes(app: Hono, dependencies: Dependenci
       profile.timeZone,
       occurrences,
     );
-    if (result.kind === "subject_not_found")
-      return problem(422, "VALIDATION_FAILED", "Materia no disponible.");
     if (result.kind === "conflict")
       return problem(409, "VERSION_CONFLICT", "El identificador de serie ya se utilizó.");
     return c.json(toSeries(result.row), result.kind === "created" ? 201 : 200);

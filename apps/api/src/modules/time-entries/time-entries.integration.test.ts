@@ -38,7 +38,6 @@ const app = createApp(
   async () => {},
   auth.handler,
   { getSession, profiles },
-  undefined,
   { getSession, activities, profiles },
   undefined,
   { getSession, events, profiles },
@@ -105,7 +104,6 @@ test("weekly statistics include completed and overdue work even without logged t
       headers: headers(cookieC),
       body: JSON.stringify({
         id,
-        subjectId: null,
         kind: "academic_task",
         title: `Estadística ${index}`,
         description: null,
@@ -136,7 +134,6 @@ test("weekly statistics include completed and overdue work even without logged t
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({
     totalSeconds: 0,
-    subjects: [],
     activities: [],
     weeks: [
       {
@@ -179,7 +176,6 @@ test("timer is single, server timed, private, retryable and reduces plan work", 
         headers: headers(cookieA),
         body: JSON.stringify({
           id: activityId,
-          subjectId: null,
           kind: "academic_task",
           title: "Tarea",
           description: null,
@@ -336,7 +332,6 @@ test("timer is single, server timed, private, retryable and reduces plan work", 
   expect(await stats.json()).toMatchObject({
     totalSeconds: 7200,
     weeks: [{ weekStart: "2026-09-21", seconds: 7200 }],
-    subjects: [{ subjectId: null, seconds: 7200 }],
     activities: [
       {
         activityId,

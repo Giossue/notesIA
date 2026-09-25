@@ -3,7 +3,6 @@ import {
   createActivityRepository,
   createCalendarEventRepository,
   createProfileRepository,
-  createSubjectRepository,
 } from "@notesia/db";
 import { createApp } from "../../app";
 import { createAuth } from "../../auth/create-auth";
@@ -32,7 +31,6 @@ const app = createApp(
   async () => {},
   auth.handler,
   { getSession, profiles },
-  { getSession, subjects: createSubjectRepository(pool) },
   { getSession, activities: createActivityRepository(pool), profiles },
   undefined,
   { getSession, events, profiles },
@@ -90,21 +88,9 @@ test("fixed events are private, versioned and appear on each overlapping local d
   });
   expect(profile.status).toBe(200);
 
-  const subjectId = crypto.randomUUID();
-  expect(
-    (
-      await app.request("/v1/subjects", {
-        method: "POST",
-        headers: headers(cookieA),
-        body: JSON.stringify({ id: subjectId, name: "Cálculo", colorToken: "primary" }),
-      })
-    ).status,
-  ).toBe(201);
-
   const id = crypto.randomUUID();
   const input = {
     id,
-    subjectId,
     kind: "class",
     title: "Clase nocturna",
     description: null,
@@ -138,15 +124,6 @@ test("fixed events are private, versioned and appear on each overlapping local d
       })
     ).status,
   ).toBe(409);
-  expect(
-    (
-      await app.request("/v1/calendar-events", {
-        method: "POST",
-        headers: headers(cookieB),
-        body: JSON.stringify({ ...input, id: crypto.randomUUID() }),
-      })
-    ).status,
-  ).toBe(422);
   expect(
     (await app.request(`/v1/calendar-events/${id}`, { headers: { cookie: cookieB } })).status,
   ).toBe(404);
@@ -262,7 +239,6 @@ test("fixed events are private, versioned and appear on each overlapping local d
       body: JSON.stringify({
         ...input,
         id: crypto.randomUUID(),
-        subjectId: null,
         title: `Evento ${index}`,
         startsAt: start,
         endsAt: end,

@@ -2,7 +2,6 @@ import { afterAll, expect, test } from "bun:test";
 import {
   createActivityRepository,
   createProfileRepository,
-  createSubjectRepository,
   createSubtaskRepository,
 } from "@notesia/db";
 import { createApp } from "../../app";
@@ -31,7 +30,6 @@ const app = createApp(
   async () => {},
   auth.handler,
   { getSession, profiles: createProfileRepository(pool) },
-  { getSession, subjects: createSubjectRepository(pool) },
   { getSession, activities, profiles: createProfileRepository(pool) },
   { getSession, activities, subtasks: createSubtaskRepository(pool) },
 );
@@ -83,7 +81,6 @@ test("subtasks are private, ordered, versioned and retryable", async () => {
     headers: headers(cookieA),
     body: JSON.stringify({
       id: activityId,
-      subjectId: null,
       kind: "academic_task",
       title: "Preparar proyecto",
       description: null,

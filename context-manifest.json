@@ -3,39 +3,12 @@
   "language": "es",
   "version": "1.0.0",
   "generated_at": "2026-09-23",
-  "primary_documents": [
-    "AGENTS.md",
-    "APP_CONTEXT.md",
-    "ARCHITECTURE.md",
-    "DATABASE_SCHEMA.md"
-  ],
+  "primary_documents": ["AGENTS.md", "APP_CONTEXT.md", "ARCHITECTURE.md", "DATABASE_SCHEMA.md"],
   "stack": {
-    "mobile": [
-      "React Native CLI",
-      "Metro",
-      "React Navigation",
-      "React Native Paper",
-      "TypeScript"
-    ],
-    "api": [
-      "Bun",
-      "Hono",
-      "Zod",
-      "OpenAPI"
-    ],
-    "database": [
-      "PostgreSQL",
-      "Drizzle ORM"
-    ],
-    "admin": [
-      "React",
-      "Vite",
-      "shadcn/ui"
-    ],
-    "ai_providers": [
-      "OpenAI",
-      "Anthropic",
-      "DeepSeek"
-    ]
+    "mobile": ["React Native CLI", "Metro", "React Navigation", "React Native Paper", "TypeScript"],
+    "api": ["Bun", "Hono", "Zod", "OpenAPI"],
+    "database": ["PostgreSQL", "Drizzle ORM"],
+    "admin": ["React", "Vite", "shadcn/ui"],
+    "ai_providers": ["OpenAI", "Anthropic", "DeepSeek"]
   }
 }

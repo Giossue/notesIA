@@ -35,8 +35,6 @@ export {
 const areas = new Set([
   "auth",
   "me",
-  "subjects",
-  "academic-periods",
   "activities",
   "activity-series",
   "calendar-events",

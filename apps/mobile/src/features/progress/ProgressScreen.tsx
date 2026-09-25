@@ -3,12 +3,12 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, Icon, Text, TouchableRipple, useTheme } from "react-native-paper";
+import { ActivityIndicator, Icon, Text, useTheme } from "react-native-paper";
 import { getActivitySummary } from "@/core/api/activities";
 import { layout } from "@/core/theme/layout";
-import { categoryColors, subjectCategory } from "@/core/theme/theme";
+import { categoryColors } from "@/core/theme/theme";
 import type { RootStackParamList } from "@/navigation/types";
-import { EmptyState } from "@/shared/EmptyState";
+import { categoryInfo } from "@/shared/activity-kinds";
 import { userMessage } from "@/shared/errors";
 import { percent, shortRange, shortWeekday } from "@/shared/format";
 import { ProgressRings } from "@/shared/ProgressRings";
@@ -16,7 +16,6 @@ import { Button } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 
 const BAR_HEIGHT = 130;
-const subjectIcons = ["school-outline", "folder-outline", "heart-outline"];
 
 export function ProgressScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -32,10 +31,12 @@ export function ProgressScreen() {
   const rings = data
     ? [
         { progress: weekPercent / 100, color: categories.blue },
-        ...data.subjects.slice(0, 2).map((subject) => ({
-          progress: subject.total === 0 ? 0 : subject.completed / subject.total,
-          color: categories[subjectCategory[subject.colorToken]],
-        })),
+        ...data.categories
+          .filter((row) => row.total > 0)
+          .map((row) => ({
+            progress: row.completed / row.total,
+            color: categories[categoryInfo[row.category].color],
+          })),
       ]
     : [];
   const barMax = data
@@ -84,14 +85,16 @@ export function ProgressScreen() {
                 </Text>
               </View>
               <LegendRow color={categories.blue} label="Entregas" value={weekPercent} />
-              {data.subjects.slice(0, 2).map((subject) => (
-                <LegendRow
-                  key={subject.subjectId}
-                  color={categories[subjectCategory[subject.colorToken]]}
-                  label={subject.name}
-                  value={percent(subject.completed, subject.total)}
-                />
-              ))}
+              {data.categories
+                .filter((row) => row.total > 0)
+                .map((row) => (
+                  <LegendRow
+                    key={row.category}
+                    color={categories[categoryInfo[row.category].color]}
+                    label={categoryInfo[row.category].label}
+                    value={percent(row.completed, row.total)}
+                  />
+                ))}
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                 {data.week.completedDue} de {data.week.due} entregas de la semana
               </Text>
@@ -158,72 +161,44 @@ export function ProgressScreen() {
           </View>
 
           <View style={styles.section}>
-            <View style={styles.sectionHeading}>
-              <Text variant="titleLarge" style={styles.bold}>
-                Materias
-              </Text>
-              <TouchableRipple
-                borderless
-                onPress={() => navigation.navigate("Subjects")}
-                accessibilityRole="button"
-                accessibilityLabel="Ver todas las materias"
-                style={styles.more}
-              >
-                <View style={styles.moreContent}>
-                  <Text variant="bodyLarge" style={{ color: theme.colors.primary }}>
-                    Ver todas
-                  </Text>
-                  <Icon source="chevron-right" size={20} color={theme.colors.primary} />
-                </View>
-              </TouchableRipple>
-            </View>
-            {data.subjects.length === 0 ? (
-              <EmptyState
-                icon="book-open-page-variant-outline"
-                message="Asigna tus tareas a una materia para ver su avance aquí."
-              />
-            ) : (
-              <View style={styles.subjects}>
-                {data.subjects.map((subject, index) => {
-                  const color = categories[subjectCategory[subject.colorToken]];
-                  const value = percent(subject.completed, subject.total);
-                  return (
-                    <View
-                      key={subject.subjectId}
-                      style={[
-                        styles.card,
-                        styles.subjectCard,
-                        { backgroundColor: theme.colors.surface },
-                      ]}
-                    >
-                      <View style={[styles.subjectIcon, { backgroundColor: color }]}>
-                        <Icon
-                          source={subjectIcons[index] ?? "book-outline"}
-                          size={22}
-                          color="#FFFFFF"
-                        />
-                      </View>
-                      <Text variant="titleSmall" numberOfLines={1} style={styles.bold}>
-                        {subject.name}
-                      </Text>
-                      <Text variant="headlineSmall" style={styles.bold}>
-                        {value}%
-                      </Text>
-                      <View
-                        style={[styles.track, { backgroundColor: theme.colors.surfaceVariant }]}
-                      >
-                        <View
-                          style={[styles.trackFill, { width: `${value}%`, backgroundColor: color }]}
-                        />
-                      </View>
-                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                        {subject.completed} de {subject.total} tareas
-                      </Text>
+            <Text variant="titleLarge" style={styles.bold}>
+              Por tipo de actividad
+            </Text>
+            <View style={styles.categories}>
+              {data.categories.map((row) => {
+                const info = categoryInfo[row.category];
+                const color = categories[info.color];
+                const value = percent(row.completed, row.total);
+                return (
+                  <View
+                    key={row.category}
+                    style={[
+                      styles.card,
+                      styles.categoryCard,
+                      { backgroundColor: theme.colors.surface },
+                    ]}
+                  >
+                    <View style={[styles.categoryIcon, { backgroundColor: color }]}>
+                      <Icon source={info.icon} size={22} color="#FFFFFF" />
                     </View>
-                  );
-                })}
-              </View>
-            )}
+                    <Text variant="titleSmall" numberOfLines={1} style={styles.bold}>
+                      {info.label}
+                    </Text>
+                    <Text variant="headlineSmall" style={styles.bold}>
+                      {value}%
+                    </Text>
+                    <View style={[styles.track, { backgroundColor: theme.colors.surfaceVariant }]}>
+                      <View
+                        style={[styles.trackFill, { width: `${value}%`, backgroundColor: color }]}
+                      />
+                    </View>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      {row.completed} de {row.total}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
           </View>
 
           <View
@@ -285,9 +260,9 @@ const styles = StyleSheet.create({
   sectionHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   more: { borderRadius: layout.smallRadius, paddingVertical: 6, paddingLeft: 8 },
   moreContent: { flexDirection: "row", alignItems: "center", gap: 2 },
-  subjects: { flexDirection: "row", gap: 10 },
-  subjectCard: { flex: 1, padding: 14, gap: 6 },
-  subjectIcon: {
+  categories: { flexDirection: "row", gap: 10 },
+  categoryCard: { flex: 1, padding: 14, gap: 6 },
+  categoryIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,

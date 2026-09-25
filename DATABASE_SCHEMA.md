@@ -35,8 +35,8 @@ El DDL de referencia se encuentra en `database/schema.sql`.
 
 | Tabla | Función |
 |---|---|
-| `periodos_academicos` | Periodos definidos por el usuario. |
-| `materias` | Materias. |
+| `periodos_academicos` | Retirada del producto; se conserva solo para exportar o eliminar datos existentes. |
+| `materias` | Retirada del producto; se conserva solo para exportar o eliminar datos existentes. |
 | `eventos_calendario` | Clases y compromisos fijos. |
 
 ### Actividades
@@ -119,7 +119,7 @@ erDiagram
 ### `actividades`
 
 - `tipo`: `academic_task`, `exam`, `personal`, `routine`.
-- `materia_id`: opcional en DB; la aplicación puede exigirlo según `tipo`.
+- `materia_id`: heredado; la aplicación ya no lo lee ni escribe (queda nulo en filas nuevas).
 - `inicio_minimo`: no planificar antes.
 - `fecha_limite`: fecha límite.
 - `minutos_estimados`: estimación confirmada.

@@ -4,7 +4,6 @@ import type { Pool } from "pg";
 import { calendarEvents } from "./schema";
 
 type EventFields = {
-  subjectId: string | null;
   kind: "class" | "work" | "appointment" | "personal" | "unavailable" | "other";
   title: string;
   description: string | null;
@@ -15,7 +14,6 @@ type EventFields = {
 
 function matchesFields(row: typeof calendarEvents.$inferSelect, fields: EventFields) {
   return (
-    row.subjectId === fields.subjectId &&
     row.kind === fields.kind &&
     row.title === fields.title &&
     row.description === fields.description &&
@@ -134,7 +132,6 @@ export function createCalendarEventRepository(pool: Pool) {
         const [updated] = await tx
           .update(calendarEvents)
           .set({
-            subjectId: fields.subjectId,
             kind: fields.kind,
             title: fields.title,
             description: fields.description,

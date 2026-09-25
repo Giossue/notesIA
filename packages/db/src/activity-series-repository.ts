@@ -10,7 +10,7 @@ type Series = ActivitySeriesCreate & {
   sortOrder: string;
 };
 
-const columns = `id, orden::text AS "sortOrder", materia_id AS "subjectId", tipo AS kind, titulo AS title,
+const columns = `id, orden::text AS "sortOrder", tipo AS kind, titulo AS title,
   descripcion AS description, prioridad AS priority,
   minutos_estimados AS "estimatedMinutes", frecuencia AS frequency,
   inicia_el::text AS "startOn", hasta_el::text AS "throughOn",
@@ -20,7 +20,6 @@ const columns = `id, orden::text AS "sortOrder", materia_id AS "subjectId", tipo
 function matches(row: Series, input: ActivitySeriesCreate) {
   return (
     row.id === input.id &&
-    row.subjectId === input.subjectId &&
     row.kind === input.kind &&
     row.title === input.title &&
     row.description === input.description &&
@@ -72,28 +71,15 @@ export function createActivitySeriesRepository(pool: Pool) {
             : { kind: "conflict" as const };
         }
 
-        if (input.subjectId) {
-          const subject = await client.query(
-            `select 1 from dominio.materias where usuario_id = $1 and id = $2
-             and archivado_en is null and eliminado_en is null for share`,
-            [userId, input.subjectId],
-          );
-          if (!subject.rowCount) {
-            await client.query("ROLLBACK");
-            return { kind: "subject_not_found" as const };
-          }
-        }
-
         const inserted = await client.query<Series>(
           `insert into dominio.series_actividades
-           (id, usuario_id, materia_id, tipo, titulo, descripcion, prioridad,
+           (id, usuario_id, tipo, titulo, descripcion, prioridad,
             minutos_estimados, frecuencia, inicia_el, hasta_el, zona_horaria, cantidad_instancias)
-           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
            on conflict do nothing returning ${columns}`,
           [
             input.id,
             userId,
-            input.subjectId,
             input.kind,
             input.title,
             input.description,
@@ -119,16 +105,15 @@ export function createActivitySeriesRepository(pool: Pool) {
 
         const generated = await client.query(
           `insert into dominio.actividades
-           (id, usuario_id, serie_id, ocurre_el, materia_id, tipo, titulo, descripcion,
+           (id, usuario_id, serie_id, ocurre_el, tipo, titulo, descripcion,
             prioridad, inicio_minimo, fecha_limite, minutos_estimados)
-           select gen_random_uuid(), $1, $2, instance.occurred, $3, $4, $5, $6, $7,
-             instance.starts_at, instance.ends_at, $8
-           from unnest($9::date[], $10::timestamptz[], $11::timestamptz[])
+           select gen_random_uuid(), $1, $2, instance.occurred, $3, $4, $5, $6,
+             instance.starts_at, instance.ends_at, $7
+           from unnest($8::date[], $9::timestamptz[], $10::timestamptz[])
              as instance(occurred, starts_at, ends_at)`,
           [
             userId,
             input.id,
-            input.subjectId,
             input.kind,
             input.title,
             input.description,

@@ -78,13 +78,6 @@ export function TimeStatisticsPanel() {
                 </Text>
               </View>
             ))}
-            <Text variant="titleMedium">Tiempo por materia</Text>
-            {statistics.data.subjects.length === 0 && <Text>Sin tiempo en este periodo.</Text>}
-            {statistics.data.subjects.map((subject) => (
-              <Text key={subject.subjectId ?? "none"}>
-                {subject.subjectName ?? "Sin materia"}: {Math.round(subject.seconds / 60)} min
-              </Text>
-            ))}
             <Text variant="titleMedium">Estimado frente a real</Text>
             {statistics.data.activities.length === 0 && (
               <Text>No hay actividades con tiempo registrado en este periodo.</Text>

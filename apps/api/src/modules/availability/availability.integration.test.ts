@@ -32,7 +32,6 @@ const app = createApp(
   async () => {},
   auth.handler,
   { getSession, profiles },
-  undefined,
   { getSession, activities: createActivityRepository(pool), profiles },
   undefined,
   { getSession, events, profiles },
@@ -124,7 +123,6 @@ test("availability is private, versioned and capacity subtracts fixed events", a
         headers: headers(cookieA),
         body: JSON.stringify({
           id: eventId,
-          subjectId: null,
           kind: "class",
           title: "Clase",
           description: null,
@@ -222,7 +220,6 @@ test("availability is private, versioned and capacity subtracts fixed events", a
         headers: headers(cookieA),
         body: JSON.stringify({
           id: activityId,
-          subjectId: null,
           kind: "academic_task",
           title: "Informe",
           description: null,

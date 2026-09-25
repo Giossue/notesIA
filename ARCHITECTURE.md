@@ -85,7 +85,6 @@ apps/api/src/
   modules/
     auth/
     users/
-    subjects/
     activities/
     calendar/
     availability/
@@ -123,7 +122,6 @@ apps/mobile/src/
     theme/
   features/
     activities/
-    subjects/
     calendar/
     availability/
     planning/

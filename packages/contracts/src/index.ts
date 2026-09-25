@@ -474,90 +474,20 @@ export const preferencesSchema = preferencesUpdateSchema.safeExtend({
   updatedAt: z.iso.datetime(),
 });
 
-export const subjectColorSchema = z.enum(["primary", "secondary", "tertiary"]);
-
-export const subjectCreateSchema = z.strictObject({
-  id: z.uuid(),
-  periodId: z.uuid().nullable().optional(),
-  // Espacios internos colapsados; la unicidad (sin mayúsculas ni tildes) la aplica la base.
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(160)
-    .transform((value) => value.replace(/\s+/g, " ")),
-  colorToken: subjectColorSchema,
-});
-
-export const subjectUpdateSchema = subjectCreateSchema.omit({ id: true }).extend({
-  version: z.number().int().positive(),
-});
-
-export const subjectVersionSchema = z.strictObject({ version: z.number().int().positive() });
-
-export const subjectSchema = z.object({
-  id: z.uuid(),
-  periodId: z.uuid().nullable(),
-  name: z.string(),
-  colorToken: subjectColorSchema,
-  archivedAt: z.iso.datetime().nullable(),
-  version: z.number().int().positive(),
-  updatedAt: z.iso.datetime(),
-});
-
-export const subjectPageSchema = z.object({
-  items: z.array(subjectSchema),
-  nextCursor: z.string().nullable(),
-});
-
-export const subjectCursorSchema = z.strictObject({
-  sortOrder: z.string().regex(/^[1-9]\d{0,18}$/),
-});
-
-export type Subject = z.infer<typeof subjectSchema>;
-export type SubjectCreate = z.infer<typeof subjectCreateSchema>;
-export type SubjectUpdate = z.infer<typeof subjectUpdateSchema>;
-export type SubjectPage = z.infer<typeof subjectPageSchema>;
-
-const academicPeriodFieldsSchema = z.strictObject({
-  name: z.string().trim().min(1).max(120),
-  startsOn: z.iso.date(),
-  endsOn: z.iso.date(),
-});
-const periodOrder = <T extends { startsOn: string; endsOn: string }>(value: T) =>
-  value.endsOn >= value.startsOn;
-/** Campos editables de un periodo, sin id; para formularios. */
-export const academicPeriodFormSchema = academicPeriodFieldsSchema.refine(periodOrder, {
-  path: ["endsOn"],
-});
-export const academicPeriodCreateSchema = academicPeriodFieldsSchema
-  .safeExtend({ id: z.uuid() })
-  .refine(periodOrder, { path: ["endsOn"] });
-export const academicPeriodUpdateSchema = z
-  .strictObject({
-    name: z.string().trim().min(1).max(120),
-    startsOn: z.iso.date(),
-    endsOn: z.iso.date(),
-    version: z.number().int().positive(),
-  })
-  .refine((value) => value.endsOn >= value.startsOn, { path: ["endsOn"] });
-export const academicPeriodSchema = academicPeriodCreateSchema.safeExtend({
-  archivedAt: z.iso.datetime().nullable(),
-  version: z.number().int().positive(),
-  updatedAt: z.iso.datetime(),
-});
-export const academicPeriodPageSchema = z.object({
-  items: z.array(academicPeriodSchema),
-  nextCursor: z.string().nullable(),
-});
-export type AcademicPeriodCreate = z.infer<typeof academicPeriodCreateSchema>;
-export type AcademicPeriodUpdate = z.infer<typeof academicPeriodUpdateSchema>;
+/** Cuerpo con solo la versión esperada, para acciones con control optimista. */
+export const versionSchema = z.strictObject({ version: z.number().int().positive() });
 
 export const activityKindSchema = z.enum(["academic_task", "exam", "personal", "routine"]);
+
+/** Clasificación del requisito RF-10: académica, personal o cotidiana. */
+export type ActivityCategory = "academic" | "personal" | "daily";
+export function activityCategory(kind: z.infer<typeof activityKindSchema>): ActivityCategory {
+  if (kind === "academic_task" || kind === "exam") return "academic";
+  return kind === "personal" ? "personal" : "daily";
+}
 export const activityPrioritySchema = z.enum(["low", "medium", "high", "critical"]);
 export const activitySeriesCreateSchema = z.strictObject({
   id: z.uuid(),
-  subjectId: z.uuid().nullable(),
   kind: z.enum(["academic_task", "personal", "routine"]),
   title: z.string().trim().min(1).max(240),
   description: z.string().trim().max(10000).nullable(),
@@ -590,7 +520,6 @@ export const activityStatusSchema = z.enum([
 
 const activityFieldsSchema = z
   .strictObject({
-    subjectId: z.uuid().nullable(),
     kind: activityKindSchema,
     title: z.string().trim().min(1).max(240),
     description: z.string().trim().max(10000).nullable(),
@@ -624,7 +553,6 @@ export const activitySchema = z.object({
   id: z.uuid(),
   seriesId: z.uuid().nullable(),
   occursOn: z.iso.date().nullable(),
-  subjectId: z.uuid().nullable(),
   kind: activityKindSchema,
   title: z.string(),
   description: z.string().nullable(),
@@ -668,16 +596,19 @@ export const activitySummarySchema = z.object({
       )
       .length(7),
   }),
-  /** Hasta tres materias activas con más actividades (sin canceladas). */
-  subjects: z.array(
-    z.object({
-      subjectId: z.uuid(),
-      name: z.string(),
-      colorToken: z.enum(["primary", "secondary", "tertiary"]),
-      total: z.number().int().nonnegative(),
-      completed: z.number().int().nonnegative(),
-    }),
-  ),
+  /**
+   * Avance por clasificación del requisito RF-10, siempre en este orden:
+   * académicas (tarea o examen), personales y cotidianas (rutinas).
+   */
+  categories: z
+    .array(
+      z.object({
+        category: z.enum(["academic", "personal", "daily"]),
+        total: z.number().int().nonnegative(),
+        completed: z.number().int().nonnegative(),
+      }),
+    )
+    .length(3),
   /** Días locales consecutivos con al menos una actividad completada, hasta hoy o ayer. */
   streakDays: z.number().int().nonnegative(),
 });
@@ -690,7 +621,15 @@ export const activityCursorSchema = z.strictObject({
 export const activityHistorySchema = z.object({
   id: z.string().regex(/^[1-9]\d*$/),
   mutationId: z.uuid(),
-  eventType: z.enum(["completed", "reopened", "cancelled", "progress_updated", "deleted"]),
+  eventType: z.enum([
+    "completed",
+    "reopened",
+    "cancelled",
+    "started",
+    "paused",
+    "progress_updated",
+    "deleted",
+  ]),
   beforeStatus: activityStatusSchema,
   afterStatus: activityStatusSchema,
   beforeProgress: z.number().int().min(0).max(100),
@@ -768,7 +707,6 @@ export const calendarEventKindSchema = z.enum([
 
 const calendarEventFieldsSchema = z
   .strictObject({
-    subjectId: z.uuid().nullable(),
     kind: calendarEventKindSchema,
     title: z.string().trim().min(1).max(200),
     description: z.string().trim().max(10000).nullable(),
@@ -793,7 +731,6 @@ export const calendarEventVersionSchema = z.strictObject({
 
 export const calendarEventSchema = z.object({
   id: z.uuid(),
-  subjectId: z.uuid().nullable(),
   kind: calendarEventKindSchema,
   title: z.string(),
   description: z.string().nullable(),
@@ -1024,13 +961,6 @@ export const timeStatisticsSchema = z.object({
       overdueActivities: z.number().int().nonnegative(),
       onTimeActivities: z.number().int().nonnegative(),
       onTimePercent: z.number().int().min(0).max(100).nullable(),
-    }),
-  ),
-  subjects: z.array(
-    z.object({
-      subjectId: z.uuid().nullable(),
-      subjectName: z.string().nullable(),
-      seconds: z.number().int().nonnegative(),
     }),
   ),
   activities: z.array(

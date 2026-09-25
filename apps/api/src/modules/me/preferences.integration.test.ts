@@ -67,7 +67,7 @@ test("preferences are created with the account, private and versioned", async ()
     maxSessionMinutes: 90,
     maxDailyMinutes: 240,
     notificationsEnabled: true,
-    pushNotificationsEnabled: false,
+    pushNotificationsEnabled: true,
     version: 1,
   });
   const changed = {
@@ -87,7 +87,7 @@ test("preferences are created with the account, private and versioned", async ()
   expect(update.status).toBe(200);
   expect(await update.json()).toMatchObject({
     ...changed,
-    pushNotificationsEnabled: false,
+    pushNotificationsEnabled: true,
     version: 2,
   });
   expect(
@@ -223,7 +223,7 @@ test("preferences are created with the account, private and versioned", async ()
   ).toMatchObject({
     minSessionMinutes: 25,
     notificationsEnabled: true,
-    pushNotificationsEnabled: false,
+    pushNotificationsEnabled: true,
     version: 1,
   });
 });

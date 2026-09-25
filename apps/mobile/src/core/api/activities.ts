@@ -11,7 +11,7 @@ import {
   activitySummarySchema,
   activityTransitionSchema,
   activityUpdateSchema,
-  subjectVersionSchema,
+  versionSchema,
 } from "@notesia/contracts";
 import { v4 as uuidv4 } from "uuid";
 import { requestJson } from "./client";
@@ -113,7 +113,7 @@ export function setActivityArchived(id: string, version: number, archived: boole
   return requestJson(
     `/activities/${encodeURIComponent(id)}/${archived ? "archive" : "restore"}`,
     activitySchema,
-    { method: "POST", body: subjectVersionSchema.parse({ version }) },
+    { method: "POST", body: versionSchema.parse({ version }) },
   );
 }
 
@@ -121,7 +121,7 @@ export function transitionActivity(
   id: string,
   version: number,
   mutationId: string,
-  action: "complete" | "reopen" | "cancel",
+  action: "complete" | "reopen" | "cancel" | "start" | "pause",
 ) {
   return requestJson(`/activities/${encodeURIComponent(id)}/${action}`, activitySchema, {
     method: "POST",

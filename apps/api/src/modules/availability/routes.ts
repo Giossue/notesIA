@@ -9,7 +9,7 @@ import {
   availabilityRuleUpdateSchema,
   dateRangeSchema,
   type Problem,
-  subjectVersionSchema,
+  versionSchema,
 } from "@notesia/contracts";
 import type {
   AvailabilityRepository,
@@ -110,7 +110,7 @@ export function registerAvailabilityRoutes(app: Hono, dependencies: Dependencies
       if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
       const id = c.req.param("id");
       if (!z.uuid().safeParse(id).success) return error(404, "NOT_FOUND", "Regla no encontrada.");
-      const parsed = subjectVersionSchema.safeParse(await readBody(c.req.raw));
+      const parsed = versionSchema.safeParse(await readBody(c.req.raw));
       if (!parsed.success) return error(422, "VALIDATION_FAILED", "Versión inválida.");
       const row = await dependencies.availability.archiveRule(
         session.user.id,

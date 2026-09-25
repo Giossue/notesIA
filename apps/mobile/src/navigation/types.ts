@@ -6,8 +6,6 @@ export type RootStackParamList = {
   Progress: TabParams;
   Profile: TabParams;
   ProfileEdit: undefined;
-  Subjects: undefined;
-  SubjectForm: { id?: string };
   Activities: undefined;
   ActivityForm: {
     id?: string;
@@ -19,8 +17,6 @@ export type RootStackParamList = {
   Events: undefined;
   EventForm: { id?: string /** Día (AAAA-MM-DD) en que empieza. */; date?: string };
   Tools: undefined;
-  AcademicPeriods: undefined;
-  AcademicPeriodForm: { id?: string };
   Availability: undefined;
   Planning: undefined;
   TimeTracking: undefined;

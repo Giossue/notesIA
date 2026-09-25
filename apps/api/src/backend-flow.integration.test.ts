@@ -15,7 +15,6 @@ import {
   createPreferenceRepository,
   createPrivacyRepository,
   createProfileRepository,
-  createSubjectRepository,
   createTimeEntryRepository,
   type DatabaseTargetIdentity,
   databaseTargetIdentitySql,
@@ -99,7 +98,6 @@ beforeAll(async () => {
     async () => {},
     auth.auth.handler,
     { getSession, profiles, preferences },
-    { getSession, subjects: createSubjectRepository(runtime) },
     { getSession, activities, profiles },
     undefined,
     undefined,
@@ -116,7 +114,6 @@ beforeAll(async () => {
       now: () => fixedNow,
     },
     { getSession, timeEntries, activities, profiles, now: () => fixedNow },
-    undefined,
     undefined,
     {
       getSession,
@@ -176,22 +173,11 @@ test("a student can consent, plan, work, see risk, revoke AI and keep manual pla
     }),
   });
   expect(profile.status).toBe(200);
-  const subjectId = crypto.randomUUID();
-  expect(
-    (
-      await post("/v1/subjects", {
-        id: subjectId,
-        name: "Cálculo",
-        colorToken: "primary",
-      })
-    ).status,
-  ).toBe(201);
   const activityId = crypto.randomUUID();
   expect(
     (
       await post("/v1/activities", {
         id: activityId,
-        subjectId,
         kind: "academic_task",
         title: "Resolver ejercicios",
         description: null,
@@ -257,7 +243,8 @@ test("a student can consent, plan, work, see risk, revoke AI and keep manual pla
     (await app.request(`/v1/plans/${draft.id}`, { headers: { cookie: foreignCookie } })).status,
   ).toBe(404);
   expect(
-    (await app.request(`/v1/subjects/${subjectId}`, { headers: { cookie: foreignCookie } })).status,
+    (await app.request(`/v1/activities/${activityId}`, { headers: { cookie: foreignCookie } }))
+      .status,
   ).toBe(404);
   expect(
     await (await app.request("/v1/notifications", { headers: { cookie: foreignCookie } })).json(),

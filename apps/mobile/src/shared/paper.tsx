@@ -73,7 +73,7 @@ const buttonIcons: Array<[RegExp, string]> = [
   [/^ya verifiqué/i, "email-check-outline"],
   [/^olvidé/i, "lock-reset"],
   [/^(confirmar|aceptar|aceptado|aplicar|usar|listo|subtareas creadas)/i, "check"],
-  // Selectores del tipo "Materia: Ninguna".
+  // Selectores del tipo "Tipo: Clase".
   [/^[^:]{1,30}:/, "menu-down"],
 ];
 

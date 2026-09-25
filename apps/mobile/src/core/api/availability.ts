@@ -10,7 +10,7 @@ import {
   availabilityRuleListSchema,
   availabilityRuleSchema,
   availabilityRuleUpdateSchema,
-  subjectVersionSchema,
+  versionSchema,
 } from "@notesia/contracts";
 import { requestJson } from "./client";
 
@@ -36,7 +36,7 @@ export function setAvailabilityRuleArchived(id: string, version: number, archive
   return requestJson(
     `/availability-rules/${encodeURIComponent(id)}/${archived ? "archive" : "restore"}`,
     availabilityRuleSchema,
-    { method: "POST", body: subjectVersionSchema.parse({ version }) },
+    { method: "POST", body: versionSchema.parse({ version }) },
   );
 }
 

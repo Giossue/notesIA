@@ -45,7 +45,6 @@ function readBody(request: Request): Promise<unknown> {
 
 function toFields(input: CalendarEventCreate | CalendarEventUpdate) {
   return {
-    subjectId: input.subjectId,
     kind: input.kind,
     title: input.title,
     description: input.description,
@@ -58,7 +57,6 @@ function toFields(input: CalendarEventCreate | CalendarEventUpdate) {
 function toEvent(row: EventRow) {
   return calendarEventSchema.parse({
     id: row.id,
-    subjectId: row.subjectId,
     kind: row.kind,
     title: row.title,
     description: row.description,
@@ -72,12 +70,6 @@ function toEvent(row: EventRow) {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   });
-}
-
-function hasForeignKeyViolation(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false;
-  const errorValue = value as { code?: unknown; cause?: unknown };
-  return errorValue.code === "23503" || hasForeignKeyViolation(errorValue.cause);
 }
 
 function decodeCursor(raw: string, onDay: boolean) {
@@ -191,20 +183,14 @@ export function registerCalendarEventRoutes(app: Hono, dependencies: Dependencie
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const parsed = calendarEventCreateSchema.safeParse(await readBody(c.req.raw));
     if (!parsed.success) return error(422, "VALIDATION_FAILED", "Revisa los datos del evento.");
-    try {
-      const result = await dependencies.events.create(
-        session.user.id,
-        parsed.data.id,
-        toFields(parsed.data),
-      );
-      if (result.kind === "conflict")
-        return error(409, "EVENT_CONFLICT", "No se pudo guardar el evento.");
-      return c.json(toEvent(result.row), result.kind === "created" ? 201 : 200);
-    } catch (caught) {
-      if (hasForeignKeyViolation(caught))
-        return error(422, "INVALID_SUBJECT", "Elige una materia de tu cuenta.");
-      throw caught;
-    }
+    const result = await dependencies.events.create(
+      session.user.id,
+      parsed.data.id,
+      toFields(parsed.data),
+    );
+    if (result.kind === "conflict")
+      return error(409, "EVENT_CONFLICT", "No se pudo guardar el evento.");
+    return c.json(toEvent(result.row), result.kind === "created" ? 201 : 200);
   });
 
   app.patch("/v1/calendar-events/:id", async (c) => {
@@ -215,18 +201,12 @@ export function registerCalendarEventRoutes(app: Hono, dependencies: Dependencie
       return error(404, "EVENT_NOT_FOUND", "Evento no encontrado.");
     const parsed = calendarEventUpdateSchema.safeParse(await readBody(c.req.raw));
     if (!parsed.success) return error(422, "VALIDATION_FAILED", "Revisa los datos del evento.");
-    try {
-      const result = await dependencies.events.update(session.user.id, id, {
-        ...toFields(parsed.data),
-        version: parsed.data.version,
-        mutationId: parsed.data.mutationId,
-      });
-      return resultResponse(result);
-    } catch (caught) {
-      if (hasForeignKeyViolation(caught))
-        return error(422, "INVALID_SUBJECT", "Elige una materia de tu cuenta.");
-      throw caught;
-    }
+    const result = await dependencies.events.update(session.user.id, id, {
+      ...toFields(parsed.data),
+      version: parsed.data.version,
+      mutationId: parsed.data.mutationId,
+    });
+    return resultResponse(result);
   });
 
   for (const archived of [true, false]) {

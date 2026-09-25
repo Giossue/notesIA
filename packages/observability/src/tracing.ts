@@ -18,10 +18,11 @@ const spanNames = new Set([
   "worker.recovery-mail",
   "worker.verification-mail",
   "provider.ai",
+  "provider.fcm",
   "provider.smtp",
 ]);
 const components = new Set(["api", "database", "worker", "provider"]);
-const targets = new Set(["postgresql", "openai", "anthropic", "deepseek", "smtp"]);
+const targets = new Set(["postgresql", "openai", "anthropic", "deepseek", "fcm", "smtp"]);
 
 export type TracePropagation = Readonly<{ traceId: string; spanId: string }>;
 export type TraceContext = TracePropagation & Readonly<{ parentSpanId: string | null }>;
@@ -37,9 +38,10 @@ export type TraceSpanName =
   | "worker.recovery-mail"
   | "worker.verification-mail"
   | "provider.ai"
+  | "provider.fcm"
   | "provider.smtp";
 export type TraceComponent = "api" | "database" | "worker" | "provider";
-export type TraceTarget = "postgresql" | "openai" | "anthropic" | "deepseek" | "smtp";
+export type TraceTarget = "postgresql" | "openai" | "anthropic" | "deepseek" | "fcm" | "smtp";
 
 export type TraceObservation = TraceContext & {
   name: TraceSpanName;

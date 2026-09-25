@@ -28,10 +28,7 @@
   },
   "overrides": [
     {
-      "includes": [
-        "apps/mobile/**",
-        "!apps/mobile/src/shared/paper.tsx"
-      ],
+      "includes": ["apps/mobile/**", "!apps/mobile/src/shared/paper.tsx"],
       "linter": {
         "rules": {
           "style": {

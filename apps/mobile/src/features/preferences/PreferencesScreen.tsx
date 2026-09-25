@@ -32,6 +32,7 @@ const formSchema = z
     quietStart: clockText,
     quietEnd: clockText,
     notificationsEnabled: z.boolean(),
+    pushNotificationsEnabled: z.boolean(),
   })
   .superRefine((value, context) => {
     const minimum = Number(value.minSessionMinutes);
@@ -126,6 +127,7 @@ function PreferencesForm({ value }: { value: Awaited<ReturnType<typeof getPrefer
       quietStart: minuteToClock(value.quietStartMinute),
       quietEnd: minuteToClock(value.quietEndMinute),
       notificationsEnabled: value.notificationsEnabled,
+      pushNotificationsEnabled: value.pushNotificationsEnabled,
     },
   });
   const save = useMutation({
@@ -135,6 +137,7 @@ function PreferencesForm({ value }: { value: Awaited<ReturnType<typeof getPrefer
         maxSessionMinutes: Number(values.maxSessionMinutes),
         maxDailyMinutes: Number(values.maxDailyMinutes),
         notificationsEnabled: values.notificationsEnabled,
+        pushNotificationsEnabled: values.pushNotificationsEnabled,
         quietStartMinute: clockToMinute(values.quietStart),
         quietEndMinute: clockToMinute(values.quietEnd),
         version: value.version,
@@ -199,6 +202,17 @@ function PreferencesForm({ value }: { value: Awaited<ReturnType<typeof getPrefer
         render={({ field }) => (
           <SwitchRow
             label="Permitir notificaciones"
+            value={field.value}
+            onChange={field.onChange}
+          />
+        )}
+      />
+      <Controller
+        control={control}
+        name="pushNotificationsEnabled"
+        render={({ field }) => (
+          <SwitchRow
+            label="Avisos en el teléfono (push)"
             value={field.value}
             onChange={field.onChange}
           />

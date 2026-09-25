@@ -2,12 +2,13 @@ import { afterAll, expect, test } from "bun:test";
 import {
   type AdminRateLimiter,
   type AdminRepository,
+  createActivityRepository,
   createIdempotencyRepository,
   createPrivacyRepository,
+  createProfileRepository,
   createPushDeviceRepository,
   createPushTokenCipher,
   createRequestTransactionPool,
-  createSubjectRepository,
 } from "@notesia/db";
 import { Pool } from "pg";
 import { createApp } from "./app";
@@ -41,9 +42,11 @@ const app = createApp(
   async () => {},
   auth.handler,
   undefined,
-  { getSession, subjects: createSubjectRepository(repositoryPool) },
-  undefined,
-  undefined,
+  {
+    getSession,
+    activities: createActivityRepository(repositoryPool),
+    profiles: createProfileRepository(repositoryPool),
+  },
   undefined,
   undefined,
   undefined,
@@ -161,68 +164,86 @@ test("Idempotency-Key replays a committed mutation and is scoped to a user and b
   cookieA = await register(emailA);
   cookieB = await register(emailB);
   const key = crypto.randomUUID();
-  const subject = { id: crypto.randomUUID(), name: "Cálculo", colorToken: "primary" };
+  const activity = {
+    id: crypto.randomUUID(),
+    kind: "personal",
+    title: "Cálculo",
+    description: null,
+    priority: "medium",
+    startAfterAt: null,
+    deadlineAt: null,
+    estimatedMinutes: null,
+  };
   const request = (cookie: string, body: unknown, idempotencyKey: string) =>
-    app.request("/v1/subjects", {
+    app.request("/v1/activities", {
       method: "POST",
       headers: { cookie, "content-type": "application/json", "Idempotency-Key": idempotencyKey },
       body: JSON.stringify(body),
     });
-  const first = await request(cookieA, subject, key);
+  const first = await request(cookieA, activity, key);
   expect(first.status).toBe(201);
   const firstBody = await first.json();
-  const replay = await request(cookieA, subject, key);
+  const replay = await request(cookieA, activity, key);
   expect(replay.status).toBe(201);
   expect(await replay.json()).toEqual(firstBody);
-  const conflict = await request(cookieA, { ...subject, name: "Física" }, key);
+  const conflict = await request(cookieA, { ...activity, title: "Física" }, key);
   expect(conflict.status).toBe(409);
   expect(conflict.headers.get("content-type")).toContain("application/problem+json");
-  const other = await request(cookieB, { ...subject, id: crypto.randomUUID() }, key);
+  const other = await request(cookieB, { ...activity, id: crypto.randomUUID() }, key);
   expect(other.status).toBe(201);
   const concurrentKey = crypto.randomUUID();
   const [concurrentA, concurrentB] = await Promise.all([
-    request(cookieA, { ...subject, id: crypto.randomUUID(), name: "Álgebra" }, concurrentKey),
-    request(cookieB, { ...subject, id: crypto.randomUUID(), name: "Álgebra" }, concurrentKey),
+    request(cookieA, { ...activity, id: crypto.randomUUID(), title: "Álgebra" }, concurrentKey),
+    request(cookieB, { ...activity, id: crypto.randomUUID(), title: "Álgebra" }, concurrentKey),
   ]);
   expect([concurrentA.status, concurrentB.status]).toEqual([201, 201]);
   const tenAtOnce = await Promise.all(
-    // Cada materia necesita un nombre propio: el nombre es único por usuario.
     Array.from({ length: 10 }, (_, index) =>
       request(
         cookieA,
-        { ...subject, id: crypto.randomUUID(), name: `Materia ${index}` },
+        { ...activity, id: crypto.randomUUID(), title: `Actividad ${index}` },
         crypto.randomUUID(),
       ),
     ),
   );
   expect(tenAtOnce.map((response) => response.status)).toEqual(Array(10).fill(201));
   const updateKey = crypto.randomUUID();
+  const { id: _id, ...fields } = activity;
   const update = () =>
-    app.request(`/v1/subjects/${subject.id}`, {
+    app.request(`/v1/activities/${activity.id}`, {
       method: "PATCH",
       headers: {
         cookie: cookieA,
         "content-type": "application/json",
         "Idempotency-Key": updateKey,
       },
-      body: JSON.stringify({ name: "Cálculo II", colorToken: "primary", version: 1 }),
+      body: JSON.stringify({ ...fields, title: "Cálculo II", version: 1 }),
     });
   const updated = await update();
   expect(updated.status).toBe(200);
-  expect(await updated.json()).toMatchObject({ name: "Cálculo II", version: 2 });
+  expect(await updated.json()).toMatchObject({ title: "Cálculo II", version: 2 });
   const updateReplay = await update();
   expect(updateReplay.status).toBe(200);
-  expect(await updateReplay.json()).toMatchObject({ name: "Cálculo II", version: 2 });
+  expect(await updateReplay.json()).toMatchObject({ title: "Cálculo II", version: 2 });
 });
 
 test("failed response commit rolls back domain writes and permits the same key to retry", async () => {
-  const subject = { id: crypto.randomUUID(), name: "Historia", colorToken: "primary" };
+  const activity = {
+    id: crypto.randomUUID(),
+    kind: "personal",
+    title: "Historia",
+    description: null,
+    priority: "medium",
+    startAfterAt: null,
+    deadlineAt: null,
+    estimatedMinutes: null,
+  };
   const key = crypto.randomUUID();
   const create = () =>
-    app.request("/v1/subjects", {
+    app.request("/v1/activities", {
       method: "POST",
       headers: { cookie: cookieA, "content-type": "application/json", "Idempotency-Key": key },
-      body: JSON.stringify(subject),
+      body: JSON.stringify(activity),
     });
   try {
     failCompletion = true;
@@ -231,7 +252,7 @@ test("failed response commit rolls back domain writes and permits the same key t
     failCompletion = false;
   }
   expect(
-    (await app.request(`/v1/subjects/${subject.id}`, { headers: { cookie: cookieA } })).status,
+    (await app.request(`/v1/activities/${activity.id}`, { headers: { cookie: cookieA } })).status,
   ).toBe(404);
   expect((await create()).status).toBe(201);
   expect((await create()).status).toBe(201);

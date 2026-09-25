@@ -76,8 +76,6 @@ describe("readiness", () => {
       undefined,
       undefined,
       undefined,
-      undefined,
-      undefined,
       (event) => observations.push(event),
       (event) => traces.push(event),
     );

@@ -199,16 +199,11 @@ export function registerTimeEntryRoutes(app: Hono, dependencies: Dependencies) {
     ]);
     const weeks = new Map<string, number>();
     const activityWeeks = new Map(activityRows.map((row) => [row.weekStart, row]));
-    const subjects = new Map<string, { name: string | null; seconds: number }>();
     let totalSeconds = 0;
     for (const row of rows) {
       const seconds = Number(row.seconds);
       totalSeconds += seconds;
       weeks.set(row.weekStart, (weeks.get(row.weekStart) ?? 0) + seconds);
-      const subjectKey = row.subjectId ?? "none";
-      const subject = subjects.get(subjectKey) ?? { name: row.subjectName, seconds: 0 };
-      subject.seconds += seconds;
-      subjects.set(subjectKey, subject);
     }
     return c.json(
       timeStatisticsSchema.parse({
@@ -231,11 +226,6 @@ export function registerTimeEntryRoutes(app: Hono, dependencies: Dependencies) {
               dueActivities > 0 ? Math.round((100 * onTimeActivities) / dueActivities) : null,
           };
         }),
-        subjects: [...subjects].map(([subjectId, subject]) => ({
-          subjectId: subjectId === "none" ? null : subjectId,
-          subjectName: subject.name,
-          seconds: subject.seconds,
-        })),
         activities: comparisonRows.map((row) => ({
           activityId: row.activityId,
           title: row.title,

@@ -3,7 +3,7 @@ import { expandRecurrence } from "@notesia/domain";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
@@ -11,11 +11,10 @@ import { HelperText, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import { createActivitySeries } from "@/core/api/activity-series";
-import { listSubjects } from "@/core/api/subjects";
 import { layout } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
-import { DateField, DurationField, FormSection, LabeledField, SelectField } from "@/shared/fields";
-import { Button, Menu, TextInput } from "@/shared/paper";
+import { DateField, DurationField, FormSection, LabeledField } from "@/shared/fields";
+import { Button, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { Tabs } from "@/shared/Tabs";
 
@@ -23,7 +22,6 @@ const formSchema = z
   .object({
     title: z.string().trim().min(1, "Escribe un título.").max(240),
     description: z.string().trim().max(10000),
-    subjectId: z.union([z.literal(""), z.uuid()]),
     kind: z.enum(["academic_task", "personal", "routine"]),
     priority: z.enum(["low", "medium", "high", "critical"]),
     estimatedMinutes: z
@@ -60,26 +58,15 @@ export function ActivitySeriesFormScreen() {
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
   const requestIdentity = useRef({ fingerprint: "", id: uuidv4() });
-  const subjects = useInfiniteQuery({
-    queryKey: ["subjects", false],
-    queryFn: ({ pageParam }) => listSubjects(false, pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-    retry: false,
-  });
-  const subjectItems = subjects.data?.pages.flatMap((page) => page.items) ?? [];
   const {
     control,
     handleSubmit,
-    watch,
-    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
       description: "",
-      subjectId: "",
       kind: "routine",
       priority: "medium",
       estimatedMinutes: "30",
@@ -88,11 +75,9 @@ export function ActivitySeriesFormScreen() {
       throughOn: "",
     },
   });
-  const subjectId = watch("subjectId");
   const save = useMutation({
     mutationFn: (values: FormValues) => {
       const fields = {
-        subjectId: values.subjectId || null,
         kind: values.kind,
         title: values.title.trim(),
         description: values.description.trim() || null,
@@ -155,20 +140,6 @@ export function ActivitySeriesFormScreen() {
         </FormSection>
 
         <FormSection title="Clasificación">
-          <SelectField
-            label="Materia"
-            value={subjectId}
-            options={[
-              { value: "", label: "Ninguna" },
-              ...subjectItems.map((item) => ({ value: item.id, label: item.name })),
-            ]}
-            onChange={(value) => setValue("subjectId", value)}
-            footer={
-              subjects.hasNextPage && (
-                <Menu.Item title="Cargar más" onPress={() => void subjects.fetchNextPage()} />
-              )
-            }
-          />
           <LabeledField label="Tipo">
             <Controller
               control={control}
@@ -180,7 +151,7 @@ export function ActivitySeriesFormScreen() {
                   buttons={[
                     { value: "academic_task", label: "Académica" },
                     { value: "personal", label: "Personal" },
-                    { value: "routine", label: "Rutina" },
+                    { value: "routine", label: "Cotidiana" },
                   ]}
                 />
               )}

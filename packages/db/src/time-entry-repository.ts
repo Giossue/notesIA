@@ -107,20 +107,12 @@ export function createTimeEntryRepository(pool: Pool) {
       return result.rows;
     },
     async statistics(userId: string, from: Date, through: Date, timeZone: string) {
-      const result = await pool.query<{
-        weekStart: string;
-        subjectId: string | null;
-        subjectName: string | null;
-        seconds: string;
-      }>(
-        `select date_trunc('week', r.termina_en at time zone $4)::date::text AS "weekStart",
-           a.materia_id AS "subjectId", m.nombre AS "subjectName",
-           sum(r.duracion_segundos)::text AS seconds
-         from dominio.registros_tiempo r
-         join dominio.actividades a on a.usuario_id = r.usuario_id and a.id = r.actividad_id
-         left join dominio.materias m on m.usuario_id = a.usuario_id and m.id = a.materia_id
-         where r.usuario_id = $1 and r.termina_en >= $2 and r.termina_en < $3
-         group by 1, 2, 3 order by 1, 2`,
+      const result = await pool.query<{ weekStart: string; seconds: string }>(
+        `select date_trunc('week', termina_en at time zone $4)::date::text AS "weekStart",
+           sum(duracion_segundos)::text AS seconds
+         from dominio.registros_tiempo
+         where usuario_id = $1 and termina_en >= $2 and termina_en < $3
+         group by 1 order by 1`,
         [userId, from, through, timeZone],
       );
       return result.rows;

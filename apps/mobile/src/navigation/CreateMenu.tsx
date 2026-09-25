@@ -10,7 +10,7 @@ import type { RootStackParamList } from "./types";
 
 export const FAB_SIZE = 64;
 
-/** Menú de creación (tarea, evento, materia) que abre el botón +. */
+/** Menú de creación (tarea, evento) que abre el botón +. */
 export function CreateMenu({
   open,
   onClose,
@@ -46,14 +46,7 @@ export function CreateMenu({
       open: () => navigation.navigate("EventForm", { date }),
       color: categories.orange,
     },
-    {
-      icon: "book-open-variant",
-      label: "Nueva materia",
-      route: "SubjectForm",
-      open: () => navigation.navigate("SubjectForm", {}),
-      color: categories.cyan,
-    },
-  ].filter((action) => !date || action.route !== "SubjectForm");
+  ];
 
   return (
     <Portal>

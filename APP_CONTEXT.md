@@ -49,7 +49,7 @@ El estudiante puede tener toda la información registrada y aun así no saber si
 
 ### Estudiante
 
-- administra perfil, materias, actividades y disponibilidad;
+- administra perfil, actividades y disponibilidad;
 - consulta agenda, calendario, riesgo y estadísticas;
 - registra sesiones de trabajo;
 - recibe recordatorios y recomendaciones;
@@ -78,8 +78,7 @@ El estudiante puede tener toda la información registrada y aun así no saber si
 
 ### Organización académica
 
-- periodos académicos opcionales;
-- materias con nombre único y color semántico;
+- materias y periodos académicos fueron retirados del producto (sus tablas se conservan solo para exportar o eliminar datos existentes);
 - clases y compromisos fijos;
 - actividades académicas, exámenes, personales y rutinas;
 - subtareas;
@@ -119,7 +118,7 @@ El estudiante puede tener toda la información registrada y aun así no saber si
 - registrar tiempo manual;
 - actualizar progreso;
 - comparar estimado y real;
-- mostrar estadísticas básicas por semana y materia.
+- mostrar estadísticas básicas por semana y actividad.
 
 ### Riesgo
 
@@ -164,9 +163,7 @@ Solo tras validar el MVP:
 erDiagram
     USER ||--|| USER_PROFILE : tiene
     USER ||--|| USER_PREFERENCE : configura
-    USER ||--o{ SUBJECT : crea
     USER ||--o{ ACTIVITY : gestiona
-    SUBJECT ||--o{ ACTIVITY : agrupa
     ACTIVITY ||--o{ SUBTASK : contiene
     USER ||--o{ CALENDAR_EVENT : registra
     USER ||--o{ AVAILABILITY_RULE : define
@@ -185,7 +182,6 @@ erDiagram
 ### Actividades
 
 - Toda actividad pertenece a un usuario.
-- Una actividad académica puede asociarse a una materia.
 - La fecha límite indica cuándo debe estar terminada; no es el momento de trabajo.
 - `progressPercent` está entre 0 y 100.
 - Completar fija progreso en 100 y registra `completedAt`.
@@ -297,7 +293,7 @@ return draftPlan + riskAssessments
 
 1. Captura manual o frase.
 2. Si usa IA, mostrar campos propuestos.
-3. Revisar título, materia, plazo, estimación y prioridad.
+3. Revisar título, plazo, estimación y prioridad.
 4. Confirmar.
 5. API valida y guarda.
 6. Recalcular riesgo.
@@ -341,7 +337,6 @@ Base `/v1`.
 
 ### Dominio
 
-- `/subjects`
 - `/calendar-events`
 - `/activities`
 - `/availability-rules`

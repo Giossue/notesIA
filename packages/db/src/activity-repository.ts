@@ -1,10 +1,9 @@
 import { and, desc, eq, gte, isNotNull, isNull, lt, notInArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import type { Pool } from "pg";
-import { activities, activityHistory, subjects } from "./schema";
+import { activities, activityHistory } from "./schema";
 
 type ActivityFields = {
-  subjectId: string | null;
   kind: "academic_task" | "exam" | "personal" | "routine";
   title: string;
   description: string | null;
@@ -28,7 +27,6 @@ function sameInstant(left: Date | null, right: Date | null) {
 
 function matchesFields(row: typeof activities.$inferSelect, fields: ActivityFields) {
   return (
-    row.subjectId === fields.subjectId &&
     row.kind === fields.kind &&
     row.title === fields.title &&
     row.description === fields.description &&
@@ -114,33 +112,23 @@ export function createActivityRepository(pool: Pool) {
         );
     },
 
-    async subjectProgress(userId: string, limit: number) {
-      const total = sql<number>`count(${activities.id}) filter (where ${activities.status} <> 'cancelled')::int`;
+    /** Totales por tipo de actividad (sin canceladas ni archivadas). */
+    async kindProgress(userId: string) {
       return db
         .select({
-          subjectId: subjects.id,
-          name: subjects.name,
-          colorToken: subjects.colorToken,
-          total,
-          completed: sql<number>`count(${activities.id}) filter (where ${activities.status} = 'completed')::int`,
+          kind: activities.kind,
+          total: sql<number>`count(*) filter (where ${activities.status} <> 'cancelled')::int`,
+          completed: sql<number>`count(*) filter (where ${activities.status} = 'completed')::int`,
         })
-        .from(subjects)
-        .innerJoin(
-          activities,
+        .from(activities)
+        .where(
           and(
-            eq(activities.userId, subjects.userId),
-            eq(activities.subjectId, subjects.id),
+            eq(activities.userId, userId),
             isNull(activities.deletedAt),
             isNull(activities.archivedAt),
           ),
         )
-        .where(
-          and(eq(subjects.userId, userId), isNull(subjects.archivedAt), isNull(subjects.deletedAt)),
-        )
-        .groupBy(subjects.id, subjects.name, subjects.colorToken)
-        .having(sql`${total} > 0`)
-        .orderBy(desc(total), subjects.name)
-        .limit(limit);
+        .groupBy(activities.kind);
     },
 
     async completionInstantsSince(userId: string, since: Date) {
@@ -294,7 +282,7 @@ export function createActivityRepository(pool: Pool) {
       input: {
         version: number;
         mutationId: string;
-        eventType: "completed" | "reopened" | "cancelled";
+        eventType: "completed" | "reopened" | "cancelled" | "started" | "paused";
       },
     ) {
       return db.transaction(async (tx) => {
@@ -342,15 +330,24 @@ export function createActivityRepository(pool: Pool) {
         if (input.eventType === "reopened" ? !isFinal : isFinal) {
           return { kind: "conflict" as const };
         }
+        // Iniciar y pausar solo cambian entre pendiente y en progreso; el avance se conserva.
+        if (input.eventType === "started" && current.status === "in_progress")
+          return { kind: "conflict" as const };
+        if (input.eventType === "paused" && current.status !== "in_progress")
+          return { kind: "conflict" as const };
 
         const status =
           input.eventType === "completed"
             ? "completed"
             : input.eventType === "cancelled"
               ? "cancelled"
-              : current.status === "cancelled" && current.progressPercent > 0
+              : input.eventType === "started"
                 ? "in_progress"
-                : "backlog";
+                : input.eventType === "paused"
+                  ? "backlog"
+                  : current.status === "cancelled" && current.progressPercent > 0
+                    ? "in_progress"
+                    : "backlog";
         const progressPercent =
           input.eventType === "completed"
             ? 100

@@ -26,12 +26,6 @@ const destinations = [
     "Configura horarios semanales y excepciones.",
     "clock-outline",
   ],
-  [
-    "AcademicPeriods",
-    "Periodos académicos",
-    "Organiza materias por semestre o ciclo.",
-    "calendar-range",
-  ],
   ["ActivitySeries", "Actividades recurrentes", "Crea rutinas diarias o semanales.", "repeat"],
   [
     "AiAssistant",

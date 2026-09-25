@@ -63,16 +63,6 @@ const privateRoutes: Route[] = [
   route("GET", "/v1/me/consents"),
   route("POST", "/v1/me/consents"),
   route("POST", "/v1/me/consents/ai/revoke"),
-  route("GET", "/v1/subjects"),
-  route("GET", `/v1/subjects/${id}`),
-  route("POST", "/v1/subjects"),
-  route("PATCH", `/v1/subjects/${id}`),
-  ...["archive", "restore"].map((action) => route("POST", `/v1/subjects/${id}/${action}`)),
-  route("GET", "/v1/academic-periods"),
-  route("GET", `/v1/academic-periods/${id}`),
-  route("POST", "/v1/academic-periods"),
-  route("PATCH", `/v1/academic-periods/${id}`),
-  ...["archive", "restore"].map((action) => route("POST", `/v1/academic-periods/${id}/${action}`)),
   route("GET", "/v1/activities"),
   route("GET", `/v1/activities/${id}`),
   route("GET", `/v1/activities/${id}/history`),
@@ -266,7 +256,7 @@ afterAll(async () => {
 });
 
 test("every private route rejects a request without a session", async () => {
-  expect(privateRoutes.length).toBeGreaterThan(90);
+  expect(privateRoutes.length).toBeGreaterThan(80);
   for (const item of privateRoutes) {
     const result = await request(item);
     expect([item.method, item.path, result.status, result.body.code]).toEqual([
@@ -293,34 +283,28 @@ test("a student session cannot call administrative routes", async () => {
     ]);
     expect(result.type).toContain("application/problem+json");
   }
-  const privateList = await fetch(`${baseUrl}/v1/subjects`, {
+  const privateList = await fetch(`${baseUrl}/v1/activities`, {
     headers: { cookie },
   });
   expect(privateList.status).toBe(200);
   expect(privateList.headers.get("cache-control")).toBe("no-store");
   expect(privateList.headers.get("x-content-type-options")).toBe("nosniff");
-  const anonymousList = await fetch(`${baseUrl}/v1/subjects`);
+  const anonymousList = await fetch(`${baseUrl}/v1/activities`);
   expect(anonymousList.status).toBe(401);
   expect(anonymousList.headers.get("cache-control")).toBe("no-store");
   expect(anonymousList.headers.get("x-content-type-options")).toBe("nosniff");
 });
 
 test("another account cannot read or change owned work, notices or devices", async () => {
-  const subjectId = crypto.randomUUID();
   const activityId = crypto.randomUUID();
   const noticeId = crypto.randomUUID();
   const deviceId = crypto.randomUUID();
   const deadline = new Date(Date.now() + 2 * 86400000);
   await pool.query(
-    `INSERT INTO dominio.materias (id, usuario_id, nombre, color)
-     VALUES ($1,$2,'Materia privada','primary')`,
-    [subjectId, ownerUserId],
-  );
-  await pool.query(
     `INSERT INTO dominio.actividades
-       (id, usuario_id, materia_id, tipo, titulo, prioridad, fecha_limite, minutos_estimados)
-     VALUES ($1,$2,$3,'academic_task','Informe privado','medium',$4,60)`,
-    [activityId, ownerUserId, subjectId, deadline],
+       (id, usuario_id, tipo, titulo, prioridad, fecha_limite, minutos_estimados)
+     VALUES ($1,$2,'academic_task','Informe privado','medium',$3,60)`,
+    [activityId, ownerUserId, deadline],
   );
   await pool.query(
     `INSERT INTO dominio.notificaciones
@@ -329,27 +313,28 @@ test("another account cannot read or change owned work, notices or devices", asy
     [noticeId, ownerUserId, activityId, deadline],
   );
 
-  const ownedSubject = await fetch(`${baseUrl}/v1/subjects/${subjectId}`, {
+  const ownedActivity = await fetch(`${baseUrl}/v1/activities/${activityId}`, {
     headers: { cookie },
   });
-  expect(ownedSubject.status).toBe(200);
-  expect((await ownedSubject.json()) as { name: string }).toMatchObject({
-    name: "Materia privada",
+  expect(ownedActivity.status).toBe(200);
+  expect((await ownedActivity.json()) as { title: string }).toMatchObject({
+    title: "Informe privado",
   });
-  expect(
-    (await fetch(`${baseUrl}/v1/subjects/${subjectId}`, { headers: { cookie: otherCookie } }))
-      .status,
-  ).toBe(404);
-  const foreignSubjectUpdate = await fetch(`${baseUrl}/v1/subjects/${subjectId}`, {
+  const foreignActivityUpdate = await fetch(`${baseUrl}/v1/activities/${activityId}`, {
     method: "PATCH",
     headers: { cookie: otherCookie, "content-type": "application/json" },
     body: JSON.stringify({
-      name: "Intento ajeno",
-      colorToken: "primary",
+      kind: "academic_task",
+      title: "Intento ajeno",
+      description: null,
+      priority: "medium",
+      startAfterAt: null,
+      deadlineAt: null,
+      estimatedMinutes: null,
       version: 1,
     }),
   });
-  expect(foreignSubjectUpdate.status).toBe(404);
+  expect(foreignActivityUpdate.status).toBe(404);
   const foreignActivities = await fetch(`${baseUrl}/v1/activities`, {
     headers: { cookie: otherCookie },
   });

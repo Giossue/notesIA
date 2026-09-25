@@ -9,11 +9,11 @@ import { ActivityIndicator, Icon, Text, TouchableRipple, useTheme } from "react-
 import { v4 as uuidv4 } from "uuid";
 import { getActivitySummary, listActivities, transitionActivity } from "@/core/api/activities";
 import { getProfile } from "@/core/api/profile";
-import { listSubjects } from "@/core/api/subjects";
 import { layout } from "@/core/theme/layout";
-import { categoryColors, subjectCategory } from "@/core/theme/theme";
+import { categoryColors } from "@/core/theme/theme";
 import type { RootStackParamList } from "@/navigation/types";
 import { useExitOnDoubleBack } from "@/navigation/useExitOnDoubleBack";
+import { categoryInfo, kindColor, kindLabel } from "@/shared/activity-kinds";
 import { EmptyState } from "@/shared/EmptyState";
 import { userMessage } from "@/shared/errors";
 import { clockTime, longDate, percent, shortWeekday } from "@/shared/format";
@@ -22,13 +22,6 @@ import { ProgressRings } from "@/shared/ProgressRings";
 import { Button } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { HomeHeader } from "./HomeHeader";
-
-const activityKindLabel: Record<Activity["kind"], string> = {
-  academic_task: "Tarea",
-  exam: "Examen",
-  personal: "Personal",
-  routine: "Rutina",
-};
 
 export function HomeScreen() {
   useExitOnDoubleBack();
@@ -58,13 +51,6 @@ export function HomeScreen() {
     enabled: !!day,
     retry: false,
   });
-  const subjects = useInfiniteQuery({
-    queryKey: ["subjects", false],
-    queryFn: ({ pageParam }) => listSubjects(false, pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-    retry: false,
-  });
   const toggle = useMutation({
     mutationFn: (activity: Activity) =>
       transitionActivity(
@@ -82,9 +68,6 @@ export function HomeScreen() {
     },
   });
 
-  const subjectById = new Map(
-    (subjects.data?.pages.flatMap((page) => page.items) ?? []).map((item) => [item.id, item]),
-  );
   const localDay = (instant: string) =>
     timeZone ? utcToLocalDateTime(instant, timeZone).slice(0, 10) : "";
   const localTime = (instant: string) =>
@@ -98,28 +81,27 @@ export function HomeScreen() {
     .filter((item) => item.status !== "completed" && localDay(item.deadlineAt ?? "") !== day)
     .slice(0, 6);
 
-  const categoryOf = (subjectId: string | null) => {
-    const subject = subjectId ? subjectById.get(subjectId) : undefined;
-    return categories[subject ? subjectCategory[subject.colorToken] : "blue"];
-  };
+  // El color sale del tipo de actividad (académica, personal o cotidiana).
+  const categoryOf = (kind: Activity["kind"]) => categories[kindColor(kind)];
 
   const counts = summary.data;
-  const ringRows =
-    counts && counts.subjects.length > 0
-      ? counts.subjects.map((subject) => ({
-          label: subject.name,
-          value: percent(subject.completed, subject.total),
-          color: categories[subjectCategory[subject.colorToken]],
+  const ringRows = counts?.categories.some((row) => row.total > 0)
+    ? counts.categories
+        .filter((row) => row.total > 0)
+        .map((row) => ({
+          label: categoryInfo[row.category].label,
+          value: percent(row.completed, row.total),
+          color: categories[categoryInfo[row.category].color],
         }))
-      : counts
-        ? [
-            {
-              label: "Esta semana",
-              value: percent(counts.week.completedDue, counts.week.due),
-              color: categories.blue,
-            },
-          ]
-        : [];
+    : counts
+      ? [
+          {
+            label: "Esta semana",
+            value: percent(counts.week.completedDue, counts.week.due),
+            color: categories.blue,
+          },
+        ]
+      : [];
 
   return (
     <ScreenLayout
@@ -203,7 +185,6 @@ export function HomeScreen() {
             {nextDeliveries.map((item) => {
               const deliveryDay = localDay(item.deadlineAt ?? "");
               const isToday = deliveryDay === day;
-              const subject = item.subjectId ? subjectById.get(item.subjectId) : undefined;
               return (
                 <TouchableRipple
                   borderless
@@ -214,17 +195,14 @@ export function HomeScreen() {
                   style={[styles.card, styles.delivery, { backgroundColor: theme.colors.surface }]}
                 >
                   <View style={styles.deliveryContent}>
-                    <PieIcon
-                      progress={item.progressPercent / 100}
-                      color={categoryOf(item.subjectId)}
-                    />
+                    <PieIcon progress={item.progressPercent / 100} color={categoryOf(item.kind)} />
                     <View style={styles.deliveryCopy}>
                       <Text
                         variant="labelMedium"
                         numberOfLines={1}
                         style={[styles.overline, { color: theme.colors.onSurfaceVariant }]}
                       >
-                        {(subject?.name ?? activityKindLabel[item.kind]).toLocaleUpperCase("es")}
+                        {kindLabel(item.kind).toLocaleUpperCase("es")}
                       </Text>
                       <Text variant="titleMedium" numberOfLines={2} style={styles.bold}>
                         {item.title}

@@ -2,13 +2,30 @@ import type { Activity } from "@notesia/contracts";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Portal, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { deleteActivity, setActivityArchived, transitionActivity } from "@/core/api/activities";
 import { OfflineQueuedError } from "@/core/api/client";
 import type { RootStackParamList } from "@/navigation/types";
+import { LabeledField } from "@/shared/fields";
 import { Button, Dialog } from "@/shared/paper";
+import { Tabs } from "@/shared/Tabs";
+
+type StatusChoice = "pending" | "in_progress" | "completed" | "cancelled";
+
+// Los cuatro estados del requisito; "planificada" se muestra como pendiente.
+const statusButtons: { value: StatusChoice; label: string }[] = [
+  { value: "pending", label: "Pendiente" },
+  { value: "in_progress", label: "En progreso" },
+  { value: "completed", label: "Completada" },
+  { value: "cancelled", label: "Cancelada" },
+];
+
+function statusChoice(activity: Activity): StatusChoice {
+  if (activity.status === "backlog" || activity.status === "planned") return "pending";
+  return activity.status;
+}
 
 export function ActivityActions({ activity, offline }: { activity: Activity; offline: boolean }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -17,7 +34,6 @@ export function ActivityActions({ activity, offline }: { activity: Activity; off
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const transitionIdentity = useRef({ fingerprint: "", id: uuidv4() });
   const [deleteMutationId, setDeleteMutationId] = useState(() => uuidv4());
   const archive = useMutation({
     mutationFn: () => setActivityArchived(activity.id, activity.version, !activity.archivedAt),
@@ -29,29 +45,32 @@ export function ActivityActions({ activity, offline }: { activity: Activity; off
       navigation.goBack();
     },
   });
-  const transition = useMutation({
-    mutationFn: (action: "complete" | "reopen" | "cancel") => {
-      const fingerprint = `${activity.version}:${action}`;
-      if (transitionIdentity.current.fingerprint !== fingerprint) {
-        transitionIdentity.current = { fingerprint, id: uuidv4() };
-      }
-      return transitionActivity(
-        activity.id,
-        activity.version,
-        transitionIdentity.current.id,
-        action,
-      );
+  // Cambia al estado elegido encadenando las transiciones necesarias
+  // (por ejemplo, de cancelada a en progreso: reactivar y luego iniciar).
+  const changeStatus = useMutation({
+    mutationFn: async (target: StatusChoice) => {
+      let current = activity;
+      const step = async (action: "complete" | "reopen" | "cancel" | "start" | "pause") => {
+        current = await transitionActivity(current.id, current.version, uuidv4(), action);
+      };
+      const isFinal = (value: Activity) =>
+        value.status === "completed" || value.status === "cancelled";
+      if (isFinal(current) && statusChoice(current) !== target) await step("reopen");
+      if (target === "completed" && !isFinal(current)) await step("complete");
+      if (target === "cancelled" && !isFinal(current)) await step("cancel");
+      if (target === "in_progress" && current.status !== "in_progress") await step("start");
+      if (target === "pending" && current.status === "in_progress") await step("pause");
+      return current;
     },
     onSuccess: (updated) => {
       queryClient.setQueryData(["activity", updated.id], updated);
       void queryClient.invalidateQueries({ queryKey: ["activities"] });
       void queryClient.invalidateQueries({ queryKey: ["agenda"] });
-      void queryClient.invalidateQueries({
-        queryKey: ["activity-history", activity.id],
-      });
+      void queryClient.invalidateQueries({ queryKey: ["activity-history", activity.id] });
       setConfirmCancel(false);
-      transitionIdentity.current = { fingerprint: "", id: uuidv4() };
     },
+    // Si una transición intermedia ya se aplicó, se recarga para mostrar el estado real.
+    onError: () => void queryClient.invalidateQueries({ queryKey: ["activity", activity.id] }),
   });
   const remove = useMutation({
     mutationFn: () => deleteActivity(activity.id, activity.version, deleteMutationId),
@@ -74,41 +93,20 @@ export function ActivityActions({ activity, offline }: { activity: Activity; off
   return (
     <>
       {!activity.archivedAt && (
-        <Button
-          mode="outlined"
-          icon={
-            activity.status === "completed" || activity.status === "cancelled" ? "undo" : "check"
-          }
-          disabled={offline || transition.isPending}
-          loading={transition.isPending}
-          onPress={() =>
-            transition.mutate(
-              activity.status === "completed" || activity.status === "cancelled"
-                ? "reopen"
-                : "complete",
-            )
-          }
-        >
-          {activity.status === "completed"
-            ? "Reabrir actividad"
-            : activity.status === "cancelled"
-              ? "Reactivar actividad"
-              : "Completar actividad"}
-        </Button>
+        <LabeledField label="Estado">
+          <Tabs
+            value={statusChoice(activity)}
+            onValueChange={(target) => {
+              if (target === "cancelled") setConfirmCancel(true);
+              else changeStatus.mutate(target);
+            }}
+            buttons={statusButtons.map((button) => ({
+              ...button,
+              disabled: offline || changeStatus.isPending,
+            }))}
+          />
+        </LabeledField>
       )}
-      {!activity.archivedAt &&
-        activity.status !== "completed" &&
-        activity.status !== "cancelled" && (
-          <Button
-            mode="outlined"
-            icon="cancel"
-            textColor={theme.colors.error}
-            disabled={offline || transition.isPending}
-            onPress={() => setConfirmCancel(true)}
-          >
-            Cancelar actividad
-          </Button>
-        )}
       <Button
         mode="outlined"
         icon={activity.archivedAt ? "archive-arrow-up" : "archive-outline"}
@@ -139,8 +137,8 @@ export function ActivityActions({ activity, offline }: { activity: Activity; off
             <Button onPress={() => setConfirmCancel(false)}>Volver</Button>
             <Button
               textColor={theme.colors.error}
-              loading={transition.isPending}
-              onPress={() => transition.mutate("cancel")}
+              loading={changeStatus.isPending}
+              onPress={() => changeStatus.mutate("cancelled")}
             >
               Cancelar actividad
             </Button>

@@ -128,8 +128,6 @@ beforeAll(async () => {
     undefined,
     undefined,
     undefined,
-    undefined,
-    undefined,
     {
       getSession: (headers) => created.auth.api.getSession({ headers }),
       privacy: createPrivacyRepository(authPool),

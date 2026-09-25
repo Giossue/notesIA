@@ -50,7 +50,6 @@ test("la agenda muestra eventos y entregas del día en la zona horaria del perfi
                 : [
                     {
                       id: "activity-1",
-                      subjectId: null,
                       progressPercent: 0,
                       title: "Entrega de informe",
                       deadlineAt: "2026-09-24T04:00:00.000Z",
@@ -76,7 +75,8 @@ test("la agenda muestra eventos y entregas del día en la zona horaria del perfi
   expect(screen.getByText("ENTREGA")).toBeOnTheScreen();
   expect(screen.getByText("Clase de cálculo")).toBeOnTheScreen();
   expect(screen.getByText("Entrega de informe")).toBeOnTheScreen();
-  expect(screen.getByText("10:00 p. m. – 11:00 p. m.")).toBeOnTheScreen();
-  expect(screen.getByText("Entrega 11:00 p. m.")).toBeOnTheScreen();
+  // Hora de inicio (y fin del evento) en la columna izquierda de la lista.
+  expect(screen.getByText("22:00")).toBeOnTheScreen();
+  expect(screen.getAllByText("23:00")).toHaveLength(2);
   jest.useRealTimers();
 });

@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { healthSchema, type Problem, readinessSchema } from "@notesia/contracts";
 import type {
-  AcademicPeriodRepository,
   AccountDeletionRepository,
   AccountExportRepository,
   ActivityRepository,
@@ -21,7 +20,6 @@ import type {
   ProfileRepository,
   PushDeviceRepository,
   PushTokenCipher,
-  SubjectRepository,
   SubtaskRepository,
   TimeEntryRepository,
 } from "@notesia/db";
@@ -38,7 +36,6 @@ import {
 import { Hono } from "hono";
 import { z } from "zod";
 import { supportedAuthRoutes } from "./auth/supported-routes";
-import { registerAcademicPeriodRoutes } from "./modules/academic-periods/routes";
 import { registerAccountDeletionRoutes } from "./modules/account-deletion/routes";
 import { registerAccountExportRoutes } from "./modules/account-export/routes";
 import { registerActivityRoutes } from "./modules/activities/routes";
@@ -55,7 +52,6 @@ import { registerNotificationRoutes } from "./modules/notifications/routes";
 import { registerPlanRoutes } from "./modules/plans/routes";
 import { registerPrivacyRoutes } from "./modules/privacy/routes";
 import { registerPushDeviceRoutes } from "./modules/push-devices/routes";
-import { registerSubjectRoutes } from "./modules/subjects/routes";
 import { registerSubtaskRoutes } from "./modules/subtasks/routes";
 import { registerTimeEntryRoutes } from "./modules/time-entries/routes";
 
@@ -68,10 +64,6 @@ type MeDependencies = {
   getSession(headers: Headers): Promise<Session | null>;
   profiles: ProfileRepository;
   preferences?: PreferenceRepository;
-};
-type SubjectDependencies = {
-  getSession(headers: Headers): Promise<Session | null>;
-  subjects: SubjectRepository;
 };
 type ActivityDependencies = {
   getSession(headers: Headers): Promise<Session | null>;
@@ -116,10 +108,6 @@ type TimeEntryDependencies = {
   activities: ActivityRepository;
   profiles: ProfileRepository;
   now?(): Date;
-};
-type AcademicPeriodDependencies = {
-  getSession(headers: Headers): Promise<Session | null>;
-  periods: AcademicPeriodRepository;
 };
 type IdempotencyDependencies = {
   getSession(headers: Headers): Promise<Session | null>;
@@ -175,14 +163,12 @@ export function createApp(
   checkDatabase: () => Promise<void>,
   authHandler?: AuthHandler,
   meDependencies?: MeDependencies,
-  subjectDependencies?: SubjectDependencies,
   activityDependencies?: ActivityDependencies,
   subtaskDependencies?: SubtaskDependencies,
   calendarEventDependencies?: CalendarEventDependencies,
   availabilityDependencies?: AvailabilityDependencies,
   planDependencies?: PlanDependencies,
   timeEntryDependencies?: TimeEntryDependencies,
-  academicPeriodDependencies?: AcademicPeriodDependencies,
   idempotencyDependencies?: IdempotencyDependencies,
   notificationDependencies?: NotificationDependencies,
   privacyDependencies?: PrivacyDependencies,
@@ -451,14 +437,12 @@ export function createApp(
   }
 
   if (meDependencies) registerMeRoutes(app, meDependencies);
-  if (subjectDependencies) registerSubjectRoutes(app, subjectDependencies);
   if (activityDependencies) registerActivityRoutes(app, activityDependencies);
   if (subtaskDependencies) registerSubtaskRoutes(app, subtaskDependencies);
   if (calendarEventDependencies) registerCalendarEventRoutes(app, calendarEventDependencies);
   if (availabilityDependencies) registerAvailabilityRoutes(app, availabilityDependencies);
   if (planDependencies) registerPlanRoutes(app, planDependencies);
   if (timeEntryDependencies) registerTimeEntryRoutes(app, timeEntryDependencies);
-  if (academicPeriodDependencies) registerAcademicPeriodRoutes(app, academicPeriodDependencies);
   if (notificationDependencies) registerNotificationRoutes(app, notificationDependencies);
   if (privacyDependencies) registerPrivacyRoutes(app, privacyDependencies);
   if (adminDependencies) registerAdminRoutes(app, adminDependencies);

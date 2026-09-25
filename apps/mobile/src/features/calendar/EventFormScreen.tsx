@@ -4,7 +4,7 @@ import { localDateTimeToUtc, utcToLocalDateTime } from "@notesia/domain";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
@@ -17,12 +17,11 @@ import {
   updateCalendarEvent,
 } from "@/core/api/calendar-events";
 import { getProfile } from "@/core/api/profile";
-import { listSubjects } from "@/core/api/subjects";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { userMessage } from "@/shared/errors";
 import { DateTimeField, FormSection, SelectField } from "@/shared/fields";
-import { Button, Menu, TextInput } from "@/shared/paper";
+import { Button, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { EventActions } from "./EventActions";
 
@@ -33,7 +32,6 @@ const formSchema = z.object({
   title: z.string().trim().min(1, "Escribe un título.").max(200),
   description: z.string().trim().max(10000),
   kind: z.enum(["class", "work", "appointment", "personal", "unavailable", "other"]),
-  subjectId: z.union([z.literal(""), z.uuid()]),
   startsLocal: localDateTimeSchema,
   endsLocal: localDateTimeSchema,
   timeZone: z.string().trim().min(1, "Indica la zona horaria."),
@@ -123,14 +121,6 @@ function EventForm({
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
   const requestIdentity = useRef({ fingerprint: "", id: uuidv4() });
-  const subjects = useInfiniteQuery({
-    queryKey: ["subjects", false],
-    queryFn: ({ pageParam }) => listSubjects(false, pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-    retry: false,
-  });
-  const subjectItems = subjects.data?.pages.flatMap((page) => page.items) ?? [];
   const {
     control,
     handleSubmit,
@@ -144,7 +134,6 @@ function EventForm({
       title: event?.title ?? "",
       description: event?.description ?? "",
       kind: event?.kind ?? "class",
-      subjectId: event?.subjectId ?? "",
       startsLocal: event
         ? utcToLocalDateTime(event.startsAt, event.timeZone).replace("T", " ")
         : date
@@ -159,12 +148,10 @@ function EventForm({
     },
   });
   const kind = watch("kind");
-  const subjectId = watch("subjectId");
   const save = useMutation({
     mutationFn: (values: FormValues) => {
       const fields = {
         kind: values.kind,
-        subjectId: values.subjectId || null,
         title: values.title.trim(),
         description: values.description.trim() || null,
         startsAt: toUtc(values.startsLocal, values.timeZone),
@@ -248,29 +235,6 @@ function EventForm({
           )}
           onChange={(value) => setValue("kind", value)}
         />
-        <SelectField
-          label="Materia"
-          value={subjectId}
-          options={[
-            { value: "", label: "Ninguna" },
-            ...subjectItems.map((item) => ({ value: item.id, label: item.name })),
-          ]}
-          onChange={(value) => setValue("subjectId", value)}
-          footer={
-            subjects.hasNextPage && (
-              <Menu.Item
-                title="Cargar más materias"
-                onPress={() => void subjects.fetchNextPage()}
-              />
-            )
-          }
-        />
-        {subjects.isError && (
-          <View style={styles.message}>
-            <Text accessibilityRole="alert">{userMessage(subjects.error)}</Text>
-            <Button onPress={() => void subjects.refetch()}>Reintentar materias</Button>
-          </View>
-        )}
       </FormSection>
 
       <FormSection title="Horario" hint={`Horas de ${watch("timeZone")}.`}>

@@ -3,7 +3,7 @@ import {
   notificationPreferencesSchema,
   notificationPreferencesUpdateSchema,
   notificationSchema,
-  subjectVersionSchema,
+  versionSchema,
 } from "@notesia/contracts";
 import { requestJson } from "./client";
 
@@ -16,7 +16,7 @@ export function listNotifications(cursor?: string) {
 export function markNotificationRead(id: string, version: number) {
   return requestJson(`/notifications/${encodeURIComponent(id)}/read`, notificationSchema, {
     method: "POST",
-    body: subjectVersionSchema.parse({ version }),
+    body: versionSchema.parse({ version }),
   });
 }
 

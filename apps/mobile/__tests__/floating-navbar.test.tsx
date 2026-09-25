@@ -51,7 +51,7 @@ describe("FloatingNavBar", () => {
     const user = userEvent.setup();
     await user.press(screen.getByLabelText("Crear"));
     expect(await screen.findByLabelText("Nueva tarea")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Nueva materia")).toBeOnTheScreen();
+    expect(screen.queryByLabelText("Nueva materia")).toBeNull();
     expect(screen.getByLabelText("Nuevo evento")).toBeOnTheScreen();
     await user.press(screen.getByText("Nueva tarea", { includeHiddenElements: true }));
     expect(mockNavigate).toHaveBeenCalledWith("ActivityForm", {});

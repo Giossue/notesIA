@@ -1,6 +1,7 @@
 import {
   type ActivityCreate,
   type ActivityUpdate,
+  activityCategory,
   activityCreateSchema,
   activityCursorSchema,
   activityDeleteSchema,
@@ -15,7 +16,7 @@ import {
   activityTransitionSchema,
   activityUpdateSchema,
   type Problem,
-  subjectVersionSchema,
+  versionSchema,
 } from "@notesia/contracts";
 import type { ActivityRepository, ProfileRepository } from "@notesia/db";
 import {
@@ -60,7 +61,6 @@ function readBody(request: Request): Promise<unknown> {
 
 function toFields(input: ActivityCreate | ActivityUpdate) {
   return {
-    subjectId: input.subjectId,
     kind: input.kind,
     title: input.title,
     description: input.description,
@@ -76,7 +76,6 @@ function toActivity(row: ActivityRow) {
     id: row.id,
     seriesId: row.seriesId,
     occursOn: row.occursOn,
-    subjectId: row.subjectId,
     kind: row.kind,
     title: row.title,
     description: row.description,
@@ -92,12 +91,6 @@ function toActivity(row: ActivityRow) {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   });
-}
-
-function hasForeignKeyViolation(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false;
-  const errorValue = value as { code?: unknown; cause?: unknown };
-  return errorValue.code === "23503" || hasForeignKeyViolation(errorValue.cause);
 }
 
 function decodeCursor(raw: string, key: "sortOrder" | "id") {
@@ -202,7 +195,7 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
     const weekDays = Array.from({ length: 7 }, (_, index) => shiftLocalDate(week.from, index));
     const streakFrom = shiftLocalDate(day, -STREAK_LOOKBACK_DAYS);
 
-    const [counts, weekRows, subjectRows, completions] = await Promise.all([
+    const [counts, weekRows, completions, kindRows] = await Promise.all([
       dependencies.activities.summary(
         session.user.id,
         { startsAt: startOf(day), endsAt: startOf(shiftLocalDate(day, 1)) },
@@ -212,9 +205,20 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
         startsAt: startOf(week.from),
         endsAt: startOf(week.through),
       }),
-      dependencies.activities.subjectProgress(session.user.id, 3),
       dependencies.activities.completionInstantsSince(session.user.id, startOf(streakFrom)),
+      dependencies.activities.kindProgress(session.user.id),
     ]);
+    const categories = (["academic", "personal", "daily"] as const).map((category) => ({
+      category,
+      total: 0,
+      completed: 0,
+    }));
+    for (const row of kindRows) {
+      const bucket = categories.find((item) => item.category === activityCategory(row.kind));
+      if (!bucket) continue;
+      bucket.total += row.total;
+      bucket.completed += row.completed;
+    }
 
     const days = new Map(weekDays.map((date) => [date, { date, completed: 0, due: 0 }]));
     let due = 0;
@@ -247,7 +251,7 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
         day,
         ...counts,
         week: { ...week, due, completedDue, days: [...days.values()] },
-        subjects: subjectRows,
+        categories,
         streakDays,
       }),
     );
@@ -311,19 +315,13 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
     const parsed = activityCreateSchema.safeParse(await readBody(c.req.raw));
     if (!parsed.success)
       return error(422, "VALIDATION_FAILED", "Revisa los datos de la actividad.");
-    try {
-      const result = await dependencies.activities.create(
-        session.user.id,
-        parsed.data.id,
-        toFields(parsed.data),
-      );
-      if (!result) return error(409, "ACTIVITY_CONFLICT", "No se pudo guardar la actividad.");
-      return c.json(toActivity(result.row), result.created ? 201 : 200);
-    } catch (caught) {
-      if (hasForeignKeyViolation(caught))
-        return error(422, "INVALID_SUBJECT", "Elige una materia de tu cuenta.");
-      throw caught;
-    }
+    const result = await dependencies.activities.create(
+      session.user.id,
+      parsed.data.id,
+      toFields(parsed.data),
+    );
+    if (!result) return error(409, "ACTIVITY_CONFLICT", "No se pudo guardar la actividad.");
+    return c.json(toActivity(result.row), result.created ? 201 : 200);
   });
 
   app.patch("/v1/activities/:id", async (c) => {
@@ -335,17 +333,11 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
     const parsed = activityUpdateSchema.safeParse(await readBody(c.req.raw));
     if (!parsed.success)
       return error(422, "VALIDATION_FAILED", "Revisa los datos de la actividad.");
-    try {
-      const row = await dependencies.activities.update(session.user.id, id, {
-        ...toFields(parsed.data),
-        version: parsed.data.version,
-      });
-      if (row) return c.json(toActivity(row));
-    } catch (caught) {
-      if (hasForeignKeyViolation(caught))
-        return error(422, "INVALID_SUBJECT", "Elige una materia de tu cuenta.");
-      throw caught;
-    }
+    const row = await dependencies.activities.update(session.user.id, id, {
+      ...toFields(parsed.data),
+      version: parsed.data.version,
+    });
+    if (row) return c.json(toActivity(row));
     const existing = await dependencies.activities.get(session.user.id, id);
     return existing
       ? error(409, "VERSION_CONFLICT", "La actividad cambió. Actualízala antes de guardar.")
@@ -375,7 +367,7 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
       const id = c.req.param("id");
       if (!z.uuid().safeParse(id).success)
         return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
-      const parsed = subjectVersionSchema.safeParse(await readBody(c.req.raw));
+      const parsed = versionSchema.safeParse(await readBody(c.req.raw));
       if (!parsed.success) return error(422, "VALIDATION_FAILED", "Versión inválida.");
       const row = await dependencies.activities.setArchived(
         session.user.id,
@@ -391,9 +383,16 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
     });
   }
 
-  for (const eventType of ["completed", "reopened", "cancelled"] as const) {
-    const path =
-      eventType === "completed" ? "complete" : eventType === "cancelled" ? "cancel" : "reopen";
+  const transitionPaths = {
+    completed: "complete",
+    reopened: "reopen",
+    cancelled: "cancel",
+    started: "start",
+    paused: "pause",
+  } as const;
+  for (const [eventType, path] of Object.entries(transitionPaths) as Array<
+    [keyof typeof transitionPaths, (typeof transitionPaths)[keyof typeof transitionPaths]]
+  >) {
     app.post(`/v1/activities/:id/${path}`, async (c) => {
       const session = await dependencies.getSession(c.req.raw.headers);
       if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");

@@ -4,7 +4,6 @@ import {
   readOperationalAlertConfig,
 } from "@notesia/config";
 import {
-  createAcademicPeriodRepository,
   createAccountDeletionRepository,
   createAccountExportRepository,
   createActivityRepository,
@@ -23,8 +22,8 @@ import {
   createPrivacyRepository,
   createProfileRepository,
   createPushDeviceRepository,
+  createPushTokenCipher,
   createRequestTransactionPool,
-  createSubjectRepository,
   createSubtaskRepository,
   createTimeEntryRepository,
   createTracedPool,
@@ -62,6 +61,9 @@ const aiRepository = createAiRepository(repositoryPool);
 const aiKeyCipher = process.env.AI_ENCRYPTION_KEY
   ? createAiKeyCipher(process.env.AI_ENCRYPTION_KEY)
   : null;
+const pushCipher = process.env.PUSH_ENCRYPTION_KEY
+  ? createPushTokenCipher(process.env.PUSH_ENCRYPTION_KEY)
+  : null;
 const deletionPolicy = readDeletionPolicy(process.env);
 const operationalAlertConfig = readOperationalAlertConfig(process.env);
 const adminRepository = createAdminRepository(
@@ -77,10 +79,6 @@ const app = createApp(
     getSession,
     profiles: createProfileRepository(repositoryPool),
     preferences: createPreferenceRepository(repositoryPool),
-  },
-  {
-    getSession,
-    subjects: createSubjectRepository(repositoryPool),
   },
   {
     getSession,
@@ -118,10 +116,6 @@ const app = createApp(
     timeEntries: createTimeEntryRepository(repositoryPool),
     activities: createActivityRepository(repositoryPool),
     profiles: createProfileRepository(repositoryPool),
-  },
-  {
-    getSession,
-    periods: createAcademicPeriodRepository(repositoryPool),
   },
   {
     getSession,
@@ -172,7 +166,7 @@ const app = createApp(
   {
     getSession,
     devices: createPushDeviceRepository(repositoryPool),
-    cipher: null,
+    cipher: pushCipher,
   },
   {
     getSession,

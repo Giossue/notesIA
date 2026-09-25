@@ -4,8 +4,8 @@ import {
   notificationPreferencesUpdateSchema,
   notificationSchema,
   type Problem,
-  subjectVersionSchema,
   timeEntryCursorSchema,
+  versionSchema,
 } from "@notesia/contracts";
 import type { NotificationPreferenceRepository, NotificationRepository } from "@notesia/db";
 import type { Hono } from "hono";
@@ -106,7 +106,7 @@ export function registerNotificationRoutes(app: Hono, dependencies: Dependencies
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const id = c.req.param("id");
     if (!z.uuid().safeParse(id).success) return error(404, "NOT_FOUND", "Aviso no encontrado.");
-    const parsed = subjectVersionSchema.safeParse(await readBody(c.req.raw));
+    const parsed = versionSchema.safeParse(await readBody(c.req.raw));
     if (!parsed.success) return error(422, "VALIDATION_FAILED", "Versión inválida.");
     const row = await dependencies.notifications.markRead(session.user.id, id, parsed.data.version);
     if (row) return c.json(toNotification(row));

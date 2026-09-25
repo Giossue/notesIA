@@ -156,12 +156,6 @@ try {
     [userId],
   );
   await pool.query(
-    `INSERT INTO dominio.materias (id, usuario_id, nombre, codigo, color)
-     SELECT gen_random_uuid(), $1, 'Materia de prueba ' || n, 'BENCH' || n, 'primary'
-     FROM generate_series(1,20) n`,
-    [userId],
-  );
-  await pool.query(
     `INSERT INTO dominio.reglas_disponibilidad
        (id, usuario_id, dia_semana, minuto_inicio, minuto_fin)
      SELECT gen_random_uuid(), $1, n, 540, 1020 FROM generate_series(1,7) n`,
@@ -176,12 +170,12 @@ try {
   );
 
   const list = () =>
-    fetch(`${baseUrl}/v1/subjects`, {
+    fetch(`${baseUrl}/v1/activities`, {
       headers: { cookie: cookie as string },
       signal: AbortSignal.timeout(10000),
-    }).then((response) => responseStatus(response, 200, "subject list"));
+    }).then((response) => responseStatus(response, 200, "activity list"));
   const create = (index: number) =>
-    fetch(`${baseUrl}/v1/subjects`, {
+    fetch(`${baseUrl}/v1/activities`, {
       method: "POST",
       signal: AbortSignal.timeout(10000),
       headers: {
@@ -191,11 +185,15 @@ try {
       },
       body: JSON.stringify({
         id: crypto.randomUUID(),
-        name: `Medición ${index}`,
-        code: null,
-        colorToken: "primary",
+        kind: "personal",
+        title: `Medición ${index}`,
+        description: null,
+        priority: "medium",
+        startAfterAt: null,
+        deadlineAt: null,
+        estimatedMinutes: null,
       }),
-    }).then((response) => responseStatus(response, 201, "subject create"));
+    }).then((response) => responseStatus(response, 201, "activity create"));
   const preview = () =>
     fetch(`${baseUrl}/v1/plans/preview`, {
       method: "POST",
@@ -209,16 +207,16 @@ try {
     }).then((response) => responseStatus(response, 201, "plan preview"));
 
   await runLoad("warmup-list", 20, 5, list);
-  const listResult = await runLoad("subject-list", 200, 10, list);
+  const listResult = await runLoad("activity-list", 200, 10, list);
   await runLoad("warmup-create", 10, 5, create);
-  const createResult = await runLoad("subject-create-idempotent", 200, 10, create);
+  const createResult = await runLoad("activity-create-idempotent", 200, 10, create);
   await runLoad("warmup-preview", 3, 2, preview);
   const previewResult = await runLoad("weekly-preview", 50, 5, preview);
   console.log(
     JSON.stringify(
       {
         target: "127.0.0.1 / notesia_dev",
-        scenario: "20 subjects, 50 pending activities, seven weekly availability rules",
+        scenario: "50 pending activities, seven weekly availability rules",
         results: [listResult, createResult, previewResult],
       },
       null,

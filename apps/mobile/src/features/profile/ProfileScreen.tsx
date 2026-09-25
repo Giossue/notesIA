@@ -49,13 +49,6 @@ export function ProfileScreen() {
 
   const menu = [
     {
-      icon: "book-open-variant",
-      color: categories.orange,
-      title: "Materias",
-      subtitle: "Organiza tus asignaturas",
-      onPress: () => navigation.navigate("Subjects"),
-    },
-    {
       icon: "bell",
       color: categories.pink,
       title: "Notificaciones",

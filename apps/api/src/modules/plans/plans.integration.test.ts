@@ -55,7 +55,6 @@ const app = createApp(
   async () => {},
   auth.handler,
   { getSession, profiles, preferences: createPreferenceRepository(pool) },
-  undefined,
   { getSession, activities, profiles },
   undefined,
   { getSession, events, profiles },
@@ -78,7 +77,6 @@ const app = createApp(
     profiles,
     now: () => new Date("2026-09-24T12:00:00.000Z"),
   },
-  undefined,
   undefined,
   {
     getSession,
@@ -166,7 +164,6 @@ test("progress and logged time reduce planned work without double deduction", as
         headers: headers(cookieC),
         body: JSON.stringify({
           id: activityId,
-          subjectId: null,
           kind: "academic_task",
           title: "Informe",
           description: null,
@@ -433,7 +430,6 @@ test("preview, edit, apply and history require owner and fresh source revision",
   const activityId = crypto.randomUUID();
   const activity = {
     id: activityId,
-    subjectId: null,
     kind: "academic_task",
     title: "Informe",
     description: null,
@@ -902,7 +898,6 @@ test("preview, edit, apply and history require owner and fresh source revision",
         method: "PATCH",
         headers: headers(cookieA),
         body: JSON.stringify({
-          subjectId: null,
           kind: "academic_task",
           title: "Informe revisado",
           description: null,
