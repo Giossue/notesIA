@@ -156,6 +156,35 @@ verifica que conserva las filas aún vigentes.
 
 ## Ejecutar
 
+### Inicio rápido con Kitty
+
+Para levantar todo el entorno local con una sola orden:
+
+```bash
+./iniciar-notesia-local.sh
+# Equivalente:
+bun run dev:kitty
+```
+
+El lanzador comprueba `.env`, Bun, Kitty, PostgreSQL, Android SDK y JDK 17; instala
+dependencias si faltan, aplica las migraciones locales pendientes y rechaza puertos
+ocupados para evitar procesos duplicados. Después abre una ventana de Kitty con
+cinco pestañas: API, worker, admin, Metro y Android. La última espera un teléfono
+USB autorizado, configura `adb reverse`, compila de forma incremental e instala y
+abre `ec.notesia.planner`. Si aún no conectaste el teléfono, las otras cuatro
+pestañas continúan funcionando.
+
+Para comprobar los requisitos sin abrir ninguna ventana:
+
+```bash
+./iniciar-notesia-local.sh --check
+```
+
+Cerrar la ventana **NotesIA local** detiene sus procesos. PostgreSQL sigue siendo
+el servicio local compartido del sistema.
+
+### Inicio manual
+
 Desde la raíz del proyecto:
 
 ```bash

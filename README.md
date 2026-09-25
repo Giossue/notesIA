@@ -92,7 +92,16 @@ student-planner-ai-context/
 
 ## Desarrollo rápido
 
-Desde la raíz, cada proceso usa una terminal distinta:
+En este equipo, el entorno completo puede abrirse en una ventana de Kitty con
+una pestaña por proceso:
+
+```bash
+./iniciar-notesia-local.sh
+```
+
+El lanzador prepara la base, inicia API, worker, admin y Metro, y espera el
+dispositivo Android para instalar y abrir la app. La ejecución manual sigue
+disponible desde la raíz, usando una terminal distinta para cada proceso:
 
 ```bash
 bun run dev:api
