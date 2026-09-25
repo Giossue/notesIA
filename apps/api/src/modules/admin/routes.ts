@@ -1,5 +1,9 @@
 import {
+  adminAiProviderListSchema,
+  adminAiProviderSchema,
   adminAiProviderUpdateSchema,
+  adminAiRouteListSchema,
+  adminAiRouteSchema,
   adminAiRouteUpdateSchema,
   adminAiUsageSchema,
   adminAuditPageSchema,
@@ -173,11 +177,13 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
       if (access.response) return access.response;
       const rows = await ai.listProviders();
       return c.json(
-        rows.map((row) => ({
-          ...row,
-          keyConfigured: true,
-          updatedAt: row.updatedAt.toISOString(),
-        })),
+        adminAiProviderListSchema.parse(
+          rows.map((row) => ({
+            ...row,
+            keyConfigured: true,
+            updatedAt: row.updatedAt.toISOString(),
+          })),
+        ),
       );
     });
 
@@ -204,13 +210,13 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
         body.data.enabled,
       );
       if (!result) return error(422, "VALIDATION_FAILED", "La conexión nueva requiere una clave.");
-      return c.json({ ...result, keyConfigured: true });
+      return c.json(adminAiProviderSchema.parse({ ...result, keyConfigured: true }));
     });
 
     app.get("/v1/admin/ai/routes", async (c) => {
       const access = await authorize(c.req.raw.headers, c.req.method, dependencies);
       if (access.response) return access.response;
-      return c.json(await ai.listRoutes());
+      return c.json(adminAiRouteListSchema.parse(await ai.listRoutes()));
     });
 
     app.put("/v1/admin/ai/routes/:useCase", async (c) => {
@@ -235,11 +241,13 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
         ...configuration,
       });
       if (!saved) return error(404, "NOT_FOUND", "Proveedor no configurado.");
-      return c.json({
-        useCase: useCase.data,
-        ...configuration,
-        alternate: configuration.alternate ?? null,
-      });
+      return c.json(
+        adminAiRouteSchema.parse({
+          useCase: useCase.data,
+          ...configuration,
+          alternate: configuration.alternate ?? null,
+        }),
+      );
     });
 
     app.post("/v1/admin/ai/routes/:useCase/test", async (c) => {

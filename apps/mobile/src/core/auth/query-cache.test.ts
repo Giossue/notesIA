@@ -11,7 +11,10 @@ test("clears all cached student data while retaining the session query", async (
   queryClient.setQueryData(["subtasks", "activity-a", false], { items: ["private-subtask"] });
   queryClient.setQueryData(["agenda", "2026-09-23"], { items: ["private-deadline"] });
 
-  await clearPrivateCache(queryClient);
+  let localCleared = false;
+  await clearPrivateCache(queryClient, async () => {
+    localCleared = true;
+  });
 
   expect(queryClient.getQueryData(["session"])).toEqual({ id: "student-a" });
   for (const key of [
@@ -23,5 +26,6 @@ test("clears all cached student data while retaining the session query", async (
   ]) {
     expect(queryClient.getQueryData(key)).toBeUndefined();
   }
+  expect(localCleared).toBe(true);
   queryClient.clear();
 });

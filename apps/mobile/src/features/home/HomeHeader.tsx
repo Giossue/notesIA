@@ -7,10 +7,12 @@ export function HomeHeader({
   name,
   greeting,
   onOpenProfile,
+  onOpenNotifications,
 }: {
   name: string;
   greeting: string;
   onOpenProfile: () => void;
+  onOpenNotifications: () => void;
 }) {
   const theme = useTheme();
   const iconColor = iconTint[theme.dark ? "dark" : "light"];
@@ -49,13 +51,15 @@ export function HomeHeader({
             </Text>
           </View>
         </TouchableRipple>
-        <View
+        <TouchableRipple
+          borderless
           style={styles.notificationIcon}
-          accessible
-          accessibilityLabel="Notificaciones aún no disponibles"
+          onPress={onOpenNotifications}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir notificaciones"
         >
           <Icon source="bell-outline" size={layout.iconSize} color={iconColor} />
-        </View>
+        </TouchableRipple>
       </View>
       <Divider style={{ backgroundColor: theme.colors.outlineVariant }} />
     </View>

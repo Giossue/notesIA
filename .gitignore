@@ -11,5 +11,11 @@ apps/mobile/android/build/
 apps/mobile/android/app/build/
 apps/mobile/android/local.properties
 apps/mobile/android/app/debug.keystore
+*.jks
+*.keystore
+apps/mobile/android/app/google-services.json
 apps/mobile/ios/Pods/
 apps/mobile/ios/build/
+apps/mobile/ios/NotesIA/GoogleService-Info.plist
+apps/admin/playwright-report/
+apps/admin/test-results/

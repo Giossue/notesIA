@@ -10,6 +10,7 @@ import { z } from "zod";
 import {
   emailVerificationCallbackResult,
   isEmailVerificationRequired,
+  requestPasswordReset,
   resendVerificationEmail,
   signIn,
   signUp,
@@ -26,13 +27,15 @@ const signUpSchema = signInSchema.extend({
   name: z.string().trim().min(1, "Escribe tu nombre."),
   password: z.string().min(12, "Usa al menos 12 caracteres."),
 });
+const recoverySchema = z.object({ email: z.email("Escribe un correo válido.") });
 
 type SignInValues = z.infer<typeof signInSchema>;
 type SignUpValues = z.infer<typeof signUpSchema>;
+type RecoveryValues = z.infer<typeof recoverySchema>;
 
 export function AuthScreen() {
   const theme = useTheme();
-  const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
+  const [mode, setMode] = useState<"signIn" | "signUp" | "recover">("signIn");
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const offline = useNetInfo().isConnected === false;
@@ -71,9 +74,11 @@ export function AuthScreen() {
           <Text variant="titleLarge">
             {verificationEmail
               ? "Verifica tu correo"
-              : mode === "signIn"
-                ? "Iniciar sesión"
-                : "Crear cuenta"}
+              : mode === "recover"
+                ? "Recuperar acceso"
+                : mode === "signIn"
+                  ? "Iniciar sesión"
+                  : "Crear cuenta"}
           </Text>
           {notice && <Text accessibilityRole="alert">{notice}</Text>}
           {offline && (
@@ -91,9 +96,21 @@ export function AuthScreen() {
                 setNotice(null);
               }}
             />
+          ) : mode === "recover" ? (
+            <PasswordRecoveryForm
+              offline={offline}
+              onBack={() => {
+                setMode("signIn");
+                setNotice(null);
+              }}
+            />
           ) : mode === "signIn" ? (
             <SignInForm
               offline={offline}
+              onRecover={() => {
+                setMode("recover");
+                setNotice(null);
+              }}
               onVerificationRequired={(email) => {
                 setVerificationEmail(email);
                 setNotice(null);
@@ -108,7 +125,7 @@ export function AuthScreen() {
               }}
             />
           )}
-          {!verificationEmail && (
+          {!verificationEmail && mode !== "recover" && (
             <Button
               mode="text"
               onPress={() => {
@@ -128,9 +145,11 @@ export function AuthScreen() {
 function SignInForm({
   offline,
   onVerificationRequired,
+  onRecover,
 }: {
   offline: boolean;
   onVerificationRequired(email: string): void;
+  onRecover(): void;
 }) {
   const queryClient = useQueryClient();
   const [visible, setVisible] = useState(false);
@@ -213,6 +232,66 @@ function SignInForm({
         contentStyle={sharedStyles.actionContent}
       >
         Iniciar sesión
+      </Button>
+      <Button mode="text" onPress={onRecover}>
+        Olvidé mi contraseña
+      </Button>
+    </View>
+  );
+}
+
+function PasswordRecoveryForm({ offline, onBack }: { offline: boolean; onBack(): void }) {
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RecoveryValues>({
+    resolver: zodResolver(recoverySchema),
+    defaultValues: { email: "" },
+  });
+  const mutation = useMutation({
+    mutationFn: ({ email }: RecoveryValues) => requestPasswordReset(email),
+  });
+  return (
+    <View style={styles.fields}>
+      <Text>
+        Te enviaremos un enlace si el correo pertenece a una cuenta. El mensaje no revela si la
+        cuenta existe.
+      </Text>
+      <Controller
+        control={control}
+        name="email"
+        render={({ field }) => (
+          <TextInput
+            mode="outlined"
+            label="Correo electrónico"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={!!errors.email}
+          />
+        )}
+      />
+      <HelperText type="error" visible={!!errors.email}>
+        {errors.email?.message}
+      </HelperText>
+      {mutation.isSuccess && (
+        <Text accessibilityRole="alert">Revisa tu correo para continuar.</Text>
+      )}
+      {mutation.isError && <Text accessibilityRole="alert">{mutation.error.message}</Text>}
+      <Button
+        mode="contained"
+        loading={mutation.isPending}
+        disabled={offline || mutation.isPending}
+        onPress={() => void handleSubmit((values) => mutation.mutate(values))()}
+      >
+        Enviar enlace
+      </Button>
+      <Button mode="text" onPress={onBack}>
+        Volver a iniciar sesión
       </Button>
     </View>
   );

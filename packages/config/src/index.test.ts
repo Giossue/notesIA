@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+  readAdminOrigin,
   readApiRuntimeConfig,
   readAuthMailConfig,
   readDeletionPolicy,
@@ -36,6 +37,22 @@ test("API runtime defaults to loopback and requires an explicit production bind 
     "API_HOST must be a hostname or IP address",
   );
   expect(() => readApiRuntimeConfig({ API_SHUTDOWN_GRACE_SECONDS: "0" })).toThrow();
+});
+
+test("admin origin is explicit, canonical and HTTPS in production", () => {
+  expect(readAdminOrigin({}, "http://127.0.0.1:3000")).toBe("http://127.0.0.1:3000");
+  expect(readAdminOrigin({ ADMIN_ORIGIN: "http://127.0.0.1:5173" }, "http://127.0.0.1:3000")).toBe(
+    "http://127.0.0.1:5173",
+  );
+  expect(() =>
+    readAdminOrigin({ ADMIN_ORIGIN: "http://127.0.0.1:5173/admin" }, "http://127.0.0.1:3000"),
+  ).toThrow();
+  expect(() =>
+    readAdminOrigin(
+      { NODE_ENV: "production", ADMIN_ORIGIN: "http://admin.example.test" },
+      "https://api.example.test",
+    ),
+  ).toThrow("ADMIN_ORIGIN must use HTTPS in production");
 });
 
 test("SMTP alone enables account mail while recovery also requires a reset URL", () => {

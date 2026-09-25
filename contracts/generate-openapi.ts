@@ -211,7 +211,7 @@ add("PATCH", "/v1/activities/:id", "activitySchema", "activityUpdateSchema");
 add("DELETE", "/v1/activities/:id", undefined, "activityDeleteSchema", [204]);
 for (const action of ["archive", "restore"])
   add("POST", `/v1/activities/:id/${action}`, "activitySchema", "subjectVersionSchema");
-for (const action of ["complete", "reopen"])
+for (const action of ["complete", "reopen", "cancel"])
   add("POST", `/v1/activities/:id/${action}`, "activitySchema", "activityTransitionSchema");
 add("PATCH", "/v1/activities/:id/progress", "activitySchema", "activityProgressSchema");
 add("GET", "/v1/activity-series", "activitySeriesPageSchema");

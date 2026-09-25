@@ -27,6 +27,7 @@ import type { RootStackParamList } from "@/navigation/types";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { ActivityActions } from "./ActivityActions";
 import { ActivityHistory } from "./ActivityHistory";
+import { ActivityProgressForm } from "./ActivityProgressForm";
 import { SubtasksSection } from "./SubtasksSection";
 
 const localDateTime = z
@@ -74,7 +75,13 @@ function toUtc(value: string, timeZone: string) {
   }
 }
 
-export function ActivityFormScreen({ id }: { id?: string }) {
+export function ActivityFormScreen({
+  id,
+  draft,
+}: {
+  id?: string;
+  draft?: { title?: string; description?: string; estimatedMinutes?: number };
+}) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
   const activity = useQuery({
@@ -107,16 +114,25 @@ export function ActivityFormScreen({ id }: { id?: string }) {
       )}
       {profile.data && (!id || activity.data) && (
         <ActivityForm
-          key={`${activity.data?.id ?? "new"}-${activity.data?.version ?? 0}`}
+          key={`${activity.data?.id ?? "new"}-${activity.data?.version ?? 0}-${JSON.stringify(draft)}`}
           activity={activity.data}
           profile={profile.data}
+          draft={draft}
         />
       )}
     </ScreenLayout>
   );
 }
 
-function ActivityForm({ activity, profile }: { activity?: Activity; profile: Profile }) {
+function ActivityForm({
+  activity,
+  profile,
+  draft,
+}: {
+  activity?: Activity;
+  profile: Profile;
+  draft?: { title?: string; description?: string; estimatedMinutes?: number };
+}) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const theme = useTheme();
@@ -128,7 +144,6 @@ function ActivityForm({ activity, profile }: { activity?: Activity; profile: Pro
     queryFn: ({ pageParam }) => listSubjects(false, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: !offline,
     retry: false,
   });
   const subjectItems = subjects.data?.pages.flatMap((page) => page.items) ?? [];
@@ -141,8 +156,8 @@ function ActivityForm({ activity, profile }: { activity?: Activity; profile: Pro
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: activity?.title ?? "",
-      description: activity?.description ?? "",
+      title: activity?.title ?? draft?.title ?? "",
+      description: activity?.description ?? draft?.description ?? "",
       kind: activity?.kind ?? "academic_task",
       priority: activity?.priority ?? "medium",
       subjectId: activity?.subjectId ?? "",
@@ -152,7 +167,8 @@ function ActivityForm({ activity, profile }: { activity?: Activity; profile: Pro
       deadlineLocal: activity?.deadlineAt
         ? utcToLocalDateTime(activity.deadlineAt, profile.timeZone).replace("T", " ")
         : "",
-      estimatedMinutes: activity?.estimatedMinutes?.toString() ?? "",
+      estimatedMinutes:
+        activity?.estimatedMinutes?.toString() ?? draft?.estimatedMinutes?.toString() ?? "",
     },
   });
   const selectedKind = watch("kind");
@@ -359,18 +375,21 @@ function ActivityForm({ activity, profile }: { activity?: Activity; profile: Pro
         {errors.estimatedMinutes?.message}
       </HelperText>
       {offline && (
-        <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
+        <Text style={{ color: theme.colors.error }}>
+          Sin conexión. La actividad quedará pendiente en este dispositivo.
+        </Text>
       )}
       {save.isError && <Text accessibilityRole="alert">{save.error.message}</Text>}
       <Button
         mode="contained"
         loading={save.isPending}
-        disabled={offline || save.isPending || !!activity?.archivedAt}
+        disabled={save.isPending || !!activity?.archivedAt}
         onPress={() => void handleSubmit((values) => save.mutate(values))()}
         contentStyle={sharedStyles.actionContent}
       >
         Guardar actividad
       </Button>
+      {activity && <ActivityProgressForm activity={activity} />}
       {activity && <ActivityActions activity={activity} offline={offline} />}
       {activity && <SubtasksSection activity={activity} offline={offline} />}
       {activity && <ActivityHistory id={activity.id} />}

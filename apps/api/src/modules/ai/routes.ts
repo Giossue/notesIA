@@ -1,4 +1,4 @@
-import type { Problem } from "@notesia/contracts";
+import { aiSuggestionResponseSchema, type Problem } from "@notesia/contracts";
 import type { AiContextRepository } from "@notesia/db";
 import type { Hono } from "hono";
 import { z } from "zod";
@@ -56,6 +56,6 @@ export function registerAiRoutes(app: Hono, dependencies: Dependencies) {
     if (result.kind === "consent_required")
       return error(403, "AI_CONSENT_REQUIRED", "Acepta el documento vigente de IA.");
     if (result.kind === "invalid_input") return error(422, "VALIDATION_FAILED", "Datos inválidos.");
-    return c.json(result);
+    return c.json(aiSuggestionResponseSchema.parse(result));
   });
 }

@@ -117,7 +117,6 @@ function EventForm({ event, profile }: { event?: CalendarEvent; profile: Profile
     queryFn: ({ pageParam }) => listSubjects(false, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: !offline,
     retry: false,
   });
   const subjectItems = subjects.data?.pages.flatMap((page) => page.items) ?? [];

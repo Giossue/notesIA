@@ -162,6 +162,9 @@ privado. La operación y el rollback están descritos en `docs/OBSERVABILITY.md`
 acotados y continuidad de traza. El rol de la app no puede borrar sus filas; el
 worker elimina el enlace cifrado al entregar, vencer o agotar reintentos. Su
 rollback manual se niega mientras exista cualquier registro.
+`0045` permite registrar la transición `cancelled` en el historial de actividades.
+Cancelar conserva el progreso y reactivar recupera `in_progress` cuando corresponde.
+La migración solo amplía la restricción del historial y no transforma datos.
 El worker purga por lotes las sesiones y los contadores caducados del almacén
 seguro, además de las claves de idempotencia vencidas. Una prueba de integración
 verifica que conserva las filas aún vigentes.
@@ -180,6 +183,17 @@ En otra terminal, iniciar el worker de avisos internos:
 ```bash
 bun run dev:worker
 ```
+
+En otra terminal, iniciar el panel administrativo:
+
+```bash
+bun run dev:admin
+```
+
+El acceso local queda en `http://127.0.0.1:5173/login`. Definir
+`ADMIN_ORIGIN=http://127.0.0.1:5173` en `.env`; Vite envía `/v1` a la API local.
+La cuenta administradora debe completar TOTP y crear una sesión posterior para
+abrir las secciones protegidas.
 
 En otra terminal, iniciar Metro en el puerto 8082:
 
@@ -210,14 +224,19 @@ bun run lint
 bun run contracts:check
 bun run typecheck
 bun run test
+bun run test:admin:e2e
 bun run build
-bun run build:worker
 bun run test:bundle-secrets
-cd apps/mobile/android && JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew :app:assembleDebug -PreactNativeArchitectures=arm64-v8a
+(cd apps/mobile/android && JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew :app:assembleDebug -PreactNativeArchitectures=arm64-v8a)
+(cd apps/mobile/android && JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a -PNOTESIA_API_BASE_URL=https://api.example.invalid/v1)
 ```
 
+Antes de ejecutar la suite de integración local, detener cualquier instancia de
+`dev:worker`: el worker consume deliberadamente las mismas colas persistentes que
+las pruebas verifican. CI usa una base y procesos exclusivos.
+
 `contracts/openapi.yaml` se genera con `bun run contracts:generate` a partir de
-las 99 rutas explícitas de Hono y los esquemas Zod. También describe las trece
+las 100 rutas explícitas de Hono y los esquemas Zod. También describe las trece
 operaciones de autenticación permitidas, incluidas verificación de correo,
 renovación de códigos de respaldo y rotación de TOTP. `contracts:check` compara el archivo con
 el código y falla si una ruta Hono o el filtro de Better Auth cambian sin actualizar su
@@ -264,21 +283,58 @@ genera tráfico. Una transición a estado saludable envía una instantánea
 `resolved`. Varias réplicas pueden intentar el mismo evento y por eso la
 deduplicación del receptor forma parte del contrato operativo.
 
-El móvil ya ofrece registro, inicio y cierre de sesión con Better Auth y la cookie
-guardada en Android Keystore/iOS Keychain, además de consulta y edición de perfil,
-gestión de materias, actividades, subtareas y eventos fijos con control de versión. El backend
-también expone disponibilidad, capacidad y planes, aunque faltan sus pantallas móviles. Las subtareas
-permiten edición, finalización, archivo y restauración; su estado no modifica
-automáticamente el de la actividad. La agenda diaria separa los eventos que ocupan tiempo
-de las fechas límite en la zona horaria del perfil; todavía no muestra bloques de
-trabajo. La barra inferior flotante enlaza Inicio, Agenda, Actividades, Materias y
-Perfil. El flujo se ha renderizado en un Android conectado mediante Metro 8082.
-Al cerrar sesión, cambiar de cuenta o detectar una sesión vencida, la caché privada
-de TanStack Query se limpia antes de mostrar datos de otra cuenta.
-La pantalla de diagnóstico de conexión sigue disponible como componente de desarrollo.
-Todavía faltan pantallas de consentimiento y planes, vistas móviles semanal y mensual,
-recordatorios completos, IA y el resto del MVP; no se presentan datos simulados como
-si fueran funcionalidad terminada.
+El móvil ofrece los flujos funcionales del MVP: cuenta, perfil, privacidad,
+periodos, materias, actividades y estados, subtareas, recurrencia, eventos, agenda
+diaria/semanal/mensual, disponibilidad, planes, riesgo, tiempo, estadísticas,
+notificaciones, preferencias, cuenta, sincronización offline e IA. La barra
+principal enlaza Inicio, Agenda, Actividades, Materias y Perfil; Herramientas da
+acceso al resto. La cookie se guarda en Android Keystore/iOS Keychain y SQLite
+usa una clave aleatoria guardada en el almacén seguro. Al cerrar sesión, cambiar
+de cuenta o detectar una sesión vencida se limpian la caché y los datos privados.
+El flujo se renderizó y recorrió en un Android físico con Metro 8082.
+
+## Integraciones nativas del móvil
+
+Los cambios en Kotlin, Objective-C++, permisos, Firebase, SQLite o Keychain exigen
+recompilar e instalar la aplicación; Metro solo actualiza JavaScript. El dictado
+solicita el micrófono al pulsar su botón. Android intenta reconocimiento local y
+puede usar el servicio de voz configurado por el sistema si falta el paquete del
+idioma. iOS usa `SFSpeechRecognizer`. NotesIA no guarda audio: conserva el texto
+que la persona revisa antes de enviarlo a la función de IA.
+
+Para push real, instalar los archivos descargados del mismo proyecto Firebase en:
+
+- `apps/mobile/android/app/google-services.json`;
+- `apps/mobile/ios/NotesIA/GoogleService-Info.plist`.
+
+Ambos están ignorados por Git. API y worker reciben `PUSH_ENCRYPTION_KEY`; solo el
+worker recibe `FCM_PROJECT_ID` y `GOOGLE_APPLICATION_CREDENTIALS`. La app conserva
+el buzón interno cuando Firebase no está configurado y muestra un error accionable
+si se intenta activar push.
+
+La variante Android `release` nunca usa el keystore de depuración. Para firmarla,
+entregar por variables de entorno o propiedades privadas de Gradle los cuatro
+valores siguientes:
+
+```text
+NOTESIA_UPLOAD_STORE_FILE
+NOTESIA_UPLOAD_STORE_PASSWORD
+NOTESIA_UPLOAD_KEY_ALIAS
+NOTESIA_UPLOAD_KEY_PASSWORD
+```
+
+Sin esos valores, Gradle crea un APK release sin firma para validar la compilación.
+Una configuración parcial falla de forma explícita. Los archivos `*.jks` y
+`*.keystore` están excluidos del repositorio. El manifiesto release desactiva el
+tráfico HTTP. `NOTESIA_API_BASE_URL` es obligatoria al compilar release, debe usar
+HTTPS y terminar exactamente en `/v1`. El valor `example.invalid` del comando de
+verificación solo valida el build y se reemplaza por la URL desplegada al publicar.
+
+El proyecto iOS toma la misma variable desde el ajuste
+`NOTESIA_API_BASE_URL`: Debug usa loopback y Release exige definir la URL HTTPS en
+Xcode o en su configuración privada. Requiere macOS, Xcode y `pod install` para
+validar enlace, firma, notificaciones y dictado. En Linux se validan TypeScript,
+plist y referencias del proyecto, pero no se declara un build iOS aprobado.
 
 ## Disponibilidad y planes en API
 

@@ -147,7 +147,7 @@ export const activityHistory = domainSchema.table("historial_actividades", {
   activityId: uuid("actividad_id").notNull(),
   mutationId: uuid("mutacion_id").notNull(),
   eventType: text("tipo_evento", {
-    enum: ["completed", "reopened", "progress_updated", "deleted"],
+    enum: ["completed", "reopened", "cancelled", "progress_updated", "deleted"],
   }).notNull(),
   beforeStatus: text("estado_anterior").notNull(),
   afterStatus: text("estado_posterior").notNull(),

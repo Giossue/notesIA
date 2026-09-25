@@ -43,8 +43,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<key>NotesIAApiBaseUrl</key>
+	<string>$(NOTESIA_API_BASE_URL)</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>NotesIA usa el micrófono solo cuando dictas una actividad.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>NotesIA convierte tu dictado en texto para que lo revises antes de guardarlo.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

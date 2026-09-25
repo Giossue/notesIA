@@ -141,6 +141,54 @@ export const aiUseCaseSchema = z.enum([
   "explain_replan",
   "propose_subtasks",
 ]);
+export const aiFallbackReasonSchema = z.enum([
+  "not_configured",
+  "rate_limited",
+  "budget_exhausted",
+  "invalid_output",
+  "provider_unavailable",
+]);
+const aiSuggestionMetadataSchema = z.object({
+  kind: z.literal("suggestion"),
+  source: z.literal("ai"),
+  requiresConfirmation: z.literal(true),
+  promptVersion: z.number().int().positive(),
+});
+export const aiSuggestionResponseSchema = z.union([
+  z.object({ kind: z.literal("manual"), reason: aiFallbackReasonSchema }),
+  aiSuggestionMetadataSchema.extend({
+    useCase: z.literal("extract_activity"),
+    value: z.strictObject({
+      title: z.string().trim().min(1).max(160),
+      description: z.string().trim().max(1000),
+    }),
+  }),
+  aiSuggestionMetadataSchema.extend({
+    useCase: z.literal("estimate_duration"),
+    value: z.strictObject({
+      minutes: z.number().int().min(5).max(480),
+      reason: z.string().trim().min(1).max(300),
+    }),
+  }),
+  aiSuggestionMetadataSchema.extend({
+    useCase: z.literal("explain_risk"),
+    value: z.strictObject({
+      level: z.enum(["low", "medium", "high"]),
+      explanation: z.string().trim().min(1).max(500),
+    }),
+  }),
+  aiSuggestionMetadataSchema.extend({
+    useCase: z.literal("explain_replan"),
+    value: z.strictObject({ explanation: z.string().trim().min(1).max(500) }),
+  }),
+  aiSuggestionMetadataSchema.extend({
+    useCase: z.literal("propose_subtasks"),
+    value: z.strictObject({
+      subtasks: z.array(z.string().trim().min(1).max(160)).min(1).max(8),
+    }),
+  }),
+]);
+export type AiSuggestionResponse = z.infer<typeof aiSuggestionResponseSchema>;
 export const adminAiUsageSchema = z.object({
   from: z.iso.date(),
   through: z.iso.date(),
@@ -241,6 +289,14 @@ export const adminAiProviderUpdateSchema = z.strictObject({
   enabled: z.boolean(),
   password: z.string().min(1).max(1024),
 });
+export const adminAiProviderSchema = z.object({
+  id: z.uuid(),
+  provider: aiProviderSchema,
+  enabled: z.boolean(),
+  keyConfigured: z.literal(true),
+  updatedAt: z.iso.datetime().optional(),
+});
+export const adminAiProviderListSchema = z.array(adminAiProviderSchema);
 const aiModelIdSchema = z
   .string()
   .trim()
@@ -249,7 +305,7 @@ const aiModelIdSchema = z
   .regex(/^[A-Za-z0-9._:/-]+$/)
   .refine((value) => !/(?:^|[-_/])latest$/i.test(value));
 const aiPriceSchema = z.string().regex(/^(?:0|[1-9]\d{0,5})(?:\.\d{1,6})?$/);
-const aiAlternateSchema = z.strictObject({
+export const adminAiAlternateUpdateSchema = z.strictObject({
   provider: aiProviderSchema,
   modelId: aiModelIdSchema,
   timeoutMs: z.number().int().min(1000).max(30000),
@@ -266,7 +322,7 @@ export const adminAiRouteUpdateSchema = z
     dailyBudgetTokens: z.number().int().min(100).max(10000000),
     inputPriceUsdPerMillion: aiPriceSchema,
     outputPriceUsdPerMillion: aiPriceSchema,
-    alternate: aiAlternateSchema.nullable().optional(),
+    alternate: adminAiAlternateUpdateSchema.nullable().optional(),
     enabled: z.boolean(),
     capabilityReviewed: z.boolean(),
     costReviewed: z.boolean(),
@@ -280,6 +336,58 @@ export const adminAiRouteUpdateSchema = z
   .refine((value) => !value.alternate || value.alternate.provider !== value.provider, {
     path: ["alternate", "provider"],
   });
+export const adminAiRouteSchema = z.object({
+  useCase: aiUseCaseSchema,
+  provider: aiProviderSchema,
+  modelId: aiModelIdSchema,
+  timeoutMs: z.number().int().min(1000).max(30000),
+  maxOutputTokens: z.number().int().min(64).max(2048),
+  dailyBudgetTokens: z.number().int().min(100).max(10000000),
+  inputPriceUsdPerMillion: aiPriceSchema.nullable(),
+  outputPriceUsdPerMillion: aiPriceSchema.nullable(),
+  enabled: z.boolean(),
+  alternate: z
+    .object({
+      provider: aiProviderSchema,
+      modelId: aiModelIdSchema,
+      timeoutMs: z.number().int().min(1000).max(30000),
+      maxOutputTokens: z.number().int().min(64).max(2048),
+      inputPriceUsdPerMillion: aiPriceSchema.nullable(),
+      outputPriceUsdPerMillion: aiPriceSchema.nullable(),
+    })
+    .nullable(),
+});
+export const adminAiRouteListSchema = z.array(adminAiRouteSchema);
+
+export const authSessionSchema = z
+  .object({
+    session: z
+      .object({
+        id: z.string().min(1),
+        createdAt: z.iso.datetime(),
+        expiresAt: z.iso.datetime(),
+      })
+      .passthrough(),
+    user: z
+      .object({
+        id: z.uuid(),
+        email: z.email(),
+        name: z.string(),
+        emailVerified: z.boolean(),
+        twoFactorEnabled: z.boolean().optional(),
+      })
+      .passthrough(),
+  })
+  .passthrough()
+  .nullable();
+export const authSignInResultSchema = z
+  .object({ twoFactorRedirect: z.boolean().optional() })
+  .passthrough();
+export const twoFactorEnableResultSchema = z.object({
+  method: z.literal("totp"),
+  totpURI: z.string().startsWith("otpauth://"),
+  backupCodes: z.array(z.string().min(1)).min(1),
+});
 
 export const adminUserSuspensionSchema = z
   .strictObject({
@@ -526,7 +634,7 @@ export const activityCursorSchema = z.strictObject({
 export const activityHistorySchema = z.object({
   id: z.string().regex(/^[1-9]\d*$/),
   mutationId: z.uuid(),
-  eventType: z.enum(["completed", "reopened", "progress_updated", "deleted"]),
+  eventType: z.enum(["completed", "reopened", "cancelled", "progress_updated", "deleted"]),
   beforeStatus: activityStatusSchema,
   afterStatus: activityStatusSchema,
   beforeProgress: z.number().int().min(0).max(100),
@@ -863,7 +971,19 @@ export const timeStatisticsSchema = z.object({
     }),
   ),
   subjects: z.array(
-    z.object({ subjectId: z.uuid().nullable(), seconds: z.number().int().nonnegative() }),
+    z.object({
+      subjectId: z.uuid().nullable(),
+      subjectName: z.string().nullable(),
+      seconds: z.number().int().nonnegative(),
+    }),
+  ),
+  activities: z.array(
+    z.object({
+      activityId: z.uuid(),
+      title: z.string(),
+      estimatedMinutes: z.number().int().positive().nullable(),
+      actualSeconds: z.number().int().nonnegative(),
+    }),
   ),
 });
 

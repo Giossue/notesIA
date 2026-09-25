@@ -8,6 +8,7 @@ El MVP tolera conectividad intermitente; no es completamente offline-first.
 
 - leer cache;
 - crear/editar actividad;
+- eliminar lógicamente una actividad;
 - actualizar progreso;
 - registrar sesión manual;
 - consultar último plan.

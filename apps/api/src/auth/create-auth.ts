@@ -20,6 +20,7 @@ type AuthOptions = {
   recovery?: { resetUrl: string; tokenTtlSeconds?: number };
   verificationMail?: { tokenTtlSeconds?: number };
   allowUnverifiedEmailForTests?: boolean;
+  trustedOrigins?: string[];
 };
 
 const VERIFICATION_CALLBACK_URL = "notesia://email-verified";
@@ -171,7 +172,7 @@ export function createAuth(options: AuthOptions) {
         : undefined,
       password: { hash: hashPassword, verify: verifyPassword },
     },
-    trustedOrigins: ["notesia://", VERIFICATION_CALLBACK_URL],
+    trustedOrigins: ["notesia://", VERIFICATION_CALLBACK_URL, ...(options.trustedOrigins ?? [])],
     plugins: [
       twoFactor({
         issuer: "NotesIA",

@@ -137,6 +137,7 @@ test("weekly statistics include completed and overdue work even without logged t
   expect(await response.json()).toMatchObject({
     totalSeconds: 0,
     subjects: [],
+    activities: [],
     weeks: [
       {
         weekStart: "2026-09-21",
@@ -336,6 +337,14 @@ test("timer is single, server timed, private, retryable and reduces plan work", 
     totalSeconds: 7200,
     weeks: [{ weekStart: "2026-09-21", seconds: 7200 }],
     subjects: [{ subjectId: null, seconds: 7200 }],
+    activities: [
+      {
+        activityId,
+        title: "Tarea",
+        estimatedMinutes: 180,
+        actualSeconds: 7200,
+      },
+    ],
   });
   expect(
     await (

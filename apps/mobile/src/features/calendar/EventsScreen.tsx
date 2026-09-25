@@ -38,7 +38,6 @@ export function EventsScreen() {
     queryFn: ({ pageParam }) => listCalendarEvents({ archived, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: !offline,
     retry: false,
   });
   const items = events.data?.pages.flatMap((page) => page.items) ?? [];

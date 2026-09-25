@@ -207,7 +207,11 @@ export function createActivityRepository(pool: Pool) {
     async transition(
       userId: string,
       id: string,
-      input: { version: number; mutationId: string; eventType: "completed" | "reopened" },
+      input: {
+        version: number;
+        mutationId: string;
+        eventType: "completed" | "reopened" | "cancelled";
+      },
     ) {
       return db.transaction(async (tx) => {
         const [current] = await tx
@@ -221,7 +225,12 @@ export function createActivityRepository(pool: Pool) {
         if (!current) return { kind: "not_found" as const };
 
         const [replay] = await tx
-          .select({ activityId: activityHistory.activityId, eventType: activityHistory.eventType })
+          .select({
+            activityId: activityHistory.activityId,
+            eventType: activityHistory.eventType,
+            afterStatus: activityHistory.afterStatus,
+            afterProgress: activityHistory.afterProgress,
+          })
           .from(activityHistory)
           .where(
             and(
@@ -231,12 +240,12 @@ export function createActivityRepository(pool: Pool) {
           )
           .limit(1);
         if (replay) {
-          const expectedStatus = input.eventType === "completed" ? "completed" : "backlog";
           if (
             replay.activityId === id &&
             replay.eventType === input.eventType &&
             current.version === input.version + 1 &&
-            current.status === expectedStatus
+            current.status === replay.afterStatus &&
+            current.progressPercent === replay.afterProgress
           ) {
             return { kind: "replayed" as const, row: current };
           }
@@ -245,16 +254,25 @@ export function createActivityRepository(pool: Pool) {
 
         if (current.version !== input.version || current.archivedAt)
           return { kind: "conflict" as const };
-        if (
-          (input.eventType === "completed" &&
-            (current.status === "completed" || current.status === "cancelled")) ||
-          (input.eventType === "reopened" && current.status !== "completed")
-        ) {
+        const isFinal = current.status === "completed" || current.status === "cancelled";
+        if (input.eventType === "reopened" ? !isFinal : isFinal) {
           return { kind: "conflict" as const };
         }
 
-        const status = input.eventType === "completed" ? "completed" : "backlog";
-        const progressPercent = input.eventType === "completed" ? 100 : 0;
+        const status =
+          input.eventType === "completed"
+            ? "completed"
+            : input.eventType === "cancelled"
+              ? "cancelled"
+              : current.status === "cancelled" && current.progressPercent > 0
+                ? "in_progress"
+                : "backlog";
+        const progressPercent =
+          input.eventType === "completed"
+            ? 100
+            : input.eventType === "reopened" && current.status === "completed"
+              ? 0
+              : current.progressPercent;
         const [updated] = await tx
           .update(activities)
           .set({

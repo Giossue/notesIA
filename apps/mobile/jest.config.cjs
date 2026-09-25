@@ -5,6 +5,6 @@ module.exports = {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
   transformIgnorePatterns: [
-    "node_modules/(?!(.bun|(jest-)?react-native|@react-native(-community)?|@react-navigation/.*|react-navigation|react-native-paper|react-native-safe-area-context|@testing-library/.*))",
+    "node_modules/(?!(.bun|(jest-)?react-native|@react-native(-community)?|@react-navigation/.*|react-navigation|react-native-paper|react-native-safe-area-context|@testing-library/.*|uuid))",
   ],
 };

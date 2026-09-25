@@ -10,10 +10,18 @@ import {
 import { requestJson } from "./client";
 
 export function listCalendarEvents(
-  filter: { archived?: boolean; on?: string; cursor?: string } = {},
+  filter: {
+    archived?: boolean;
+    on?: string;
+    from?: string;
+    through?: string;
+    cursor?: string;
+  } = {},
 ) {
   const query = new URLSearchParams({ archived: String(filter.archived ?? false) });
   if (filter.on) query.set("on", filter.on);
+  if (filter.from) query.set("from", filter.from);
+  if (filter.through) query.set("through", filter.through);
   if (filter.cursor) query.set("cursor", filter.cursor);
   return requestJson(`/calendar-events?${query.toString()}`, calendarEventPageSchema);
 }

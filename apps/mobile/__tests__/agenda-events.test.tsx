@@ -19,33 +19,39 @@ const mockedInfiniteQuery = useInfiniteQuery as jest.Mock;
 const mockedQuery = useQuery as jest.Mock;
 
 test("agenda separates fixed events from deadlines and uses the profile time zone", async () => {
-  mockedQuery.mockReturnValue({
-    data: { timeZone: "America/Guayaquil" },
-    isPending: false,
-    isError: false,
-  });
+  mockedQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) =>
+    queryKey[0] === "profile"
+      ? {
+          data: { timeZone: "America/Guayaquil" },
+          isPending: false,
+          isError: false,
+        }
+      : { data: null, isPending: false, isError: false },
+  );
   mockedInfiniteQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) => ({
     data: {
       pages: [
         {
           items:
-            queryKey[0] === "agenda-events"
-              ? [
-                  {
-                    id: "event-1",
-                    title: "Clase de cálculo",
-                    startsAt: "2026-09-24T03:00:00.000Z",
-                    endsAt: "2026-09-24T04:00:00.000Z",
-                  },
-                ]
-              : [
-                  {
-                    id: "activity-1",
-                    title: "Entrega de informe",
-                    deadlineAt: "2026-09-24T04:00:00.000Z",
-                    status: "backlog",
-                  },
-                ],
+            queryKey[0] === "agenda-upcoming"
+              ? []
+              : queryKey[0] === "agenda-events"
+                ? [
+                    {
+                      id: "event-1",
+                      title: "Clase de cálculo",
+                      startsAt: "2026-09-24T03:00:00.000Z",
+                      endsAt: "2026-09-24T04:00:00.000Z",
+                    },
+                  ]
+                : [
+                    {
+                      id: "activity-1",
+                      title: "Entrega de informe",
+                      deadlineAt: "2026-09-24T04:00:00.000Z",
+                      status: "backlog",
+                    },
+                  ],
           nextCursor: null,
         },
       ],

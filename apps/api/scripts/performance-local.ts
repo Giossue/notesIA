@@ -12,6 +12,7 @@ if (!process.env.BETTER_AUTH_SECRET) throw new Error("BETTER_AUTH_SECRET is requ
 
 const pool = new Pool({ connectionString: databaseUrl, max: 4 });
 const email = `performance-${crypto.randomUUID()}@example.test`;
+const password = `Performance-${crypto.randomUUID()}-2026!`;
 let userId: string | null = null;
 let cookie: string | null = null;
 let processHandle: ReturnType<typeof Bun.spawn> | null = null;
@@ -122,18 +123,28 @@ try {
     body: JSON.stringify({
       name: "Prueba de rendimiento",
       email,
-      password: `Performance-${crypto.randomUUID()}-2026!`,
+      password,
     }),
   });
-  cookie = registered.headers.get("set-cookie")?.split(";")[0] ?? null;
   await responseStatus(registered, 200, "registration");
-  if (!cookie) throw new Error("Registration did not create a session");
   const user = await pool.query<{ id: string }>(
     "SELECT id FROM autenticacion.usuarios WHERE correo = $1",
     [email],
   );
   userId = user.rows[0]?.id ?? null;
   if (!userId) throw new Error("Synthetic user was not persisted");
+  await pool.query("UPDATE autenticacion.usuarios SET correo_verificado = true WHERE id = $1", [
+    userId,
+  ]);
+  const signedIn = await fetch(`${baseUrl}/v1/auth/sign-in/email`, {
+    method: "POST",
+    signal: AbortSignal.timeout(10000),
+    headers: { "content-type": "application/json", origin: baseUrl },
+    body: JSON.stringify({ email, password }),
+  });
+  cookie = signedIn.headers.get("set-cookie")?.split(";")[0] ?? null;
+  await responseStatus(signedIn, 200, "sign in after local verification");
+  if (!cookie) throw new Error("Verified synthetic user did not receive a session");
 
   const from = new Date();
   from.setUTCHours(0, 0, 0, 0);

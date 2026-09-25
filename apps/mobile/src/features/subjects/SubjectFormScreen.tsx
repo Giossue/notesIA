@@ -3,7 +3,7 @@ import { type Subject, subjectColorSchema } from "@notesia/contracts";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
@@ -12,6 +12,7 @@ import {
   Button,
   Dialog,
   HelperText,
+  Menu,
   Portal,
   Text,
   TextInput,
@@ -19,6 +20,7 @@ import {
 } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
+import { listAcademicPeriods } from "@/core/api/academic-periods";
 import { createSubject, getSubject, setSubjectArchived, updateSubject } from "@/core/api/subjects";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
@@ -28,6 +30,7 @@ import { SubjectColorPicker } from "./SubjectColorPicker";
 const formSchema = z.object({
   name: z.string().trim().min(1, "Escribe el nombre de la materia.").max(160),
   code: z.string().trim().max(40),
+  periodId: z.union([z.literal(""), z.uuid()]),
   colorToken: subjectColorSchema,
 });
 type FormValues = z.infer<typeof formSchema>;
@@ -68,6 +71,15 @@ function SubjectForm({ subject }: { subject?: Subject }) {
   const offline = useNetInfo().isConnected === false;
   const [newId] = useState(() => uuidv4());
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [periodMenu, setPeriodMenu] = useState(false);
+  const periods = useInfiniteQuery({
+    queryKey: ["academic-periods", false],
+    queryFn: ({ pageParam }) => listAcademicPeriods(false, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    retry: false,
+  });
+  const periodItems = periods.data?.pages.flatMap((page) => page.items) ?? [];
   const {
     control,
     handleSubmit,
@@ -77,6 +89,7 @@ function SubjectForm({ subject }: { subject?: Subject }) {
     defaultValues: {
       name: subject?.name ?? "",
       code: subject?.code ?? "",
+      periodId: subject?.periodId ?? "",
       colorToken: subject?.colorToken ?? "primary",
     },
   });
@@ -85,6 +98,7 @@ function SubjectForm({ subject }: { subject?: Subject }) {
       const fields = {
         name: values.name.trim(),
         code: values.code.trim() || null,
+        periodId: values.periodId || null,
         colorToken: values.colorToken,
       };
       return subject
@@ -146,6 +160,43 @@ function SubjectForm({ subject }: { subject?: Subject }) {
       <HelperText type="error" visible={!!errors.code}>
         {errors.code?.message}
       </HelperText>
+      <Controller
+        control={control}
+        name="periodId"
+        render={({ field }) => (
+          <Menu
+            visible={periodMenu}
+            onDismiss={() => setPeriodMenu(false)}
+            anchor={
+              <Button mode="outlined" onPress={() => setPeriodMenu(true)}>
+                Periodo: {periodItems.find((item) => item.id === field.value)?.name ?? "Ninguno"}
+              </Button>
+            }
+          >
+            <Menu.Item
+              title="Sin periodo"
+              onPress={() => {
+                field.onChange("");
+                setPeriodMenu(false);
+              }}
+            />
+            {periodItems.map((period) => (
+              <Menu.Item
+                key={period.id}
+                title={period.name}
+                onPress={() => {
+                  field.onChange(period.id);
+                  setPeriodMenu(false);
+                }}
+              />
+            ))}
+            {periods.hasNextPage && (
+              <Menu.Item title="Cargar más periodos" onPress={() => void periods.fetchNextPage()} />
+            )}
+          </Menu>
+        )}
+      />
+      {periods.isError && <Text accessibilityRole="alert">{periods.error.message}</Text>}
       <Text variant="titleSmall">Color de la materia</Text>
       <Controller
         control={control}

@@ -80,7 +80,7 @@ const privateRoutes: Route[] = [
   route("PATCH", `/v1/activities/${id}`),
   route("DELETE", `/v1/activities/${id}`),
   route("PATCH", `/v1/activities/${id}/progress`),
-  ...["archive", "restore", "complete", "reopen"].map((action) =>
+  ...["archive", "restore", "complete", "reopen", "cancel"].map((action) =>
     route("POST", `/v1/activities/${id}/${action}`),
   ),
   route("GET", "/v1/activity-series"),

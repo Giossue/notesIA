@@ -239,10 +239,71 @@ test("activities stay private, use profile time zone, and keep transition histor
   });
   expect(((await afterReopen.json()) as { items: unknown[] }).items).toHaveLength(2);
 
+  const progressBeforeCancel = await app.request(`/v1/activities/${id}/progress`, {
+    method: "PATCH",
+    headers: jsonHeaders(cookieA),
+    body: JSON.stringify({ version: 4, mutationId: crypto.randomUUID(), progressPercent: 40 }),
+  });
+  expect(progressBeforeCancel.status).toBe(200);
+  expect(await progressBeforeCancel.json()).toMatchObject({
+    status: "in_progress",
+    progressPercent: 40,
+    version: 5,
+  });
+
+  const cancelMutationId = crypto.randomUUID();
+  const cancel = () =>
+    app.request(`/v1/activities/${id}/cancel`, {
+      method: "POST",
+      headers: jsonHeaders(cookieA),
+      body: JSON.stringify({ version: 5, mutationId: cancelMutationId }),
+    });
+  expect(
+    (
+      await app.request(`/v1/activities/${id}/cancel`, {
+        method: "POST",
+        headers: jsonHeaders(cookieB),
+        body: JSON.stringify({ version: 5, mutationId: crypto.randomUUID() }),
+      })
+    ).status,
+  ).toBe(404);
+  const cancelled = await cancel();
+  expect(cancelled.status).toBe(200);
+  expect(await cancelled.json()).toMatchObject({
+    status: "cancelled",
+    progressPercent: 40,
+    version: 6,
+  });
+  expect((await cancel()).status).toBe(200);
+  expect(
+    (
+      await app.request(`/v1/activities/${id}/cancel`, {
+        method: "POST",
+        headers: jsonHeaders(cookieA),
+        body: JSON.stringify({ version: 5, mutationId: crypto.randomUUID() }),
+      })
+    ).status,
+  ).toBe(409);
+  const reactivate = await app.request(`/v1/activities/${id}/reopen`, {
+    method: "POST",
+    headers: jsonHeaders(cookieA),
+    body: JSON.stringify({ version: 6, mutationId: crypto.randomUUID() }),
+  });
+  expect(reactivate.status).toBe(200);
+  expect(await reactivate.json()).toMatchObject({
+    status: "in_progress",
+    progressPercent: 40,
+    version: 7,
+  });
+  const afterReactivate = await app.request(`/v1/activities/${id}/history`, {
+    headers: { cookie: cookieA },
+  });
+  expect(((await afterReactivate.json()) as { items: unknown[] }).items).toHaveLength(5);
+
   const archive = await app.request(`/v1/activities/${id}/archive`, {
     method: "POST",
     headers: jsonHeaders(cookieA),
-    body: JSON.stringify({ version: 4 }),
+    body: JSON.stringify({ version: 7 }),
   });
   expect(archive.status).toBe(200);
   expect(((await archive.json()) as { archivedAt: string | null }).archivedAt).not.toBeNull();
@@ -255,7 +316,7 @@ test("activities stay private, use profile time zone, and keep transition histor
   const restore = await app.request(`/v1/activities/${id}/restore`, {
     method: "POST",
     headers: jsonHeaders(cookieA),
-    body: JSON.stringify({ version: 5 }),
+    body: JSON.stringify({ version: 8 }),
   });
   expect(restore.status).toBe(200);
 
@@ -292,7 +353,7 @@ test("activities stay private, use profile time zone, and keep transition histor
   expect(new Set([...page1.items, ...page2.items].map((row) => row.id)).size).toBe(22);
 
   const deletionPath = `/v1/activities/${id}`;
-  const deletion = { version: 6, mutationId: crypto.randomUUID() };
+  const deletion = { version: 9, mutationId: crypto.randomUUID() };
   expect(
     (
       await app.request(deletionPath, {
@@ -317,7 +378,7 @@ test("activities stay private, use profile time zone, and keep transition histor
       await app.request(deletionPath, {
         method: "DELETE",
         headers: jsonHeaders(cookieA),
-        body: JSON.stringify({ ...deletion, version: 5 }),
+        body: JSON.stringify({ ...deletion, version: 8 }),
       })
     ).status,
   ).toBe(409);

@@ -1,7 +1,15 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
   "files": {
-    "includes": ["**", "!!**/dist", "!!**/.expo", "!!**/android", "!!**/ios"]
+    "includes": [
+      "**",
+      "!!**/dist",
+      "!!**/.expo",
+      "!!**/android",
+      "!!**/ios",
+      "!!**/playwright-report",
+      "!!**/test-results"
+    ]
   },
   "formatter": {
     "indentStyle": "space",
@@ -11,6 +19,11 @@
   "javascript": {
     "formatter": {
       "quoteStyle": "double"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
     }
   }
 }

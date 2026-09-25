@@ -1,5 +1,5 @@
 import { problemSchema, type Readiness, readinessSchema } from "@notesia/contracts";
-import { apiBaseUrl } from "@/core/config/api";
+import { getApiBaseUrl } from "@/core/config/api";
 
 export class ApiResponseError extends Error {
   constructor(
@@ -12,7 +12,7 @@ export class ApiResponseError extends Error {
 }
 
 export async function getReadiness(
-  baseUrl = apiBaseUrl,
+  baseUrl = getApiBaseUrl(),
   fetcher: typeof fetch = fetch,
 ): Promise<Readiness> {
   if (!baseUrl) {

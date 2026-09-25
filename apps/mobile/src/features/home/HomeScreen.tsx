@@ -50,7 +50,7 @@ export function HomeScreen() {
     queryFn: ({ pageParam }) => listCalendarEvents({ on: day ?? undefined, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: !!day && !offline,
+    enabled: !!day,
     retry: false,
   });
   const deadlines = useInfiniteQuery({
@@ -58,7 +58,7 @@ export function HomeScreen() {
     queryFn: ({ pageParam }) => listActivities({ dueOn: day ?? undefined, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: !!day && !offline,
+    enabled: !!day,
     retry: false,
   });
   const subjects = useInfiniteQuery({
@@ -66,7 +66,6 @@ export function HomeScreen() {
     queryFn: ({ pageParam }) => listSubjects(false, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: !offline,
     retry: false,
   });
 
@@ -115,6 +114,7 @@ export function HomeScreen() {
         name={profile.data?.displayName || "Tu espacio"}
         greeting={greeting}
         onOpenProfile={() => navigation.navigate("Profile")}
+        onOpenNotifications={() => navigation.navigate("Notifications")}
       />
       {profile.isPending && <ActivityIndicator accessibilityLabel="Cargando perfil" />}
       {profile.isError && (

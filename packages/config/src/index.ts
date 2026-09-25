@@ -34,6 +34,28 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv): ApiRuntimeConfig {
   };
 }
 
+export function readAdminOrigin(env: NodeJS.ProcessEnv, apiBaseUrl: string): string {
+  const raw = env.ADMIN_ORIGIN ?? apiBaseUrl;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error("ADMIN_ORIGIN must be a valid HTTP origin");
+  }
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
+  )
+    throw new Error("ADMIN_ORIGIN must be an HTTP origin without path or credentials");
+  if (env.NODE_ENV === "production" && url.protocol !== "https:")
+    throw new Error("ADMIN_ORIGIN must use HTTPS in production");
+  return url.origin;
+}
+
 export function readAuthMailConfig(env: NodeJS.ProcessEnv): AuthMailConfig | null {
   const names = [
     "PASSWORD_RESET_URL",

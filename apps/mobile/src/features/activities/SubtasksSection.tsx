@@ -16,7 +16,6 @@ export function SubtasksSection({ activity, offline }: { activity: Activity; off
     queryFn: ({ pageParam }) => listSubtasks(activity.id, archived, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: !offline,
     retry: false,
   });
   const items = subtasks.data?.pages.flatMap((page) => page.items) ?? [];

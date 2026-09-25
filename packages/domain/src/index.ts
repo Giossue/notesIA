@@ -12,7 +12,9 @@ export type { PlanningLimits, PlanningSource } from "./planning-assessment";
 export { computePlanning } from "./planning-assessment";
 export type { RecurrenceFrequency, RecurrenceOccurrence } from "./recurrence";
 export { expandRecurrence, MAX_RECURRENCE_OCCURRENCES } from "./recurrence";
+export type { CalendarRangeView } from "./time";
 export {
+  calendarRangeForDate,
   localDateTimeToUtc,
   localDayBounds,
   shiftLocalDate,

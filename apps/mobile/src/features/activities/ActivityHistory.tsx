@@ -5,6 +5,14 @@ import { ActivityIndicator, Button, Text } from "react-native-paper";
 import { listActivityHistory } from "@/core/api/activities";
 import { layout } from "@/core/theme/layout";
 
+const eventLabels = {
+  completed: "Completada",
+  reopened: "Reactivada",
+  cancelled: "Cancelada",
+  progress_updated: "Progreso actualizado",
+  deleted: "Eliminada",
+};
+
 export function ActivityHistory({ id }: { id: string }) {
   const offline = useNetInfo().isConnected === false;
   const history = useInfiniteQuery({
@@ -12,7 +20,6 @@ export function ActivityHistory({ id }: { id: string }) {
     queryFn: ({ pageParam }) => listActivityHistory(id, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: !offline,
     retry: false,
   });
   const items = history.data?.pages.flatMap((page) => page.items) ?? [];
@@ -30,12 +37,11 @@ export function ActivityHistory({ id }: { id: string }) {
         </>
       )}
       {!history.isPending && !history.isError && items.length === 0 && (
-        <Text>Aún no hay cambios de finalización.</Text>
+        <Text>Aún no hay cambios registrados.</Text>
       )}
       {items.map((item) => (
         <Text key={item.id}>
-          {item.eventType === "completed" ? "Completada" : "Reabierta"} ·{" "}
-          {item.createdAt.slice(0, 16).replace("T", " ")} UTC
+          {eventLabels[item.eventType]} · {item.createdAt.slice(0, 16).replace("T", " ")} UTC
         </Text>
       ))}
       {history.hasNextPage && (

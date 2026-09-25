@@ -1,8 +1,9 @@
 # Student Planner AI Context
 
-> Desarrollo iniciado: la app móvil React Native CLI y la API local están
-> en `apps/mobile` y `apps/api`. Instrucciones en
-> [Desarrollo local](docs/LOCAL_DEVELOPMENT.md).
+> MVP funcional implementado en `apps/mobile`, `apps/api`, `apps/worker` y
+> `apps/admin`. El diseño visual final queda para la siguiente etapa. Instrucciones
+> en [Desarrollo local](docs/LOCAL_DEVELOPMENT.md) y estado verificable en
+> [Cierre funcional](docs/MVP_DELIVERY_PLAN.md).
 
 Contexto técnico y funcional para desarrollar una aplicación móvil de planificación estudiantil con API separada, panel administrativo y funciones de IA acotadas.
 
@@ -88,3 +89,21 @@ student-planner-ai-context/
 - Toda replanificación se muestra como vista previa antes de aplicarse.
 - La aplicación funciona manualmente aunque todos los proveedores de IA estén deshabilitados.
 - Cada cambio debe ser pequeño, verificable y probado.
+
+## Desarrollo rápido
+
+Desde la raíz, cada proceso usa una terminal distinta:
+
+```bash
+bun run dev:api
+bun run dev:worker
+bun run dev:admin
+bun run dev:mobile
+```
+
+- Panel administrativo: `http://127.0.0.1:5173/login`.
+- API: `http://127.0.0.1:3000/v1`.
+- Metro móvil: puerto `8082`.
+
+Las credenciales y archivos de Firebase, SMTP, proveedores IA, firma móvil y
+alertas se guardan fuera del repositorio.

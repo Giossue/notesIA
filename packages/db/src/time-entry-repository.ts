@@ -110,15 +110,37 @@ export function createTimeEntryRepository(pool: Pool) {
       const result = await pool.query<{
         weekStart: string;
         subjectId: string | null;
+        subjectName: string | null;
         seconds: string;
       }>(
         `select date_trunc('week', r.termina_en at time zone $4)::date::text AS "weekStart",
-           a.materia_id AS "subjectId", sum(r.duracion_segundos)::text AS seconds
+           a.materia_id AS "subjectId", m.nombre AS "subjectName",
+           sum(r.duracion_segundos)::text AS seconds
+         from dominio.registros_tiempo r
+         join dominio.actividades a on a.usuario_id = r.usuario_id and a.id = r.actividad_id
+         left join dominio.materias m on m.usuario_id = a.usuario_id and m.id = a.materia_id
+         where r.usuario_id = $1 and r.termina_en >= $2 and r.termina_en < $3
+         group by 1, 2, 3 order by 1, 2`,
+        [userId, from, through, timeZone],
+      );
+      return result.rows;
+    },
+    async comparisonStatistics(userId: string, from: Date, through: Date) {
+      const result = await pool.query<{
+        activityId: string;
+        title: string;
+        estimatedMinutes: number | null;
+        actualSeconds: string;
+      }>(
+        `select a.id AS "activityId", a.titulo AS title,
+           a.minutos_estimados AS "estimatedMinutes",
+           sum(r.duracion_segundos)::text AS "actualSeconds"
          from dominio.registros_tiempo r
          join dominio.actividades a on a.usuario_id = r.usuario_id and a.id = r.actividad_id
          where r.usuario_id = $1 and r.termina_en >= $2 and r.termina_en < $3
-         group by 1, 2 order by 1, 2`,
-        [userId, from, through, timeZone],
+         group by a.id, a.titulo, a.minutos_estimados
+         order by sum(r.duracion_segundos) desc, a.id`,
+        [userId, from, through],
       );
       return result.rows;
     },

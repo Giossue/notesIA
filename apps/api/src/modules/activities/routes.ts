@@ -315,8 +315,9 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
     });
   }
 
-  for (const eventType of ["completed", "reopened"] as const) {
-    const path = eventType === "completed" ? "complete" : "reopen";
+  for (const eventType of ["completed", "reopened", "cancelled"] as const) {
+    const path =
+      eventType === "completed" ? "complete" : eventType === "cancelled" ? "cancel" : "reopen";
     app.post(`/v1/activities/:id/${path}`, async (c) => {
       const session = await dependencies.getSession(c.req.raw.headers);
       if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");

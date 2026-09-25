@@ -38,7 +38,13 @@ import {
 import { Pool } from "pg";
 import { createApiShutdown } from "./api-lifecycle";
 import { createApp } from "./app";
-import { auth, handler as authHandler, pool as authPool, getSession } from "./auth/auth";
+import {
+  adminOrigin,
+  auth,
+  handler as authHandler,
+  pool as authPool,
+  getSession,
+} from "./auth/auth";
 import { createAiGateway } from "./modules/ai/gateway";
 import { createAiKeyCipher } from "./modules/ai/key-cipher";
 import { createOperationalMonitor } from "./operational-monitor";
@@ -148,9 +154,7 @@ const app = createApp(
     },
     ai: aiRepository,
     aiKeyCipher,
-    allowedOrigin: new URL(
-      process.env.BETTER_AUTH_URL ?? `http://127.0.0.1:${process.env.PORT ?? 3000}`,
-    ).origin,
+    allowedOrigin: adminOrigin,
     alertPolicy: { aiCostLimitUsd15m: operationalAlertConfig?.aiCostLimitUsd15m ?? null },
   },
   {

@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { apiBaseUrl } from "@/core/config/api";
+import { getApiBaseUrl } from "@/core/config/api";
+import { disableCurrentPushDevice } from "@/core/push/push-registration";
 import { clearSessionCookie, getSessionCookie, setSessionCookie } from "./session-storage";
 
 const userSchema = z.object({ id: z.string(), name: z.string(), email: z.email() });
@@ -13,6 +14,7 @@ export class AuthenticationError extends Error {
   constructor(
     message: string,
     readonly code: string,
+    readonly status?: number,
   ) {
     super(message);
     this.name = "AuthenticationError";
@@ -46,7 +48,7 @@ async function authRequest(
   const cookie = await getSessionCookie();
   let response: Response;
   try {
-    response = await fetch(`${apiBaseUrl}/auth${path}`, {
+    response = await fetch(`${getApiBaseUrl()}/auth${path}`, {
       method: options.method ?? "GET",
       headers: {
         Accept: "application/json",
@@ -72,7 +74,7 @@ async function authRequest(
         : response.status === 429
           ? "Demasiados intentos. Inténtalo más tarde."
           : "La autenticación no pudo completarse.";
-    throw new AuthenticationError(message, code);
+    throw new AuthenticationError(message, code, response.status);
   }
   const newCookie = sessionCookieFromHeader(response.headers.get("set-cookie"));
   if (newCookie) await setSessionCookie(newCookie);
@@ -81,7 +83,14 @@ async function authRequest(
 
 export async function getCurrentUser() {
   if (!(await getSessionCookie())) return null;
-  const response = await authRequest("/get-session");
+  let response: Response;
+  try {
+    response = await authRequest("/get-session");
+  } catch (error) {
+    if (!(error instanceof AuthenticationError) || error.status !== 401) throw error;
+    await clearSessionCookie();
+    return null;
+  }
   const data: unknown = await response.json();
   if (data === null) {
     await clearSessionCookie();
@@ -114,7 +123,17 @@ export async function resendVerificationEmail(email: string) {
   await authRequest("/send-verification-email", { method: "POST", body: { email } });
 }
 
+export async function requestPasswordReset(email: string) {
+  await authRequest("/request-password-reset", {
+    method: "POST",
+    body: { email: email.trim().toLowerCase() },
+  });
+}
+
 export async function signOut() {
-  if (await getSessionCookie()) await authRequest("/sign-out", { method: "POST" });
+  if (await getSessionCookie()) {
+    await disableCurrentPushDevice().catch(() => {});
+    await authRequest("/sign-out", { method: "POST" });
+  }
   await clearSessionCookie();
 }

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+  calendarRangeForDate,
   localDateTimeToUtc,
   localDayBounds,
   shiftLocalDate,
@@ -27,4 +28,23 @@ test("daily bounds follow daylight saving changes", () => {
 test("shifts calendar days across month boundaries", () => {
   expect(shiftLocalDate("2026-09-30", 1)).toBe("2026-10-01");
   expect(shiftLocalDate("2026-03-01", -1)).toBe("2026-02-28");
+});
+
+test("builds exclusive daily, Monday-based weekly, and calendar month ranges", () => {
+  expect(calendarRangeForDate("2026-09-25", "day")).toEqual({
+    from: "2026-09-25",
+    through: "2026-09-26",
+  });
+  expect(calendarRangeForDate("2026-09-27", "week")).toEqual({
+    from: "2026-09-21",
+    through: "2026-09-28",
+  });
+  expect(calendarRangeForDate("2024-02-29", "month")).toEqual({
+    from: "2024-02-01",
+    through: "2024-03-01",
+  });
+  expect(calendarRangeForDate("2026-01-31", "month", 1)).toEqual({
+    from: "2026-02-01",
+    through: "2026-03-01",
+  });
 });

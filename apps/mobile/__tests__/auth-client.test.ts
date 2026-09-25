@@ -10,6 +10,10 @@ import {
   signUp,
 } from "@/core/auth/auth-client";
 
+jest.mock("@/core/push/push-registration", () => ({
+  disableCurrentPushDevice: jest.fn(async () => {}),
+}));
+
 let mockCookie: string | null = null;
 jest.mock("@/core/auth/session-storage", () => ({
   getSessionCookie: jest.fn(async () => mockCookie),
@@ -58,6 +62,19 @@ test("rejects a successful response without a Better Auth cookie", async () => {
   await expect(signIn("ana@example.test", "correct-password")).rejects.toThrow(
     "No se pudo guardar la sesión de forma segura.",
   );
+  expect(mockCookie).toBeNull();
+});
+
+test("clears an expired session and returns to authentication", async () => {
+  mockCookie = "better-auth.session_token=expired";
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: false,
+    status: 401,
+    headers: { get: () => null },
+    clone: () => ({ json: async () => ({ code: "AUTH_REQUIRED" }) }),
+  });
+
+  await expect(getCurrentUser()).resolves.toBeNull();
   expect(mockCookie).toBeNull();
 });
 

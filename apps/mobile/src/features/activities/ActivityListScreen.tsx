@@ -44,7 +44,6 @@ export function ActivityListScreen() {
       }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: !offline,
     retry: false,
   });
   const items = activities.data?.pages.flatMap((page) => page.items) ?? [];

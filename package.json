@@ -6,8 +6,12 @@
     "apps/*",
     "packages/*"
   ],
+  "op-sqlite": {
+    "sqlcipher": true
+  },
   "scripts": {
     "dev:api": "bun --watch apps/api/src/index.ts",
+    "dev:admin": "cd apps/admin && bun run dev",
     "dev:worker": "bun --watch apps/worker/src/index.ts",
     "dev:mobile": "cd apps/mobile && bun run start",
     "db:migrate:local": "bun packages/db/scripts/migrate-local.ts notesia_dev",
@@ -19,11 +23,13 @@
     "contracts:generate": "bun contracts/generate-openapi.ts",
     "contracts:check": "bun contracts/generate-openapi.ts --check",
     "lint": "biome check apps packages contracts/generate-openapi.ts",
-    "typecheck": "tsc -p packages/config/tsconfig.json --noEmit && tsc -p packages/contracts/tsconfig.json --noEmit && tsc -p packages/domain/tsconfig.json --noEmit && tsc -p packages/db/tsconfig.json --noEmit && tsc -p packages/observability/tsconfig.json --noEmit && tsc -p apps/api/tsconfig.json --noEmit && tsc -p apps/worker/tsconfig.json --noEmit && tsc -p contracts/tsconfig.json --noEmit && tsc -p apps/mobile/tsconfig.json --noEmit",
-    "test": "bun test packages/config/src packages/db/src packages/domain/src packages/observability/src apps/api/src apps/worker/src apps/mobile/src && cd apps/mobile && bun run test:ui",
-    "build": "bun run build:api && bun run build:mobile",
+    "typecheck": "tsc -p packages/config/tsconfig.json --noEmit && tsc -p packages/contracts/tsconfig.json --noEmit && tsc -p packages/domain/tsconfig.json --noEmit && tsc -p packages/db/tsconfig.json --noEmit && tsc -p packages/observability/tsconfig.json --noEmit && tsc -p apps/api/tsconfig.json --noEmit && tsc -p apps/worker/tsconfig.json --noEmit && tsc -p contracts/tsconfig.json --noEmit && tsc -p apps/mobile/tsconfig.json --noEmit && tsc -p apps/admin/tsconfig.json --noEmit",
+    "test": "bun test packages/config/src packages/db/src packages/domain/src packages/observability/src apps/api/src apps/worker/src apps/mobile/src && cd apps/mobile && bun run test:ui && cd ../admin && bun run test",
+    "test:admin:e2e": "cd apps/admin && bun run test:e2e",
+    "build": "bun run build:api && bun run build:worker && bun run build:admin && bun run build:mobile",
     "build:api": "bun build apps/api/src/index.ts --target=bun --outdir=dist/api",
     "build:worker": "bun build apps/worker/src/index.ts --target=bun --outdir=dist/worker",
+    "build:admin": "cd apps/admin && bun run build",
     "build:mobile": "mkdir -p dist/mobile/assets && cd apps/mobile && bunx react-native bundle --platform android --dev false --entry-file index.js --bundle-output ../../dist/mobile/index.android.bundle --assets-dest ../../dist/mobile/assets"
   },
   "devDependencies": {
@@ -31,5 +37,9 @@
     "auth": "1.7.5",
     "typescript": "~6.0.3",
     "yaml": "2.9.1"
-  }
+  },
+  "trustedDependencies": [
+    "@firebase/util",
+    "protobufjs"
+  ]
 }

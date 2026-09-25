@@ -4,7 +4,9 @@
 con un puerto libre, verifica que PostgreSQL es `notesia_dev` local, crea una
 cuenta sintética y la elimina al terminar. No usa proveedores externos. El
 script falla si una petición no devuelve el estado esperado o si supera el p95
-de RNF-01/RNF-02.
+de RNF-01/RNF-02. Como el registro no crea sesiones, el script marca como
+verificada únicamente su cuenta sintética en la base local y después inicia
+sesión mediante la ruta pública normal.
 
 ## Carga objetivo inicial
 
@@ -38,6 +40,12 @@ los tres límites.
 Una cuarta ejecución local el 2026-09-24, con 41 migraciones aplicadas, midió
 p95 de 16,8 ms, 45,0 ms y 84,3 ms respectivamente. El script confirmó el estado
 HTTP de todas las peticiones y eliminó la cuenta sintética al terminar.
+
+Una quinta ejecución local el 2026-09-25, con 45 migraciones y verificación de
+correo obligatoria, midió p95 de 18,2 ms para la lista, 49,8 ms para la creación
+idempotente y 98,3 ms para el preview semanal. Las 450 peticiones medidas
+respondieron con el estado esperado y los tres resultados quedaron dentro de sus
+límites.
 
 La primera ejecución encontró que las transacciones idempotentes compartían
 pool con Better Auth y podían agotar sus cinco conexiones. Se separó el pool

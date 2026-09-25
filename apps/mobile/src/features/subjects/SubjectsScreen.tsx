@@ -28,7 +28,6 @@ export function SubjectsScreen() {
     queryFn: ({ pageParam }) => listSubjects(archived, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: !offline,
     retry: false,
   });
   const items = subjects.data?.pages.flatMap((page) => page.items) ?? [];

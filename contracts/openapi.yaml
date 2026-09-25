@@ -411,6 +411,41 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /activities/{activityId}/cancel:
+    post:
+      operationId: postActivitiesByActivityIdCancel
+      parameters:
+        - in: path
+          name: activityId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityTransitionInput"
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Activity"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /activities/{activityId}/complete:
     post:
       operationId: postActivitiesByActivityIdComplete
@@ -3856,6 +3891,7 @@ components:
                 enum:
                   - completed
                   - reopened
+                  - cancelled
                   - progress_updated
                   - deleted
               beforeStatus:
@@ -8445,13 +8481,45 @@ components:
                     format: uuid
                     pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
                   - type: "null"
+              subjectName:
+                type:
+                  - string
+                  - "null"
               seconds:
                 type: integer
                 minimum: 0
                 maximum: 9007199254740991
             required:
               - subjectId
+              - subjectName
               - seconds
+            additionalProperties: false
+        activities:
+          type: array
+          items:
+            type: object
+            properties:
+              activityId:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              title:
+                type: string
+              estimatedMinutes:
+                anyOf:
+                  - type: integer
+                    exclusiveMinimum: 0
+                    maximum: 9007199254740991
+                  - type: "null"
+              actualSeconds:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+            required:
+              - activityId
+              - title
+              - estimatedMinutes
+              - actualSeconds
             additionalProperties: false
       required:
         - from
@@ -8460,4 +8528,5 @@ components:
         - totalSeconds
         - weeks
         - subjects
+        - activities
       additionalProperties: false

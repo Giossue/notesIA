@@ -57,6 +57,14 @@ export function ProfileScreen() {
       <AppearanceSelector />
       <Button
         mode="outlined"
+        icon="tools"
+        onPress={() => navigation.navigate("Tools")}
+        contentStyle={sharedStyles.actionContent}
+      >
+        Configuración y herramientas
+      </Button>
+      <Button
+        mode="outlined"
         icon="logout"
         loading={logout.isPending}
         disabled={logout.isPending || offline}
