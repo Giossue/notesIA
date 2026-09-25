@@ -10,7 +10,6 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { getCurrentUser } from "@/core/auth/auth-client";
 import { clearPrivateCache } from "@/core/auth/query-cache";
 import { OfflineSyncProvider } from "@/core/offline/OfflineSyncProvider";
-import { PushRegistrationProvider } from "@/core/push/PushRegistrationProvider";
 import { AppearanceProvider } from "@/core/theme/AppearanceProvider";
 import { AccountScreen } from "@/features/account/AccountScreen";
 import { ActivityFormScreen } from "@/features/activities/ActivityFormScreen";
@@ -83,35 +82,33 @@ function Main() {
   }
   if (!session.data) return <AuthScreen />;
   return (
-    <PushRegistrationProvider>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Home" options={tabScreen} component={HomeScreen} />
-          <Stack.Screen name="Subjects" component={SubjectsScreen} />
-          <Stack.Screen name="SubjectForm" component={SubjectFormRoute} />
-          <Stack.Screen name="Activities" options={tabScreen} component={ActivityListScreen} />
-          <Stack.Screen name="ActivityForm" component={ActivityFormRoute} />
-          <Stack.Screen name="Agenda" options={tabScreen} component={AgendaScreen} />
-          <Stack.Screen name="Events" options={tabScreen} component={EventsScreen} />
-          <Stack.Screen name="EventForm" component={EventFormRoute} />
-          <Stack.Screen name="Profile" component={ProfileScreen} />
-          <Stack.Screen name="Tools" component={ToolsScreen} />
-          <Stack.Screen name="AcademicPeriods" component={AcademicPeriodsScreen} />
-          <Stack.Screen name="AcademicPeriodForm" component={AcademicPeriodFormRoute} />
-          <Stack.Screen name="Availability" component={AvailabilityScreen} />
-          <Stack.Screen name="Planning" component={PlanningScreen} />
-          <Stack.Screen name="TimeTracking" component={TimeTrackingScreen} />
-          <Stack.Screen name="ActivitySeries" component={ActivitySeriesScreen} />
-          <Stack.Screen name="ActivitySeriesForm" component={ActivitySeriesFormScreen} />
-          <Stack.Screen name="Notifications" component={NotificationsScreen} />
-          <Stack.Screen name="Preferences" component={PreferencesScreen} />
-          <Stack.Screen name="Privacy" component={PrivacyScreen} />
-          <Stack.Screen name="AiAssistant" component={AiAssistantScreen} />
-          <Stack.Screen name="Account" component={AccountScreen} />
-          <Stack.Screen name="OfflineChanges" component={OfflineChangesScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </PushRegistrationProvider>
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Home" options={tabScreen} component={HomeScreen} />
+        <Stack.Screen name="Subjects" component={SubjectsScreen} />
+        <Stack.Screen name="SubjectForm" component={SubjectFormRoute} />
+        <Stack.Screen name="Activities" options={tabScreen} component={ActivityListScreen} />
+        <Stack.Screen name="ActivityForm" component={ActivityFormRoute} />
+        <Stack.Screen name="Agenda" options={tabScreen} component={AgendaScreen} />
+        <Stack.Screen name="Events" options={tabScreen} component={EventsScreen} />
+        <Stack.Screen name="EventForm" component={EventFormRoute} />
+        <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="Tools" component={ToolsScreen} />
+        <Stack.Screen name="AcademicPeriods" component={AcademicPeriodsScreen} />
+        <Stack.Screen name="AcademicPeriodForm" component={AcademicPeriodFormRoute} />
+        <Stack.Screen name="Availability" component={AvailabilityScreen} />
+        <Stack.Screen name="Planning" component={PlanningScreen} />
+        <Stack.Screen name="TimeTracking" component={TimeTrackingScreen} />
+        <Stack.Screen name="ActivitySeries" component={ActivitySeriesScreen} />
+        <Stack.Screen name="ActivitySeriesForm" component={ActivitySeriesFormScreen} />
+        <Stack.Screen name="Notifications" component={NotificationsScreen} />
+        <Stack.Screen name="Preferences" component={PreferencesScreen} />
+        <Stack.Screen name="Privacy" component={PrivacyScreen} />
+        <Stack.Screen name="AiAssistant" component={AiAssistantScreen} />
+        <Stack.Screen name="Account" component={AccountScreen} />
+        <Stack.Screen name="OfflineChanges" component={OfflineChangesScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 

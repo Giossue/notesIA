@@ -169,13 +169,12 @@ beforeAll(async () => {
       ...process.env,
       PORT: String(port),
       BETTER_AUTH_URL: baseUrl,
+      BETTER_AUTH_SECRET:
+        crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", ""),
       ALLOW_SIGNUP: "true",
       NODE_ENV: "test",
       SMTP_HOST: "smtp.example.test",
       SMTP_FROM: "access@example.test",
-      PUSH_ENCRYPTION_KEY: Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString(
-        "base64",
-      ),
     },
     stdout: "ignore",
     stderr: "ignore",
@@ -385,7 +384,7 @@ test("another account cannot read or change owned work, notices or devices", asy
   });
   expect(foreignRead.status).toBe(404);
 
-  const token = `test-fcm-${crypto.randomUUID()}`;
+  const token = `test-push-${crypto.randomUUID()}`;
   const registeredDevice = await fetch(`${baseUrl}/v1/me/push-devices`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
@@ -395,7 +394,7 @@ test("another account cannot read or change owned work, notices or devices", asy
       token,
     }),
   });
-  expect(registeredDevice.status).toBe(200);
+  expect(registeredDevice.status).toBe(503);
   expect(JSON.stringify(await registeredDevice.json())).not.toContain(token);
   const foreignDevices = await fetch(`${baseUrl}/v1/me/push-devices`, {
     headers: { cookie: otherCookie },
@@ -410,5 +409,5 @@ test("another account cannot read or change owned work, notices or devices", asy
     ).status,
   ).toBe(404);
   const ownerDevices = await fetch(`${baseUrl}/v1/me/push-devices`, { headers: { cookie } });
-  expect(await ownerDevices.json()).toMatchObject([{ id: deviceId }]);
+  expect(await ownerDevices.json()).toEqual([]);
 });

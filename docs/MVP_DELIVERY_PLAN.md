@@ -7,13 +7,13 @@ visual y la identidad final de la interfaz quedan para una etapa posterior.
 
 | Etapa | Estado del código | Evidencia principal |
 |---|---|---|
-| 0. Fundaciones | Completa | Monorepo, contratos Zod/OpenAPI, Problem Details, PostgreSQL y 45 migraciones desde cero. |
+| 0. Fundaciones | Completa | Monorepo, contratos Zod/OpenAPI, Problem Details, PostgreSQL y 46 migraciones desde cero. |
 | 1. Cuenta y privacidad | Completa | Registro pendiente, verificación obligatoria, sesión revocable en Keychain/Keystore, recuperación, perfil, consentimientos, exportación y solicitud de eliminación. |
 | 2. Organización | Completa | Periodos, materias, actividades, estados, cancelación, subtareas, recurrencia, eventos y agenda diaria/semanal/mensual. |
 | 3. Disponibilidad | Completa | Reglas semanales, cruce de medianoche, excepciones, conflictos y capacidad visible. |
 | 4. Planificación y riesgo | Completa | Preview determinístico, diferencias, edición validada, bloqueos, trabajo no asignado, aplicación/rechazo e historial. |
 | 5. Ejecución | Completa | Temporizador, tiempo manual, progreso, estimado frente a real y estadísticas semanales. |
-| 6. Conectividad y avisos | Completa | Caché SQLite cifrada, outbox local acotado, conflictos visibles, avisos internos, preferencias y registro push. |
+| 6. Conectividad y avisos | Completa | Caché SQLite cifrada, outbox local acotado, conflictos visibles, avisos internos y preferencias. |
 | 7. IA | Completa en código | Cinco casos acotados, entrada por texto o dictado, confirmación, tres proveedores, alternativa auditada y fallback manual. |
 | 8. Administración | Completa | Panel web para TOTP, salud, cuentas, roles, privacidad, proveedores/modelos/rutas de IA, uso y auditoría. |
 | 9. Hardening | Completa en código local | Trazas, alertas firmadas, apagado limpio, backup/restauración, rendimiento, escaneo de secretos, builds y gates de CI. |
@@ -51,18 +51,19 @@ inventando valores en el repositorio:
 1. Aprobar y publicar los textos legales y la política de eliminación/retención.
 2. Enrolar TOTP para la cuenta administradora del entorno objetivo.
 3. Registrar modelos y credenciales reales para habilitar IA.
-4. Instalar la configuración Firebase y credenciales FCM para entrega push real.
-5. Configurar el receptor de alertas, el colector de trazas y el límite de costo IA.
-6. Crear la clave de firma Android, los perfiles/certificados iOS y las URLs HTTPS
+4. Configurar el receptor de alertas, el colector de trazas y el límite de costo IA.
+5. Crear la clave de firma Android, los perfiles/certificados iOS y las URLs HTTPS
    del despliegue.
+6. Configurar en Dokploy la API, el worker, el panel y PostgreSQL, y repetir allí
+   las pruebas de entrega, backup y restauración.
 7. Compilar y probar iOS en Xcode y hardware Apple; el entorno local disponible
    solo permite validar Android y la sintaxis del proyecto iOS.
 
 ## Evidencia del cierre local
 
-- 45 migraciones validadas desde una base vacía y restauración cifrada aislada.
+- 46 migraciones validadas desde una base vacía y restauración cifrada aislada.
 - 100 operaciones Hono y 13 flujos de autenticación documentados en OpenAPI.
-- 136 pruebas Bun, 20 pruebas de interfaz móvil, 2 pruebas unitarias del panel y
+- 134 pruebas Bun, 20 pruebas de interfaz móvil, 2 pruebas unitarias del panel y
   2 recorridos Playwright, todos aprobados.
 - Lint, tipos, auditoría de dependencias, contratos, builds de API, worker, admin
   y bundle móvil aprobados.

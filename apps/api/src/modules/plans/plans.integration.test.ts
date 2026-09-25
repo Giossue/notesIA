@@ -363,13 +363,18 @@ test("preview, edit, apply and history require owner and fresh source revision",
   cookieA = await register(emailA);
   cookieB = await register(emailB);
   const deviceId = crypto.randomUUID();
-  const pushToken = `fcm-test-token-${crypto.randomUUID()}`;
+  const pushToken = `push-test-token-${crypto.randomUUID()}`;
   const registerDevice = await app.request("/v1/me/push-devices", {
     method: "POST",
     headers: headers(cookieA),
     body: JSON.stringify({ id: deviceId, platform: "android", token: pushToken }),
   });
   expect(registerDevice.status).toBe(200);
+  await pool.query(
+    `UPDATE dominio.preferencias_usuario SET push_habilitado = true
+     WHERE usuario_id = (SELECT id FROM autenticacion.usuarios WHERE correo = $1)`,
+    [emailA],
+  );
   expect(
     (
       await app.request(`/v1/me/push-devices/${deviceId}`, {
@@ -932,7 +937,7 @@ test("preview, edit, apply and history require owner and fresh source revision",
         body: JSON.stringify({
           id: quietDeviceId,
           platform: "android",
-          token: `fcm-test-token-${crypto.randomUUID()}`,
+          token: `push-test-token-${crypto.randomUUID()}`,
         }),
       })
     ).status,

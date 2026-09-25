@@ -5,8 +5,6 @@ import {
   createIdempotencyRepository,
   createNotificationSchedulerRepository,
   createOutboxRepository,
-  createPushDeliveryRepository,
-  createPushTokenCipher,
   createRecoveryMailRepository,
   createTracedPool,
   createVerificationMailRepository,
@@ -20,7 +18,6 @@ import {
 } from "@notesia/observability";
 import { Pool } from "pg";
 import { createAuthSmtpSender } from "./auth-smtp";
-import { createFcmSender } from "./fcm";
 import { createRiskReassessment } from "./risk-reassessment";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -30,15 +27,6 @@ const pool = createTracedPool(new Pool({ connectionString: databaseUrl, max: 2 }
 const outbox = createOutboxRepository(pool);
 const scheduler = createNotificationSchedulerRepository(pool);
 const riskReassessment = createRiskReassessment(pool);
-const pushCipher = process.env.PUSH_ENCRYPTION_KEY
-  ? createPushTokenCipher(process.env.PUSH_ENCRYPTION_KEY)
-  : null;
-const fcmSender = process.env.FCM_PROJECT_ID
-  ? createFcmSender({ projectId: process.env.FCM_PROJECT_ID })
-  : null;
-if (fcmSender && !pushCipher)
-  throw new Error("PUSH_ENCRYPTION_KEY is required when FCM_PROJECT_ID is set");
-const push = pushCipher && fcmSender ? createPushDeliveryRepository(pool, pushCipher) : null;
 const mailConfig = readAuthMailConfig(process.env);
 const mailSender = mailConfig ? createAuthSmtpSender(mailConfig.smtp) : null;
 if (mailSender && !process.env.BETTER_AUTH_SECRET)
@@ -87,8 +75,6 @@ while (running) {
     const result = await outbox.processOne();
     const riskResult = await riskReassessment.processOne();
     const scheduled = await scheduler.processDue();
-    const pushResult =
-      push && fcmSender ? await push.processOne(fcmSender) : { kind: "empty" as const };
     const deletionResult = deletion ? await deletion.processDue() : "empty";
     let aiReconciled = 0;
     if (Date.now() >= nextAiReconciliation) {
@@ -111,7 +97,6 @@ while (running) {
       verificationResult.kind === "empty" &&
       recoveryResult.kind === "empty" &&
       scheduled === 0 &&
-      pushResult.kind === "empty" &&
       deletionResult === "empty" &&
       aiReconciled === 0;
     if (idle) {
@@ -125,7 +110,7 @@ while (running) {
         outbox: Number(result.kind !== "empty"),
         risk: Number(riskResult.kind !== "empty"),
         scheduled,
-        push: Number(pushResult.kind !== "empty"),
+        push: 0,
         deletion: Number(deletionResult !== "empty"),
         aiReconciled,
       });

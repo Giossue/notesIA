@@ -18,8 +18,8 @@ se puede editar ni eliminar. Una versión nueva debe usar otra fila.
   anterior.
 - `POST /v1/me/export` con `{ "password": "..." }`: descarga JSON con los datos
   propios desde una transacción de solo lectura, incluidos rol y estado de cuenta,
-  preferencias de avisos, riesgos actuales, referencias de notificaciones, metadatos
-  de dispositivos push y el estado de una solicitud de eliminación. Exige contraseña actual, no incluye
+  preferencias de avisos, riesgos actuales, referencias de notificaciones y el
+  estado de una solicitud de eliminación. Exige contraseña actual, no incluye
   credenciales, tokens ni datos de otras cuentas y usa `Cache-Control: no-store`.
 - `GET /v1/me/deletion-request`: consulta la solicitud propia, o `null`.
 - `POST /v1/me/deletion-request` con contraseña y `confirmation: "ELIMINAR"`:

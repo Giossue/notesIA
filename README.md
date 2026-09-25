@@ -105,5 +105,5 @@ bun run dev:mobile
 - API: `http://127.0.0.1:3000/v1`.
 - Metro móvil: puerto `8082`.
 
-Las credenciales y archivos de Firebase, SMTP, proveedores IA, firma móvil y
-alertas se guardan fuera del repositorio.
+Las credenciales de SMTP, proveedores IA, firma móvil y alertas se guardan fuera
+del repositorio. El despliegue previsto usa Dokploy; la validación actual es local.

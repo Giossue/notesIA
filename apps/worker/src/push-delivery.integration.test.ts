@@ -46,6 +46,10 @@ async function queueDelivery(token: string) {
     "UPDATE dominio.perfiles_usuario SET zona_horaria = 'Etc/UTC' WHERE usuario_id = $1",
     [userId],
   );
+  await pool.query(
+    "UPDATE dominio.preferencias_usuario SET push_habilitado = true WHERE usuario_id = $1",
+    [userId],
+  );
   const revision = await pool.query<{ value: string }>(
     `SELECT revision::text AS value FROM dominio.revisiones_planificacion WHERE usuario_id = $1`,
     [userId],

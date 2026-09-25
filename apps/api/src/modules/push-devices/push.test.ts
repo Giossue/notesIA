@@ -7,7 +7,7 @@ test("push token ciphertext is bound to account and device", () => {
   );
   const user = crypto.randomUUID();
   const device = crypto.randomUUID();
-  const token = `fcm-test-token-${crypto.randomUUID()}`;
+  const token = `push-test-token-${crypto.randomUUID()}`;
   const encrypted = cipher.encrypt(user, device, token);
   expect(encrypted.toString()).not.toContain(token);
   expect(cipher.decrypt(user, device, encrypted)).toBe(token);

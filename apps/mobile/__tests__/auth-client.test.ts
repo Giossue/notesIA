@@ -10,10 +10,6 @@ import {
   signUp,
 } from "@/core/auth/auth-client";
 
-jest.mock("@/core/push/push-registration", () => ({
-  disableCurrentPushDevice: jest.fn(async () => {}),
-}));
-
 let mockCookie: string | null = null;
 jest.mock("@/core/auth/session-storage", () => ({
   getSessionCookie: jest.fn(async () => mockCookie),

@@ -129,7 +129,7 @@ test("Idempotency-Key replays a successful no-content device removal", async () 
   const registered = await app.request("/v1/me/push-devices", {
     method: "POST",
     headers: { cookie: cookieC, "content-type": "application/json" },
-    body: JSON.stringify({ id, platform: "android", token: `test-fcm-${crypto.randomUUID()}` }),
+    body: JSON.stringify({ id, platform: "android", token: `test-push-${crypto.randomUUID()}` }),
   });
   expect(registered.status).toBe(200);
   const key = crypto.randomUUID();
@@ -236,7 +236,7 @@ test("failed response commit rolls back domain writes and permits the same key t
   const deviceBody = {
     id: deviceId,
     platform: "android",
-    token: `test-fcm-${crypto.randomUUID()}`,
+    token: `test-push-${crypto.randomUUID()}`,
   };
   const registerDevice = () =>
     app.request("/v1/me/push-devices", {

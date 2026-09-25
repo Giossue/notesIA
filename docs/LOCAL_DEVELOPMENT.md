@@ -84,25 +84,10 @@ bloque y riesgo. El worker comprueba anticipación, estado activo, zona horaria,
 horas silenciosas y enfriamiento; los avisos de plazo y bloque tienen índices
 únicos. Si todo el
 intervalo de anticipación cae dentro de horas silenciosas, el aviso puede no
-emitirse. No hay credenciales push reales configuradas.
-`0026` añade dispositivos push y envíos por dispositivo. Las rutas
-`POST/GET /v1/me/push-devices` y `DELETE /v1/me/push-devices/:id` registran,
-listan y quitan dispositivos propios sin devolver el
-token. API y worker comparten `PUSH_ENCRYPTION_KEY` (32 bytes en base64); el worker
-usa `FCM_PROJECT_ID` y credenciales Google fuera del repositorio. Sin esa
-configuración no se envían push. El adaptador usa FCM HTTP v1 con OAuth de corta
-duración; el contenido visible es genérico y el dato incluye solo el ID del aviso.
-Los reintentos pueden duplicar un push si el proceso cae después de enviarlo; el
-cliente debe deduplicar por `notificationId`. El backend aún no se ha probado con
-credenciales ni dispositivo reales.
-Si FCM indica que un token ya no está registrado, el worker elimina el dispositivo
-solo si conserva ese mismo token cifrado. Cuando el dispositivo renovó su token
-durante el envío, conserva el registro y reintenta el aviso con el token nuevo.
-Antes de llamar a FCM, el worker vuelve a leer el estado del trabajo, las preferencias,
-la zona horaria y el token. Así descarta un envío cuyo canal se desactivó después
-de reclamarlo y usa un token renovado antes de iniciar la llamada. Una llamada a
-FCM que ya empezó puede terminar aunque el usuario cambie la preferencia durante
-ese envío; no se mantiene una transacción abierta durante la llamada externa.
+emitirse. La aplicación consulta estos avisos desde el buzón interno.
+`0026` conserva el esquema histórico de dispositivos y envíos push. Ese canal no
+forma parte del despliegue elegido: el cliente no registra dispositivos, la API no
+acepta tokens y el worker no carga un proveedor externo.
 `0027` añade arrendamientos renovables a las claves de idempotencia. Un intento
 abandonado se puede reclamar después de dos minutos; el propietario anterior no
 puede completar la respuesta cuando pierde el arrendamiento.
@@ -146,13 +131,10 @@ las filas históricas sin precios conservan costo desconocido. Su rollback manua
 se niega cuando ya existen precios configurados o registros de uso.
 `0037` registra respuestas manuales del gateway de IA sin identidad ni contenido;
 el panel las agrega por caso y motivo. El rollback manual se niega si hay eventos.
-`0038` añade la preferencia persistente `push_habilitado`. El buzón interno sigue
-guardándose en PostgreSQL cuando los avisos están habilitados; el estudiante puede
-desactivar solo el envío push. Los envíos ya en cola se descartan antes de llamar a
-FCM si el canal o los avisos generales se desactivaron. Cambiar solo avisos no
-invalida el plan activo. El programador vuelve a comprobar los avisos generales
-al insertar cada aviso, incluso si se desactivaron durante su búsqueda. El rollback
-manual se niega si alguna cuenta desactivó push.
+`0038` añade la preferencia histórica `push_habilitado`. El buzón interno sigue
+guardándose en PostgreSQL cuando los avisos están habilitados. El programador
+vuelve a comprobar los avisos generales al insertar cada aviso, incluso si se
+desactivaron durante su búsqueda.
 `0043` añade continuidad de trazas a outbox, correos de recuperación y envíos
 push mediante dos identificadores opacos validados. Las columnas son anulables
 para conservar trabajos existentes. La API responde un `traceparent` W3C y API y
@@ -165,6 +147,9 @@ rollback manual se niega mientras exista cualquier registro.
 `0045` permite registrar la transición `cancelled` en el historial de actividades.
 Cancelar conserva el progreso y reactivar recupera `in_progress` cuando corresponde.
 La migración solo amplía la restricción del historial y no transforma datos.
+`0046` desactiva el canal push externo y elimina los tokens cifrados históricos.
+Las tablas se conservan para que la migración sea compatible con instalaciones
+existentes; no se exponen en la aplicación ni se procesan desde el worker.
 El worker purga por lotes las sesiones y los contadores caducados del almacén
 seguro, además de las claves de idempotencia vencidas. Una prueba de integración
 verifica que conserva las filas aún vigentes.
@@ -251,8 +236,8 @@ la ruta versionada y la eliminación por una solicitud con auditoría.
 Todas las respuestas `/v1` llevan `Cache-Control: no-store` y
 `X-Content-Type-Options: nosniff`. La prueba de seguridad HTTP recorre más de 90
 rutas privadas sin sesión y las 16 rutas administrativas con una sesión de
-estudiante; también comprueba acceso entre cuentas a trabajo, avisos y
-dispositivos, y que el token push no regresa en la respuesta. Se ejecuta dentro
+estudiante; también comprueba acceso entre cuentas a trabajo y avisos, y que la
+ruta histórica de registro de dispositivos permanece deshabilitada. Se ejecuta dentro
 de `bun run test` con cuentas sintéticas que se eliminan al terminar.
 Tras construir API y worker, `test:bundle-secrets` busca los valores sensibles
 configurados en ambos bundles y, si existe, en el bundle móvil. Solo informa el
@@ -295,22 +280,17 @@ El flujo se renderizó y recorrió en un Android físico con Metro 8082.
 
 ## Integraciones nativas del móvil
 
-Los cambios en Kotlin, Objective-C++, permisos, Firebase, SQLite o Keychain exigen
+Los cambios en Kotlin, Objective-C++, permisos, SQLite o Keychain exigen
 recompilar e instalar la aplicación; Metro solo actualiza JavaScript. El dictado
 solicita el micrófono al pulsar su botón. Android intenta reconocimiento local y
 puede usar el servicio de voz configurado por el sistema si falta el paquete del
 idioma. iOS usa `SFSpeechRecognizer`. NotesIA no guarda audio: conserva el texto
 que la persona revisa antes de enviarlo a la función de IA.
 
-Para push real, instalar los archivos descargados del mismo proyecto Firebase en:
-
-- `apps/mobile/android/app/google-services.json`;
-- `apps/mobile/ios/NotesIA/GoogleService-Info.plist`.
-
-Ambos están ignorados por Git. API y worker reciben `PUSH_ENCRYPTION_KEY`; solo el
-worker recibe `FCM_PROJECT_ID` y `GOOGLE_APPLICATION_CREDENTIALS`. La app conserva
-el buzón interno cuando Firebase no está configurado y muestra un error accionable
-si se intenta activar push.
+NotesIA no integra un proveedor de notificaciones push del sistema operativo. Los
+avisos se guardan en PostgreSQL y aparecen dentro de la pantalla Notificaciones al
+consultar la API. Dokploy alojará API, worker, panel y PostgreSQL cuando se prepare
+el entorno remoto; durante la validación actual todos los procesos son locales.
 
 La variante Android `release` nunca usa el keystore de depuración. Para firmarla,
 entregar por variables de entorno o propiedades privadas de Gradle los cuatro
@@ -400,9 +380,9 @@ plist y referencias del proyecto, pero no se declara un build iOS aprobado.
   se modifica.
 - `GET/PATCH /v1/me/preferences` consulta y actualiza límites de sesión,
   notificaciones y horas silenciosas con control de versión. `notificationsEnabled`
-  controla todos los avisos; `pushNotificationsEnabled` controla solo FCM y es
-  opcional en PATCH para clientes anteriores. GET y PATCH siempre devuelven ambos
-  valores. Los avisos del buzón y la preferencia se guardan en PostgreSQL.
+  controla los avisos del buzón. El contrato todavía devuelve el campo histórico
+  `pushNotificationsEnabled` para clientes anteriores, siempre desactivado en la
+  configuración actual. Los avisos y la preferencia se guardan en PostgreSQL.
 
 ## Idempotencia de mutaciones
 
@@ -414,8 +394,8 @@ administración, consentimientos, exportación y solicitud de eliminación queda
 fuera de este mecanismo. En administración se vuelven a comprobar rol, MFA,
 origen y reautenticación en cada intento, aunque se envíe la misma clave.
 Las respuestas `204` exitosas también se guardan y se reproducen sin cuerpo; esto
-permite repetir, por ejemplo, la eliminación de un dispositivo push tras perder
-la respuesta de red.
+permite repetir, por ejemplo, la eliminación de una actividad tras perder la
+respuesta de red.
 El repositorio expone purga de claves vencidas para el worker operativo.
 En las rutas cubiertas por `Idempotency-Key`, los repositorios de la API y el
 registro de la respuesta comparten una transacción PostgreSQL. Las transacciones
@@ -447,9 +427,8 @@ preferencia general dentro de la transacción: una desactivación concurrente
 confirmada antes de la entrega impide crear el aviso. El programador del worker crea avisos de plazo,
 bloque y riesgo alto según preferencias y horario local. `GET /v1/notifications`
 lista el buzón paginado y `POST /v1/notifications/:id/read` marca leído con control
-de versión. Con `PUSH_ENCRYPTION_KEY`, `FCM_PROJECT_ID` y credenciales Google, el
-worker entrega push genérico desde `dominio.envios_push`; sin ellas conserva los
-avisos internos. Falta comprobar la entrega con un proyecto y dispositivo reales.
+de versión. El worker conserva exclusivamente los avisos internos; no intenta una
+entrega push externa.
 La selección descarta candidatos en horas silenciosas antes de limitar el lote,
 para que esos candidatos no retrasen avisos elegibles de otras cuentas.
 La inserción vuelve a comprobar las horas silenciosas y bloquea brevemente las

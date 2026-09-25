@@ -8,8 +8,6 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
-$RNFirebaseDisableSPM = true
-
 pre_install do |installer|
   installer.pod_targets.each do |pod|
     if pod.name.eql?('op-sqlite')
@@ -23,7 +21,6 @@ end
 target 'NotesIA' do
   config = use_native_modules!
   use_frameworks! :linkage => :static
-  $RNFirebaseAsStaticFramework = true
 
   use_react_native!(
     :path => config[:reactNativePath],

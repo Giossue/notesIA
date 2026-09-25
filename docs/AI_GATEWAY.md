@@ -60,7 +60,8 @@ administrador, con respuesta `429` y `Retry-After` al superar el límite.
   conservadora, no el consumo facturado.
 - `GET /v1/admin/audit`: acciones administrativas, sin claves ni contenido privado.
 - `GET /v1/admin/system-health`: conectividad de PostgreSQL y contadores de
-  colas de outbox, push, recuperación y verificación de correo, más el último latido del worker y si fue
+  colas de outbox, recuperación, verificación de correo y la cola histórica de
+  push, que permanece inactiva; además muestra el último latido del worker y si fue
   visto durante los dos minutos previos. Cada cola incluye la fecha del mensaje
   listo más antiguo. `alerts` señala un worker sin latido reciente, mensajes
   muertos y backlog de al menos 100 mensajes listos o uno listo durante más de

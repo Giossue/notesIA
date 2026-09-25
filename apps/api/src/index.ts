@@ -23,7 +23,6 @@ import {
   createPrivacyRepository,
   createProfileRepository,
   createPushDeviceRepository,
-  createPushTokenCipher,
   createRequestTransactionPool,
   createSubjectRepository,
   createSubtaskRepository,
@@ -62,9 +61,6 @@ const repositoryPool = requestTransactions.pool;
 const aiRepository = createAiRepository(repositoryPool);
 const aiKeyCipher = process.env.AI_ENCRYPTION_KEY
   ? createAiKeyCipher(process.env.AI_ENCRYPTION_KEY)
-  : null;
-const pushCipher = process.env.PUSH_ENCRYPTION_KEY
-  ? createPushTokenCipher(process.env.PUSH_ENCRYPTION_KEY)
   : null;
 const deletionPolicy = readDeletionPolicy(process.env);
 const operationalAlertConfig = readOperationalAlertConfig(process.env);
@@ -176,7 +172,7 @@ const app = createApp(
   {
     getSession,
     devices: createPushDeviceRepository(repositoryPool),
-    cipher: pushCipher,
+    cipher: null,
   },
   {
     getSession,

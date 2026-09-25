@@ -10,7 +10,6 @@ import type { RootStackParamList } from "@/navigation/types";
 import { EmptyState } from "@/shared/EmptyState";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { NotificationPreferencesForm } from "./NotificationPreferencesForm";
-import { PushDevicePanel } from "./PushDevicePanel";
 
 const labels = {
   plan_applied: "Plan aplicado",
@@ -101,8 +100,6 @@ export function NotificationsScreen() {
       )}
       <Divider />
       <NotificationPreferencesForm />
-      <Divider />
-      <PushDevicePanel />
     </ScreenLayout>
   );
 }

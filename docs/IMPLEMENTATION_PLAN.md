@@ -72,7 +72,7 @@
 - outbox local;
 - idempotencia/versionado;
 - conflictos;
-- dispositivos/push;
+- buzón de notificaciones internas;
 - outbox servidor/worker;
 - horas silenciosas.
 

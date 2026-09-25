@@ -16,17 +16,16 @@ dominio a un proveedor de telemetría.
   consulta ejecutada dentro de una traza crea un span hijo `db.query`.
 - Las migraciones `0043_contexto_trazas.sql` y `0044_correos_verificacion.sql`
   guardan solo `traza_id` y `span_origen_id` en outbox, correos de recuperación y
-  verificación, y envíos push. Así el worker
+  verificación y los envíos push históricos. Así el worker
   continúa el contexto después de que la transacción y el proceso originales
   terminaron. Una fila histórica sin esos valores inicia una traza nueva.
-- Las llamadas de IA, FCM y SMTP crean un span local de proveedor. El contexto
+- Las llamadas de IA y SMTP crean un span local de proveedor. El contexto
   interno no se envía a esos servicios externos.
 
 El recorrido persistido de un plan aplicado es:
 
 ```text
 api.request -> db.query -> worker.outbox -> db.query
-            -> worker.push-delivery -> provider.fcm
 ```
 
 La recuperación y la verificación siguen el mismo patrón mediante
@@ -39,7 +38,7 @@ Cada línea `trace_span` contiene exclusivamente:
 
 - hora, `traceId`, `spanId` y `parentSpanId`;
 - nombre y componente tomados de listas cerradas;
-- destino acotado (`postgresql`, proveedor IA, `fcm` o `smtp`);
+- destino acotado (`postgresql`, proveedor IA o `smtp`);
 - resultado `ok`/`error` y duración en milisegundos.
 
 No se registran SQL, parámetros, rutas, correos, identificadores de cuenta,
@@ -87,7 +86,8 @@ métricas agregadas completas quedan disponibles en la ruta administrativa.
 ## Verificación y rollback
 
 Las pruebas cubren formato W3C, contextos concurrentes, campos permitidos,
-continuidad API→outbox→push y API→correos de recuperación y verificación, además
+la compatibilidad histórica de API→outbox→push y la continuidad
+API→correos de recuperación y verificación, además
 de la ausencia de SQL y valores
 privados en los eventos. Una integración con PostgreSQL comprueba la ventana, los
 conteos por proveedor, el costo conocido y la exclusión de modelos e

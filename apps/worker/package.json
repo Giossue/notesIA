@@ -8,7 +8,6 @@
     "@notesia/db": "workspace:*",
     "@notesia/observability": "workspace:*",
     "@notesia/domain": "workspace:*",
-    "google-auth-library": "^11.1.0",
     "nodemailer": "^10.0.10",
     "pg": "8.23.0"
   },

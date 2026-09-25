@@ -28,7 +28,6 @@ El DDL de referencia se encuentra en `database/schema.sql`.
 | `roles_usuario` | `student` y `admin`. |
 | `perfiles_usuario` | Nombre mínimo, idioma y zona. |
 | `preferencias_usuario` | Jornada, sesiones, notificaciones e IA. |
-| `dispositivos` | Instalaciones y push tokens protegidos. |
 
 > Better Auth genera sus propias tablas. Sus nombres se renombran vía configuración (`modelName`/`fields`) a `autenticacion.usuarios`, `autenticacion.cuentas`, `autenticacion.verificaciones` y `autenticacion.almacen_seguro`, sustituyendo las tablas de autenticación de referencia y manteniendo `usuarios.id` como frontera del dominio o adaptando las FK mediante ADR.
 
@@ -173,7 +172,6 @@ El modelo se almacena como string configurable. No se hardcodea “latest”.
 | Contraseña | Secreto | Solo hash Argon2id. |
 | Sesión | Secreto | Hash servidor; token en SecureStore/cookie. |
 | API key IA | Crítico | Secret manager/envelope; write-only. |
-| Push token | Sensible | Cifrado + hash de deduplicación. |
 | Correo | Personal | Acceso limitado; no logs. |
 | Actividad/agenda | Personal | No logs; minimizar ante IA. |
 | Consentimiento | Legal | Append-only y versionado. |

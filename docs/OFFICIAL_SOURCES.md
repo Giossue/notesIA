@@ -70,8 +70,3 @@ Cuando una implementación dependa de una API externa:
 3. enlazarla en PR o ADR;
 4. no basarse en blogs SEO;
 5. añadir prueba de integración/contrato cuando sea viable.
-
-# Referencias del canal push
-
-- [FCM HTTP v1 y autorización](https://firebase.google.com/docs/cloud-messaging/send/v1-api)
-- [Gestión de tokens de registro](https://firebase.google.com/docs/cloud-messaging/manage-tokens)

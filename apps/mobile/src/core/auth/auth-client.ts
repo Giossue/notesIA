@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { getApiBaseUrl } from "@/core/config/api";
-import { disableCurrentPushDevice } from "@/core/push/push-registration";
 import { clearSessionCookie, getSessionCookie, setSessionCookie } from "./session-storage";
 
 const userSchema = z.object({ id: z.string(), name: z.string(), email: z.email() });
@@ -132,7 +131,6 @@ export async function requestPasswordReset(email: string) {
 
 export async function signOut() {
   if (await getSessionCookie()) {
-    await disableCurrentPushDevice().catch(() => {});
     await authRequest("/sign-out", { method: "POST" });
   }
   await clearSessionCookie();

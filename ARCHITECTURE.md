@@ -13,7 +13,6 @@ flowchart LR
     API --> OUTBOX[(Outbox)]
     W[Worker] --> OUTBOX
     W --> DB
-    W --> PUSH[Push]
     W --> GATEWAY[AI Gateway]
     GATEWAY --> OAI[OpenAI]
     GATEWAY --> ANT[Anthropic]
@@ -261,7 +260,8 @@ No filtrar stack, SQL ni respuesta cruda del proveedor.
 
 La mutación de dominio y el evento outbox se insertan en la misma transacción. El worker reclama filas con `FOR UPDATE SKIP LOCKED`, usa backoff, idempotencia y límite de intentos.
 
-No se llama a push o IA dentro de una transacción de negocio.
+No se llama a IA dentro de una transacción de negocio. Los avisos internos se
+persisten en PostgreSQL mediante outbox y el móvil los consulta por la API.
 
 ## AI Gateway
 
@@ -313,15 +313,15 @@ apps/admin/src/
 - logs JSON estructurados;
 - request/trace ID;
 - `traceparent` W3C y contexto asíncrono entre API, PostgreSQL y worker;
-- continuidad persistida mínima en outbox, correo y push;
-- métricas de latencia, error, outbox, push, IA y costo;
+- continuidad persistida mínima en outbox y correo;
+- métricas de latencia, error, outbox, IA y costo;
 - OpenTelemetry o equivalente;
 - crash reporting móvil con redacción;
 - no capturar SQL, parámetros, cuerpos privados ni respuesta cruda de proveedores.
 
 ## Despliegue conceptual
 
-- API y worker como procesos separados;
+- API, worker y panel como servicios separados en Dokploy;
 - PostgreSQL administrado o con backup automatizado;
 - secret manager;
 - almacenamiento de artefactos si se añade importación;
