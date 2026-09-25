@@ -2,9 +2,12 @@ import type { Activity } from "@notesia/contracts";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { View } from "react-native";
-import { ActivityIndicator, Button, SegmentedButtons, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 import { listSubtasks } from "@/core/api/subtasks";
 import { layout, sharedStyles } from "@/core/theme/layout";
+import { userMessage } from "@/shared/errors";
+import { Button } from "@/shared/paper";
+import { Tabs } from "@/shared/Tabs";
 import { SubtaskEditor } from "./SubtaskEditor";
 import { SubtaskItem } from "./SubtaskItem";
 
@@ -28,7 +31,7 @@ export function SubtasksSection({ activity, offline }: { activity: Activity; off
         Divide la actividad en pasos. Su finalización no cambia automáticamente el estado de la
         actividad.
       </Text>
-      <SegmentedButtons
+      <Tabs
         value={archived ? "archived" : "active"}
         onValueChange={(value) => setArchived(value === "archived")}
         buttons={[
@@ -54,7 +57,7 @@ export function SubtasksSection({ activity, offline }: { activity: Activity; off
       )}
       {subtasks.isError && (
         <View style={{ gap: layout.itemGap }}>
-          <Text accessibilityRole="alert">{subtasks.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(subtasks.error)}</Text>
           <Button onPress={() => void subtasks.refetch()}>Reintentar subtareas</Button>
         </View>
       )}

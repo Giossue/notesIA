@@ -1,61 +1,58 @@
-import { todayInTimeZone, utcToLocalDateTime } from "@notesia/domain";
+import type { Activity } from "@notesia/contracts";
+import { shiftLocalDate, todayInTimeZone, utcToLocalDateTime } from "@notesia/domain";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ScrollView, StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Icon,
-  Text,
-  TouchableRipple,
-  useTheme,
-} from "react-native-paper";
-import { listActivities } from "@/core/api/activities";
-import { listCalendarEvents } from "@/core/api/calendar-events";
+import { ActivityIndicator, Icon, Text, TouchableRipple, useTheme } from "react-native-paper";
+import { v4 as uuidv4 } from "uuid";
+import { getActivitySummary, listActivities, transitionActivity } from "@/core/api/activities";
 import { getProfile } from "@/core/api/profile";
 import { listSubjects } from "@/core/api/subjects";
 import { layout } from "@/core/theme/layout";
-import { iconTint } from "@/core/theme/theme";
+import { categoryColors, subjectCategory } from "@/core/theme/theme";
 import type { RootStackParamList } from "@/navigation/types";
+import { useExitOnDoubleBack } from "@/navigation/useExitOnDoubleBack";
 import { EmptyState } from "@/shared/EmptyState";
+import { userMessage } from "@/shared/errors";
+import { clockTime, longDate, percent, shortWeekday } from "@/shared/format";
+import { PieIcon } from "@/shared/PieIcon";
+import { ProgressRings } from "@/shared/ProgressRings";
+import { Button } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { HomeHeader } from "./HomeHeader";
 
-type TodayItem = {
-  id: string;
-  title: string;
-  instant: string;
-  time: string;
-  label: string;
-  detail: string;
-  route: "EventForm" | "ActivityForm";
+const activityKindLabel: Record<Activity["kind"], string> = {
+  academic_task: "Tarea",
+  exam: "Examen",
+  personal: "Personal",
+  routine: "Rutina",
 };
 
 export function HomeScreen() {
+  useExitOnDoubleBack();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const theme = useTheme();
-  const iconColor = iconTint[theme.dark ? "dark" : "light"];
+  const queryClient = useQueryClient();
+  const categories = categoryColors[theme.dark ? "dark" : "light"];
   const offline = useNetInfo().isConnected === false;
-  const profile = useQuery({
-    queryKey: ["profile"],
-    queryFn: getProfile,
+  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
+  const summary = useQuery({
+    queryKey: ["activity-summary"],
+    queryFn: getActivitySummary,
     retry: false,
   });
   const timeZone = profile.data?.timeZone;
   const day = timeZone ? todayInTimeZone(new Date().toISOString(), timeZone) : null;
-  const events = useInfiniteQuery({
-    queryKey: ["agenda-events", day],
-    queryFn: ({ pageParam }) => listCalendarEvents({ on: day ?? undefined, cursor: pageParam }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: !!day,
-    retry: false,
-  });
-  const deadlines = useInfiniteQuery({
-    queryKey: ["agenda", day],
-    queryFn: ({ pageParam }) => listActivities({ dueOn: day ?? undefined, cursor: pageParam }),
+  const upcoming = useInfiniteQuery({
+    queryKey: ["agenda-upcoming-home", day],
+    queryFn: ({ pageParam }) =>
+      listActivities({
+        dueFrom: day ?? undefined,
+        dueThrough: day ? shiftLocalDate(day, 8) : undefined,
+        cursor: pageParam,
+      }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled: !!day,
@@ -68,254 +65,287 @@ export function HomeScreen() {
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     retry: false,
   });
+  const toggle = useMutation({
+    mutationFn: (activity: Activity) =>
+      transitionActivity(
+        activity.id,
+        activity.version,
+        uuidv4(),
+        activity.status === "completed" ? "reopen" : "complete",
+      ),
+    onSuccess: async () => {
+      await Promise.all(
+        ["agenda-upcoming-home", "activity-summary", "agenda", "activities"].map((key) =>
+          queryClient.invalidateQueries({ queryKey: [key] }),
+        ),
+      );
+    },
+  });
 
-  const eventItems = events.data?.pages.flatMap((page) => page.items) ?? [];
-  const deadlineItems = deadlines.data?.pages.flatMap((page) => page.items) ?? [];
-  const subjectItems = subjects.data?.pages.flatMap((page) => page.items) ?? [];
-  const todayItems: TodayItem[] = timeZone
-    ? [
-        ...eventItems.map((item) => ({
-          id: item.id,
-          title: item.title,
-          instant: item.startsAt,
-          time: formatTime(item.startsAt, timeZone),
-          label: "EVENTO",
-          detail: `${formatTime(item.startsAt, timeZone)}–${formatTime(item.endsAt, timeZone)}`,
-          route: "EventForm" as const,
-        })),
-        ...deadlineItems.flatMap((item) => {
-          const deadlineAt = item.deadlineAt;
-          if (!deadlineAt || item.status === "completed" || item.status === "cancelled") return [];
-          return [
+  const subjectById = new Map(
+    (subjects.data?.pages.flatMap((page) => page.items) ?? []).map((item) => [item.id, item]),
+  );
+  const localDay = (instant: string) =>
+    timeZone ? utcToLocalDateTime(instant, timeZone).slice(0, 10) : "";
+  const localTime = (instant: string) =>
+    timeZone ? clockTime(utcToLocalDateTime(instant, timeZone).slice(11, 16)) : "";
+  const withDeadline = (upcoming.data?.pages.flatMap((page) => page.items) ?? [])
+    .filter((item) => item.deadlineAt && item.status !== "cancelled")
+    .sort((a, b) => (a.deadlineAt ?? "").localeCompare(b.deadlineAt ?? ""));
+  const todayTasks = withDeadline.filter((item) => localDay(item.deadlineAt ?? "") === day);
+  // Lo de hoy ya está en "Tareas de hoy": aquí solo lo de los días siguientes.
+  const nextDeliveries = withDeadline
+    .filter((item) => item.status !== "completed" && localDay(item.deadlineAt ?? "") !== day)
+    .slice(0, 6);
+
+  const categoryOf = (subjectId: string | null) => {
+    const subject = subjectId ? subjectById.get(subjectId) : undefined;
+    return categories[subject ? subjectCategory[subject.colorToken] : "blue"];
+  };
+
+  const counts = summary.data;
+  const ringRows =
+    counts && counts.subjects.length > 0
+      ? counts.subjects.map((subject) => ({
+          label: subject.name,
+          value: percent(subject.completed, subject.total),
+          color: categories[subjectCategory[subject.colorToken]],
+        }))
+      : counts
+        ? [
             {
-              id: item.id,
-              title: item.title,
-              instant: deadlineAt,
-              time: formatTime(deadlineAt, timeZone),
-              label: "LÍMITE",
-              detail: `Entrega a las ${formatTime(deadlineAt, timeZone)}`,
-              route: "ActivityForm" as const,
+              label: "Esta semana",
+              value: percent(counts.week.completedDue, counts.week.due),
+              color: categories.blue,
             },
-          ];
-        }),
-      ].sort((a, b) => a.instant.localeCompare(b.instant))
-    : [];
-
-  const agendaReady =
-    !!day && !events.isPending && !deadlines.isPending && !events.isError && !deadlines.isError;
-  const hour = timeZone
-    ? Number(utcToLocalDateTime(new Date().toISOString(), timeZone).slice(11, 13))
-    : new Date().getHours();
-  const greeting = hour < 12 ? "Buenos días" : hour < 19 ? "Buenas tardes" : "Buenas noches";
+          ]
+        : [];
 
   return (
-    <ScreenLayout tab="Home">
-      <HomeHeader
-        name={profile.data?.displayName || "Tu espacio"}
-        greeting={greeting}
-        onOpenProfile={() => navigation.navigate("Profile")}
-        onOpenNotifications={() => navigation.navigate("Notifications")}
-      />
-      {profile.isPending && <ActivityIndicator accessibilityLabel="Cargando perfil" />}
+    <ScreenLayout
+      tab="Home"
+      top={
+        <HomeHeader
+          name={profile.data?.displayName.split(" ")[0] || "de nuevo"}
+          dateLabel={day ? longDate(day) : ""}
+        />
+      }
+    >
       {profile.isError && (
-        <View style={styles.message}>
-          <Text accessibilityRole="alert">{profile.error.message}</Text>
-          <Button onPress={() => void profile.refetch()}>Reintentar perfil</Button>
-        </View>
+        <ErrorRetry message={userMessage(profile.error)} onRetry={() => void profile.refetch()} />
+      )}
+      {offline && (
+        <Text accessibilityRole="alert" style={{ color: theme.colors.error }}>
+          Sin conexión. Se muestran los datos guardados.
+        </Text>
       )}
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeading}>
-          <View style={styles.sectionHeadingText}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Hoy en tu agenda
-            </Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              Eventos fijos y fechas límite
-            </Text>
-          </View>
-          <Button compact onPress={() => navigation.navigate("Agenda")}>
-            Ver todo
-          </Button>
-        </View>
-        {offline && (
-          <Text accessibilityRole="alert" style={{ color: theme.colors.error }}>
-            Sin conexión. Se muestran los datos guardados.
-          </Text>
+      <View style={[styles.card, styles.ringsCard, { backgroundColor: theme.colors.surface }]}>
+        {summary.isPending && <ActivityIndicator accessibilityLabel="Cargando resumen" />}
+        {summary.isError && (
+          <ErrorRetry message={userMessage(summary.error)} onRetry={() => void summary.refetch()} />
         )}
-        {day && (events.isPending || deadlines.isPending) && !offline && (
-          <ActivityIndicator accessibilityLabel="Cargando agenda de hoy" />
-        )}
-        {events.isError && (
-          <ErrorRetry message={events.error.message} onRetry={() => void events.refetch()} />
-        )}
-        {deadlines.isError && (
-          <ErrorRetry message={deadlines.error.message} onRetry={() => void deadlines.refetch()} />
-        )}
-        {agendaReady && todayItems.length === 0 && (
-          <EmptyState
-            icon="calendar-check-outline"
-            message="No tienes actividades programadas para hoy. Aprovecha para avanzar a tu ritmo."
-          />
-        )}
-        {todayItems.slice(0, 3).map((item) => (
-          <TouchableRipple
-            borderless
-            key={`${item.route}-${item.id}`}
-            onPress={() => navigation.navigate(item.route, { id: item.id })}
-            accessibilityRole="button"
-            accessibilityLabel={`Abrir ${item.title}`}
-            style={[
-              styles.todayCard,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.outlineVariant,
-                borderWidth: theme.dark ? 1 : 0,
-                elevation: theme.dark ? 0 : 1,
-              },
-            ]}
-          >
-            <View style={styles.todayContent}>
-              <View
-                style={[
-                  styles.timeTile,
-                  {
-                    backgroundColor:
-                      item.route === "EventForm"
-                        ? theme.colors.primaryContainer
-                        : theme.colors.tertiaryContainer,
-                  },
-                ]}
-              >
-                <Text
-                  variant="labelSmall"
-                  style={[
-                    styles.timeLabel,
-                    {
-                      color:
-                        item.route === "EventForm"
-                          ? theme.colors.onPrimaryContainer
-                          : theme.colors.onTertiaryContainer,
-                    },
-                  ]}
-                >
-                  {item.label}
+        {counts && (
+          <>
+            <ProgressRings
+              size={150}
+              stroke={12}
+              rings={ringRows.map((row) => ({ progress: row.value / 100, color: row.color }))}
+            />
+            <View style={styles.legend}>
+              {ringRows.map((row) => (
+                <View key={row.label} style={styles.legendRow}>
+                  <View style={[styles.dot, { backgroundColor: row.color }]} />
+                  <Text variant="bodyLarge" numberOfLines={1} style={styles.legendLabel}>
+                    {row.label}
+                  </Text>
+                  <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+                    {row.value}%
+                  </Text>
+                </View>
+              ))}
+              {counts.overdue > 0 && (
+                <Text variant="bodySmall" style={{ color: theme.colors.error }}>
+                  {counts.overdue} {counts.overdue === 1 ? "atrasada" : "atrasadas"}
                 </Text>
-                <Text
-                  variant="titleSmall"
-                  style={{
-                    color:
-                      item.route === "EventForm"
-                        ? theme.colors.onPrimaryContainer
-                        : theme.colors.onTertiaryContainer,
-                    fontWeight: "600",
-                  }}
-                >
-                  {item.time}
-                </Text>
-              </View>
-              <View style={styles.todayText}>
-                <Text variant="titleSmall" numberOfLines={2} style={styles.bold}>
-                  {item.title}
-                </Text>
-                <Text
-                  variant="bodySmall"
-                  numberOfLines={1}
-                  style={{ color: theme.colors.onSurfaceVariant }}
-                >
-                  {item.detail}
-                </Text>
-              </View>
-              <Icon source="chevron-right" size={20} color={iconColor} />
+              )}
             </View>
-          </TouchableRipple>
-        ))}
+          </>
+        )}
       </View>
 
       <View style={styles.section}>
-        <View style={styles.sectionHeading}>
-          <View style={styles.sectionHeadingText}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Tus materias
-            </Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              Organiza tu plan de estudio
-            </Text>
-          </View>
-          <Button compact onPress={() => navigation.navigate("Subjects")}>
-            Ver todas
-          </Button>
-        </View>
-        {subjects.isPending && !offline && (
-          <ActivityIndicator accessibilityLabel="Cargando materias" />
+        <SectionHeading
+          title="Próximas entregas"
+          onMore={() => navigation.navigate("Activities")}
+        />
+        {upcoming.isPending && !!day && (
+          <ActivityIndicator accessibilityLabel="Cargando entregas" />
         )}
-        {subjects.isError && (
-          <ErrorRetry message={subjects.error.message} onRetry={() => void subjects.refetch()} />
-        )}
-        {!subjects.isPending && !subjects.isError && subjectItems.length === 0 && (
-          <EmptyState
-            icon="book-open-page-variant-outline"
-            message="Puedes crear la primera materia y empezar a organizar tu estudio."
+        {upcoming.isError && (
+          <ErrorRetry
+            message={userMessage(upcoming.error)}
+            onRetry={() => void upcoming.refetch()}
           />
         )}
-        {subjectItems.length > 0 && (
+        {upcoming.isSuccess && nextDeliveries.length === 0 && (
+          <EmptyState
+            icon="calendar-check-outline"
+            message="Nada por entregar en los próximos días."
+          />
+        )}
+        {nextDeliveries.length > 0 && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.subjectRow}
+            contentContainerStyle={styles.deliveryRow}
           >
-            {subjectItems.slice(0, 4).map((subject) => (
+            {nextDeliveries.map((item) => {
+              const deliveryDay = localDay(item.deadlineAt ?? "");
+              const isToday = deliveryDay === day;
+              const subject = item.subjectId ? subjectById.get(item.subjectId) : undefined;
+              return (
+                <TouchableRipple
+                  borderless
+                  key={item.id}
+                  onPress={() => navigation.navigate("ActivityForm", { id: item.id })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Abrir ${item.title}`}
+                  style={[styles.card, styles.delivery, { backgroundColor: theme.colors.surface }]}
+                >
+                  <View style={styles.deliveryContent}>
+                    <PieIcon
+                      progress={item.progressPercent / 100}
+                      color={categoryOf(item.subjectId)}
+                    />
+                    <View style={styles.deliveryCopy}>
+                      <Text
+                        variant="labelMedium"
+                        numberOfLines={1}
+                        style={[styles.overline, { color: theme.colors.onSurfaceVariant }]}
+                      >
+                        {(subject?.name ?? activityKindLabel[item.kind]).toLocaleUpperCase("es")}
+                      </Text>
+                      <Text variant="titleMedium" numberOfLines={2} style={styles.bold}>
+                        {item.title}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.dayChip,
+                        {
+                          backgroundColor: isToday
+                            ? theme.colors.errorContainer
+                            : theme.colors.primaryContainer,
+                        },
+                      ]}
+                    >
+                      <Text
+                        variant="labelLarge"
+                        style={[
+                          styles.bold,
+                          { color: isToday ? theme.colors.error : theme.colors.primary },
+                        ]}
+                      >
+                        {isToday ? "HOY" : shortWeekday(deliveryDay).toLocaleUpperCase("es")}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableRipple>
+              );
+            })}
+          </ScrollView>
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <SectionHeading title="Tareas de hoy" onMore={() => navigation.navigate("Agenda")} />
+        {upcoming.isSuccess && todayTasks.length === 0 && (
+          <EmptyState
+            icon="checkbox-marked-circle-outline"
+            message="No tienes entregas hoy. Aprovecha para avanzar a tu ritmo."
+          />
+        )}
+        {todayTasks.map((item) => {
+          const done = item.status === "completed";
+          return (
+            <View key={item.id} style={[styles.taskRow, { backgroundColor: theme.colors.surface }]}>
               <TouchableRipple
                 borderless
-                key={subject.id}
-                onPress={() => navigation.navigate("SubjectForm", { id: subject.id })}
-                accessibilityRole="button"
-                accessibilityLabel={`Abrir materia ${subject.name}`}
-                style={[
-                  styles.subjectCard,
-                  {
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.outlineVariant,
-                    borderWidth: theme.dark ? 1 : 0,
-                    elevation: theme.dark ? 0 : 1,
-                  },
-                ]}
+                disabled={offline || toggle.isPending}
+                onPress={() => toggle.mutate(item)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: done }}
+                accessibilityLabel={done ? `Reabrir ${item.title}` : `Completar ${item.title}`}
+                style={styles.check}
               >
-                <View style={styles.subjectContent}>
-                  <View
+                <View
+                  style={[
+                    styles.checkCircle,
+                    done
+                      ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
+                      : { borderColor: theme.colors.outline },
+                  ]}
+                >
+                  {done && <Icon source="check" size={16} color={theme.colors.onPrimary} />}
+                </View>
+              </TouchableRipple>
+              <TouchableRipple
+                onPress={() => navigation.navigate("ActivityForm", { id: item.id })}
+                accessibilityRole="button"
+                accessibilityLabel={`Abrir ${item.title}`}
+                style={styles.taskBody}
+              >
+                <View style={styles.taskContent}>
+                  <Text
+                    variant="bodyLarge"
+                    numberOfLines={1}
                     style={[
-                      styles.subjectIcon,
-                      {
-                        backgroundColor: theme.colors[`${subject.colorToken}Container`],
+                      styles.taskTitle,
+                      done && {
+                        textDecorationLine: "line-through",
+                        color: theme.colors.onSurfaceVariant,
                       },
                     ]}
                   >
-                    <Icon source="book-open-outline" color={iconColor} size={22} />
-                  </View>
-                  <View style={styles.subjectCopy}>
-                    <Text variant="titleMedium" numberOfLines={2} style={styles.bold}>
-                      {subject.name}
-                    </Text>
-                    <Text
-                      variant="bodySmall"
-                      numberOfLines={1}
-                      style={{ color: theme.colors.onSurfaceVariant }}
-                    >
-                      {subject.code ?? "Materia"}
-                    </Text>
-                  </View>
+                    {item.title}
+                  </Text>
+                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                    {localTime(item.deadlineAt ?? "")}
+                  </Text>
                 </View>
               </TouchableRipple>
-            ))}
-          </ScrollView>
-        )}
+            </View>
+          );
+        })}
       </View>
     </ScreenLayout>
   );
 }
 
-function formatTime(instant: string, timeZone: string) {
-  return utcToLocalDateTime(instant, timeZone).slice(11, 16);
+function SectionHeading({ title, onMore }: { title: string; onMore: () => void }) {
+  const theme = useTheme();
+  return (
+    <View style={styles.sectionHeading}>
+      <Text variant="titleLarge" style={styles.sectionTitle}>
+        {title}
+      </Text>
+      <TouchableRipple
+        borderless
+        onPress={onMore}
+        accessibilityRole="button"
+        accessibilityLabel={`Ver todas: ${title}`}
+        style={styles.more}
+      >
+        <View style={styles.moreContent}>
+          <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+            Ver todas
+          </Text>
+          <Icon source="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
+        </View>
+      </TouchableRipple>
+    </View>
+  );
 }
 
 function ErrorRetry({ message, onRetry }: { message: string; onRetry: () => void }) {
@@ -328,51 +358,67 @@ function ErrorRetry({ message, onRetry }: { message: string; onRetry: () => void
 }
 
 const styles = StyleSheet.create({
+  card: { borderRadius: layout.cardRadius },
+  ringsCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+    padding: 20,
+    minHeight: 190,
+  },
+  legend: { flex: 1, gap: 14 },
+  legendRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  legendLabel: { flex: 1 },
+  dot: { width: 12, height: 12, borderRadius: 6 },
   message: { gap: layout.itemGap },
   bold: { fontWeight: "600" },
   section: { gap: 12 },
-  sectionTitle: { fontWeight: "600" },
-  sectionHeading: {
+  sectionTitle: { fontWeight: "700" },
+  sectionHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  more: { borderRadius: layout.smallRadius, paddingVertical: 6, paddingLeft: 8 },
+  moreContent: { flexDirection: "row", alignItems: "center", gap: 2 },
+  deliveryRow: { gap: 12, paddingBottom: 4 },
+  delivery: { width: 168, overflow: "hidden" },
+  deliveryContent: { padding: 16, gap: 12, minHeight: 190, justifyContent: "space-between" },
+  deliveryCopy: { gap: 4 },
+  overline: { letterSpacing: 0.6 },
+  dayChip: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 14,
+    height: 32,
+    borderRadius: 6,
+    justifyContent: "center",
+  },
+  taskRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-  },
-  sectionHeadingText: { flex: 1, gap: 2 },
-  todayCard: {
     borderRadius: layout.cardRadius,
+    minHeight: 60,
+    paddingLeft: 8,
     overflow: "hidden",
-    minHeight: 84,
   },
-  todayContent: {
-    flex: 1,
+  check: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  taskBody: { flex: 1, alignSelf: "stretch", justifyContent: "center" },
+  taskContent: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    padding: 12,
+    paddingRight: 18,
+    paddingLeft: 8,
   },
-  timeTile: {
-    width: 62,
-    height: 60,
-    borderRadius: layout.smallRadius,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  timeLabel: { fontWeight: "600", letterSpacing: 0.5 },
-  todayText: { flex: 1, gap: 2 },
-  subjectRow: { gap: 12, paddingBottom: 4 },
-  subjectCard: {
-    width: 190,
-    height: 142,
-    borderRadius: layout.cardRadius,
-    overflow: "hidden",
-  },
-  subjectContent: { flex: 1, justifyContent: "space-between", padding: 16 },
-  subjectIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: layout.smallRadius,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  subjectCopy: { gap: 2 },
+  taskTitle: { flex: 1 },
 });

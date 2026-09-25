@@ -99,7 +99,7 @@ test("academic periods are private, versioned and optional on subjects", async (
     ).status,
   ).toBe(422);
   const subjectId = crypto.randomUUID();
-  const subject = { id: subjectId, periodId, name: "Cálculo", code: null, colorToken: "primary" };
+  const subject = { id: subjectId, periodId, name: "Cálculo", colorToken: "primary" };
   expect(
     (
       await app.request("/v1/subjects", {

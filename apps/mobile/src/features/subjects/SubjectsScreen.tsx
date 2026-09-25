@@ -4,19 +4,15 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Card,
-  SegmentedButtons,
-  Text,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 import { listSubjects } from "@/core/api/subjects";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { EmptyState } from "@/shared/EmptyState";
+import { userMessage } from "@/shared/errors";
+import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
+import { Tabs } from "@/shared/Tabs";
 
 export function SubjectsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -33,14 +29,14 @@ export function SubjectsScreen() {
   const items = subjects.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <ScreenLayout>
-      <View style={styles.heading}>
-        <Text variant="headlineMedium">Materias</Text>
-        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-          Crea y organiza tus materias.
-        </Text>
-      </View>
-      <SegmentedButtons
+    <ScreenLayout
+      header={{ title: "Materias" }}
+      fab={{ label: "Nueva materia", onPress: () => navigation.navigate("SubjectForm", {}) }}
+    >
+      <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+        Crea y organiza tus materias.
+      </Text>
+      <Tabs
         value={archived ? "archived" : "active"}
         onValueChange={(value) => setArchived(value === "archived")}
         buttons={[
@@ -53,23 +49,12 @@ export function SubjectsScreen() {
           Sin conexión. Se muestran los datos guardados en esta sesión.
         </Text>
       )}
-      {!archived && (
-        <Button
-          mode="contained"
-          icon="plus"
-          disabled={offline}
-          onPress={() => navigation.navigate("SubjectForm", {})}
-          contentStyle={sharedStyles.actionContent}
-        >
-          Nueva materia
-        </Button>
-      )}
       {subjects.isPending && !offline && (
         <ActivityIndicator accessibilityLabel="Cargando materias" />
       )}
       {subjects.isError && (
         <View style={styles.message}>
-          <Text accessibilityRole="alert">{subjects.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(subjects.error)}</Text>
           <Button onPress={() => void subjects.refetch()}>Reintentar</Button>
         </View>
       )}
@@ -91,11 +76,6 @@ export function SubjectsScreen() {
             <View style={[styles.dot, { backgroundColor: theme.colors[item.colorToken] }]} />
             <View style={styles.itemText}>
               <Text variant="titleMedium">{item.name}</Text>
-              {item.code && (
-                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                  {item.code}
-                </Text>
-              )}
             </View>
           </Card.Content>
         </Card>
@@ -116,7 +96,6 @@ export function SubjectsScreen() {
 }
 
 const styles = StyleSheet.create({
-  heading: { gap: layout.itemGap },
   message: { gap: layout.itemGap },
   row: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 16 },
   dot: { width: 20, height: 20, borderRadius: 10 },

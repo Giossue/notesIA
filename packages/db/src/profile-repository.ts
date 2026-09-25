@@ -7,6 +7,7 @@ type ProfileChanges = {
   displayName: string;
   language: "es" | "en";
   timeZone: string;
+  avatar?: string;
   version: number;
 };
 
@@ -29,6 +30,7 @@ export function createProfileRepository(pool: Pool) {
           displayName: changes.displayName,
           language: changes.language,
           timeZone: changes.timeZone,
+          ...(changes.avatar ? { avatar: changes.avatar } : {}),
           version: sql`${userProfiles.version} + 1`,
           updatedAt: new Date(),
         })

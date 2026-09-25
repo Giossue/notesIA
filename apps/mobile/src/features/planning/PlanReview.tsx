@@ -4,12 +4,13 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, Card, Dialog, Portal, Text, useTheme } from "react-native-paper";
+import { Portal, Text, useTheme } from "react-native-paper";
 import type { z } from "zod";
 import { actOnPlan, editPlanBlock, removePlanBlock } from "@/core/api/plans";
 import { layout } from "@/core/theme/layout";
 import { ActivityTitle } from "@/features/activities/ActivityTitle";
 import { EmptyState } from "@/shared/EmptyState";
+import { Button, Card, Dialog } from "@/shared/paper";
 import { PlanBlockEditor } from "./PlanBlockEditor";
 import { diffPlanBlocks } from "./plan-diff";
 import { planStatusLabels, riskLevelLabels, riskReasonLabel } from "./risk-labels";
@@ -176,11 +177,6 @@ export function PlanReview({
       {offline && (
         <Text style={{ color: theme.colors.error }}>
           Sin conexión. Conéctate para modificar el plan.
-        </Text>
-      )}
-      {(edit.isError || remove.isError || action.isError) && (
-        <Text accessibilityRole="alert">
-          {edit.error?.message ?? remove.error?.message ?? action.error?.message}
         </Text>
       )}
       {mutable && (

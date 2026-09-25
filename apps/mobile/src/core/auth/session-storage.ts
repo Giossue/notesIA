@@ -11,9 +11,13 @@ export async function getSessionCookie(): Promise<string | null> {
 
 export async function setSessionCookie(cookie: string): Promise<void> {
   await Keychain.setGenericPassword("session", cookie, { service });
-  const currentScope = await Keychain.getGenericPassword({ service: scopeService });
+  const currentScope = await Keychain.getGenericPassword({
+    service: scopeService,
+  });
   if (!currentScope)
-    await Keychain.setGenericPassword("scope", uuidv4(), { service: scopeService });
+    await Keychain.setGenericPassword("scope", uuidv4(), {
+      service: scopeService,
+    });
 }
 
 export async function clearSessionCookie(): Promise<void> {
@@ -24,6 +28,8 @@ export async function clearSessionCookie(): Promise<void> {
 }
 
 export async function getSessionScope(): Promise<string | null> {
-  const credentials = await Keychain.getGenericPassword({ service: scopeService });
+  const credentials = await Keychain.getGenericPassword({
+    service: scopeService,
+  });
   return credentials ? credentials.password : null;
 }

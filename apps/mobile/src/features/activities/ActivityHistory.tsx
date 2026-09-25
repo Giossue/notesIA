@@ -1,9 +1,11 @@
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { View } from "react-native";
-import { ActivityIndicator, Button, Text } from "react-native-paper";
+import { ActivityIndicator, Text } from "react-native-paper";
 import { listActivityHistory } from "@/core/api/activities";
 import { layout } from "@/core/theme/layout";
+import { userMessage } from "@/shared/errors";
+import { Button } from "@/shared/paper";
 
 const eventLabels = {
   completed: "Completada",
@@ -32,7 +34,7 @@ export function ActivityHistory({ id }: { id: string }) {
       )}
       {history.isError && (
         <>
-          <Text accessibilityRole="alert">{history.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(history.error)}</Text>
           <Button onPress={() => void history.refetch()}>Reintentar historial</Button>
         </>
       )}

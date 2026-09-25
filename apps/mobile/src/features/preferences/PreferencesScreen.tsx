@@ -1,25 +1,20 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNetInfo } from "@react-native-community/netinfo";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  HelperText,
-  Switch,
-  Text,
-  TextInput,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, HelperText, Switch, Text, useTheme } from "react-native-paper";
 import { z } from "zod";
 import { getPreferences, updatePreferences } from "@/core/api/preferences";
+import { getProfile } from "@/core/api/profile";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import { clockToMinute, minuteToClock } from "@/features/availability/time";
-import type { RootStackParamList } from "@/navigation/types";
+import { userMessage } from "@/shared/errors";
+import { FormSection, TimeField } from "@/shared/fields";
+import { Button, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
+import { TimeZoneField } from "@/shared/TimeZoneField";
+import { saveTimeZone } from "@/shared/time-zones";
 
 const minutesBetween = (minimum: number, maximum: number) =>
   z
@@ -65,29 +60,52 @@ const formSchema = z
 type FormValues = z.infer<typeof formSchema>;
 
 export function PreferencesScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const preferences = useQuery({
     queryKey: ["preferences"],
     queryFn: getPreferences,
     retry: false,
   });
   return (
-    <ScreenLayout keyboardShouldPersistTaps="handled">
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">Preferencias</Text>
+    <ScreenLayout keyboardShouldPersistTaps="handled" header={{ title: "Preferencias" }}>
       {preferences.isPending && <ActivityIndicator accessibilityLabel="Cargando preferencias" />}
       {preferences.isError && (
         <View style={styles.group}>
-          <Text accessibilityRole="alert">{preferences.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(preferences.error)}</Text>
           <Button onPress={() => void preferences.refetch()}>Reintentar</Button>
         </View>
       )}
+      <TimeZoneSection />
       {preferences.data && (
         <PreferencesForm key={preferences.data.version} value={preferences.data} />
       )}
     </ScreenLayout>
+  );
+}
+
+function TimeZoneSection() {
+  const queryClient = useQueryClient();
+  const offline = useNetInfo().isConnected === false;
+  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
+  const save = useMutation({
+    mutationFn: (timeZone: string) => {
+      if (!profile.data) throw new Error("El perfil aún no carga.");
+      return saveTimeZone(profile.data, timeZone);
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["profile"], updated);
+      // Las fechas y la agenda se muestran en la zona del perfil.
+      void queryClient.invalidateQueries();
+    },
+  });
+  if (!profile.data) return null;
+  return (
+    <FormSection title="Región" hint="Todas las fechas y horas de la app se muestran en esta zona.">
+      <TimeZoneField
+        value={profile.data.timeZone}
+        disabled={offline || save.isPending}
+        onChange={(timeZone) => save.mutate(timeZone)}
+      />
+    </FormSection>
   );
 }
 
@@ -160,15 +178,12 @@ function PreferencesForm({ value }: { value: Awaited<ReturnType<typeof getPrefer
             control={control}
             name={name}
             render={({ field }) => (
-              <TextInput
-                mode="outlined"
+              <TimeField
                 label={
                   name === "quietStart" ? "Inicio de horas silenciosas" : "Fin de horas silenciosas"
                 }
-                placeholder="22:00"
                 value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
+                onChange={field.onChange}
                 error={!!errors[name]}
               />
             )}
@@ -192,7 +207,6 @@ function PreferencesForm({ value }: { value: Awaited<ReturnType<typeof getPrefer
       {offline && (
         <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
       )}
-      {save.isError && <Text accessibilityRole="alert">{save.error.message}</Text>}
       {save.isSuccess && <Text accessibilityRole="alert">Preferencias guardadas.</Text>}
       <Button
         mode="contained"

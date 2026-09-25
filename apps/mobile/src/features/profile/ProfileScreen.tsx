@@ -1,32 +1,41 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { type Profile, type ProfileUpdate, profileUpdateSchema } from "@notesia/contracts";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Controller, useForm } from "react-hook-form";
+import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
-  Button,
-  HelperText,
-  SegmentedButtons,
+  Icon,
+  Portal,
   Text,
-  TextInput,
+  TouchableRipple,
   useTheme,
 } from "react-native-paper";
-import { getProfile, updateProfile } from "@/core/api/profile";
+import { getProfile } from "@/core/api/profile";
 import { signOut } from "@/core/auth/auth-client";
 import { clearPrivateCache } from "@/core/auth/query-cache";
-import { layout, sharedStyles } from "@/core/theme/layout";
+import { useAppearance } from "@/core/theme/AppearanceProvider";
+import { layout } from "@/core/theme/layout";
+import { categoryColors } from "@/core/theme/theme";
 import type { RootStackParamList } from "@/navigation/types";
+import { userMessage } from "@/shared/errors";
+import { Button, Dialog } from "@/shared/paper";
+import { ScreenHeader } from "@/shared/ScreenHeader";
 import { ScreenLayout } from "@/shared/ScreenLayout";
+import { UserAvatar } from "@/shared/UserAvatar";
 import { AppearanceSelector } from "./AppearanceSelector";
+
+const appearanceLabels = { system: "Automático", light: "Claro", dark: "Oscuro" } as const;
 
 export function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const theme = useTheme();
+  const categories = categoryColors[theme.dark ? "dark" : "light"];
   const queryClient = useQueryClient();
   const offline = useNetInfo().isConnected === false;
+  const { preference } = useAppearance();
+  const [themeOpen, setThemeOpen] = useState(false);
   const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
   const logout = useMutation({
     mutationFn: signOut,
@@ -36,150 +45,194 @@ export function ProfileScreen() {
     },
   });
 
+  const name = profile.data?.displayName ?? "";
+
+  const menu = [
+    {
+      icon: "book-open-variant",
+      color: categories.orange,
+      title: "Materias",
+      subtitle: "Organiza tus asignaturas",
+      onPress: () => navigation.navigate("Subjects"),
+    },
+    {
+      icon: "bell",
+      color: categories.pink,
+      title: "Notificaciones",
+      subtitle: "Controla tus recordatorios",
+      onPress: () => navigation.navigate("Notifications"),
+    },
+    {
+      icon: "weather-night",
+      color: categories.cyan,
+      title: "Tema",
+      subtitle: appearanceLabels[preference] ?? "Claro, oscuro o automático",
+      onPress: () => setThemeOpen(true),
+    },
+    {
+      icon: "account",
+      color: categories.blue,
+      title: "Cuenta",
+      subtitle: "Datos personales y seguridad",
+      onPress: () => navigation.navigate("Account"),
+    },
+    {
+      icon: "shield-lock-outline",
+      color: categories.gray,
+      title: "Privacidad",
+      subtitle: "Consentimientos y datos",
+      onPress: () => navigation.navigate("Privacy"),
+    },
+    {
+      icon: "cog-outline",
+      color: categories.gray,
+      title: "Preferencias",
+      subtitle: "Zona horaria, sesiones de estudio y avisos",
+      onPress: () => navigation.navigate("Preferences"),
+    },
+    {
+      icon: "dots-grid",
+      color: categories.blue,
+      title: "Herramientas",
+      subtitle: "Planificación, disponibilidad, IA y más",
+      onPress: () => navigation.navigate("Tools"),
+    },
+  ];
+
   return (
-    <ScreenLayout keyboardShouldPersistTaps="handled">
-      <Button
-        icon="arrow-left"
-        onPress={() => navigation.goBack()}
-        accessibilityLabel="Volver a inicio"
-      >
-        Volver
-      </Button>
-      <Text variant="headlineMedium">Tu perfil</Text>
-      {profile.isPending && <ActivityIndicator accessibilityLabel="Cargando perfil" />}
-      {profile.isError && (
-        <View style={styles.message}>
-          <Text accessibilityRole="alert">{profile.error.message}</Text>
-          <Button onPress={() => void profile.refetch()}>Reintentar</Button>
-        </View>
-      )}
-      {profile.data && <ProfileForm key={profile.data.version} profile={profile.data} />}
-      <AppearanceSelector />
-      <Button
-        mode="outlined"
-        icon="tools"
-        onPress={() => navigation.navigate("Tools")}
-        contentStyle={sharedStyles.actionContent}
-      >
-        Configuración y herramientas
-      </Button>
-      <Button
-        mode="outlined"
-        icon="logout"
-        loading={logout.isPending}
+    <ScreenLayout tab="Profile" top={<ScreenHeader compact title="Perfil" />}>
+      <View style={[styles.card, styles.identity, { backgroundColor: theme.colors.surface }]}>
+        {profile.isPending && <ActivityIndicator accessibilityLabel="Cargando perfil" />}
+        {profile.isError && (
+          <View style={styles.message}>
+            <Text accessibilityRole="alert">{userMessage(profile.error)}</Text>
+            <Button onPress={() => void profile.refetch()}>Reintentar</Button>
+          </View>
+        )}
+        {profile.data && (
+          <>
+            <UserAvatar avatar={profile.data.avatar} size={88} />
+            <View style={styles.identityCopy}>
+              <Text variant="titleLarge" numberOfLines={1} style={styles.bold}>
+                {name}
+              </Text>
+              <Text
+                variant="bodyMedium"
+                numberOfLines={1}
+                style={{ color: theme.colors.onSurfaceVariant }}
+              >
+                {profile.data.email}
+              </Text>
+              <TouchableRipple
+                borderless
+                onPress={() => navigation.navigate("ProfileEdit")}
+                accessibilityRole="button"
+                accessibilityLabel="Editar perfil"
+                style={[styles.editButton, { backgroundColor: theme.colors.primaryContainer }]}
+              >
+                <View style={styles.editContent}>
+                  <Icon source="pencil-outline" size={18} color={theme.colors.primary} />
+                  <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
+                    Editar perfil
+                  </Text>
+                </View>
+              </TouchableRipple>
+            </View>
+          </>
+        )}
+      </View>
+
+      <View style={styles.menu}>
+        {menu.map((item) => (
+          <TouchableRipple
+            borderless
+            key={item.title}
+            onPress={item.onPress}
+            accessibilityRole="button"
+            accessibilityLabel={item.title}
+            style={[styles.card, { backgroundColor: theme.colors.surface }]}
+          >
+            <View style={styles.menuRow}>
+              <View style={[styles.menuIcon, { backgroundColor: item.color }]}>
+                <Icon source={item.icon} size={22} color="#FFFFFF" />
+              </View>
+              <View style={styles.menuCopy}>
+                <Text variant="titleMedium" style={styles.bold}>
+                  {item.title}
+                </Text>
+                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                  {item.subtitle}
+                </Text>
+              </View>
+              <Icon source="chevron-right" size={22} color={theme.colors.onSurfaceVariant} />
+            </View>
+          </TouchableRipple>
+        ))}
+      </View>
+
+      <TouchableRipple
+        borderless
         disabled={logout.isPending || offline}
         onPress={() => logout.mutate()}
-        contentStyle={sharedStyles.actionContent}
+        accessibilityRole="button"
         accessibilityLabel="Cerrar sesión"
+        style={[styles.card, { backgroundColor: theme.colors.surface }]}
       >
-        Cerrar sesión
-      </Button>
-      {logout.isError && <Text accessibilityRole="alert">{logout.error.message}</Text>}
+        <View style={styles.logout}>
+          {logout.isPending ? (
+            <ActivityIndicator size="small" color={theme.colors.error} />
+          ) : (
+            <Icon source="logout" size={22} color={theme.colors.error} />
+          )}
+          <Text variant="titleMedium" style={[styles.bold, { color: theme.colors.error }]}>
+            Cerrar sesión
+          </Text>
+        </View>
+      </TouchableRipple>
+
+      <Portal>
+        <Dialog visible={themeOpen} onDismiss={() => setThemeOpen(false)}>
+          <Dialog.Content>
+            <AppearanceSelector />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setThemeOpen(false)}>Listo</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </ScreenLayout>
-  );
-}
-
-function ProfileForm({ profile }: { profile: Profile }) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const queryClient = useQueryClient();
-  const theme = useTheme();
-  const offline = useNetInfo().isConnected === false;
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<ProfileUpdate>({
-    resolver: zodResolver(profileUpdateSchema),
-    defaultValues: {
-      displayName: profile.displayName,
-      language: profile.language,
-      timeZone: profile.timeZone,
-      version: profile.version,
-    },
-  });
-  const mutation = useMutation({
-    mutationFn: updateProfile,
-    onSuccess: (updated) => {
-      queryClient.setQueryData(["profile"], updated);
-      navigation.goBack();
-    },
-  });
-
-  return (
-    <View style={styles.fields}>
-      <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-        {profile.email}
-      </Text>
-      <Controller
-        control={control}
-        name="displayName"
-        render={({ field }) => (
-          <TextInput
-            mode="outlined"
-            label="Nombre visible"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.displayName}
-            accessibilityLabel="Nombre visible"
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.displayName}>
-        {errors.displayName?.message}
-      </HelperText>
-      <Text variant="titleSmall">Idioma preferido</Text>
-      <Controller
-        control={control}
-        name="language"
-        render={({ field }) => (
-          <SegmentedButtons
-            value={field.value}
-            onValueChange={field.onChange}
-            buttons={[
-              { value: "es", label: "Español" },
-              { value: "en", label: "English" },
-            ]}
-          />
-        )}
-      />
-      <Controller
-        control={control}
-        name="timeZone"
-        render={({ field }) => (
-          <TextInput
-            mode="outlined"
-            label="Zona horaria"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            autoCapitalize="none"
-            error={!!errors.timeZone}
-            accessibilityLabel="Zona horaria IANA"
-          />
-        )}
-      />
-      <HelperText type={errors.timeZone ? "error" : "info"} visible>
-        {errors.timeZone?.message ?? "Por ejemplo, America/Guayaquil."}
-      </HelperText>
-      {offline && (
-        <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
-      )}
-      {mutation.isError && <Text accessibilityRole="alert">{mutation.error.message}</Text>}
-      <Button
-        mode="contained"
-        loading={mutation.isPending}
-        disabled={offline || mutation.isPending}
-        onPress={() => void handleSubmit((values) => mutation.mutate(values))()}
-        contentStyle={sharedStyles.actionContent}
-      >
-        Guardar cambios
-      </Button>
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
   message: { gap: layout.itemGap },
-  fields: { gap: layout.fieldGap },
+  bold: { fontWeight: "700" },
+  card: { borderRadius: layout.cardRadius },
+  identity: { flexDirection: "row", alignItems: "center", gap: 18, padding: 18 },
+  identityCopy: { flex: 1, gap: 4 },
+  editButton: { alignSelf: "flex-start", borderRadius: layout.smallRadius, marginTop: 8 },
+  editContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  menu: { gap: 10 },
+  menuRow: { flexDirection: "row", alignItems: "center", gap: 16, padding: 14, minHeight: 72 },
+  menuIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuCopy: { flex: 1, gap: 1 },
+  logout: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    minHeight: 60,
+  },
 });

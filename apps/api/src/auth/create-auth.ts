@@ -1,3 +1,4 @@
+import { avatarIdSchema } from "@notesia/contracts";
 import {
   createRecoveryMailRepository,
   createSecureStorage,
@@ -73,6 +74,17 @@ export function createAuth(options: AuthOptions) {
         image: "imagen",
         createdAt: "creado_en",
         updatedAt: "actualizado_en",
+      },
+      // Avatar elegido al registrarse; el trigger crear_perfil_usuario lo copia al perfil.
+      additionalFields: {
+        avatar: {
+          type: "string",
+          required: false,
+          input: true,
+          returned: false,
+          fieldName: "avatar",
+          validator: { input: avatarIdSchema },
+        },
       },
     },
     account: {

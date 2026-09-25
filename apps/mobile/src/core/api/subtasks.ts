@@ -43,6 +43,9 @@ export function setSubtaskArchived(
   return requestJson(
     `${subtaskPath(activityId)}/${encodeURIComponent(id)}/${archived ? "archive" : "restore"}`,
     subtaskSchema,
-    { method: "POST", body: subtaskVersionSchema.parse({ version, mutationId }) },
+    {
+      method: "POST",
+      body: subtaskVersionSchema.parse({ version, mutationId }),
+    },
   );
 }

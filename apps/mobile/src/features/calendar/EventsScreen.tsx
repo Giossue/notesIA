@@ -5,19 +5,15 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Card,
-  SegmentedButtons,
-  Text,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 import { listCalendarEvents } from "@/core/api/calendar-events";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { EmptyState } from "@/shared/EmptyState";
+import { userMessage } from "@/shared/errors";
+import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
+import { Tabs } from "@/shared/Tabs";
 
 const kindLabels = {
   class: "Clase",
@@ -43,15 +39,14 @@ export function EventsScreen() {
   const items = events.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <ScreenLayout tab="Events">
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">Eventos fijos</Text>
+    <ScreenLayout
+      header={{ title: "Eventos fijos" }}
+      fab={{ label: "Nuevo evento", onPress: () => navigation.navigate("EventForm", {}) }}
+    >
       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
         Clases y compromisos que ocupan tiempo real.
       </Text>
-      <SegmentedButtons
+      <Tabs
         value={archived ? "archived" : "active"}
         onValueChange={(value) => setArchived(value === "archived")}
         buttons={[
@@ -64,21 +59,10 @@ export function EventsScreen() {
           Sin conexión. Se muestran los datos guardados en esta sesión.
         </Text>
       )}
-      {!archived && (
-        <Button
-          mode="contained"
-          icon="plus"
-          disabled={offline}
-          onPress={() => navigation.navigate("EventForm", {})}
-          contentStyle={sharedStyles.actionContent}
-        >
-          Nuevo evento
-        </Button>
-      )}
       {events.isPending && !offline && <ActivityIndicator accessibilityLabel="Cargando eventos" />}
       {events.isError && (
         <View style={styles.message}>
-          <Text accessibilityRole="alert">{events.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(events.error)}</Text>
           <Button onPress={() => void events.refetch()}>Reintentar</Button>
         </View>
       )}

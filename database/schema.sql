@@ -171,7 +171,6 @@ CREATE TABLE materias (
   usuario_id uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
   periodo_academico_id uuid REFERENCES periodos_academicos(id) ON DELETE SET NULL,
   nombre varchar(160) NOT NULL,
-  codigo varchar(40),
   color varchar(40),
   nombre_docente varchar(160),
   notas text,
@@ -182,9 +181,10 @@ CREATE TABLE materias (
 );
 CREATE INDEX materias_usuario_periodo_idx
   ON materias (usuario_id, periodo_academico_id) WHERE eliminado_en IS NULL;
-CREATE UNIQUE INDEX materias_usuario_periodo_codigo_uq
-  ON materias (usuario_id, periodo_academico_id, codigo)
-  WHERE codigo IS NOT NULL AND eliminado_en IS NULL;
+-- normalizar_nombre: minúsculas, sin tildes (unaccent) y espacios simples.
+CREATE UNIQUE INDEX materias_usuario_nombre_activo_uq
+  ON materias (usuario_id, normalizar_nombre(nombre))
+  WHERE archivado_en IS NULL AND eliminado_en IS NULL;
 
 CREATE TABLE eventos_calendario (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

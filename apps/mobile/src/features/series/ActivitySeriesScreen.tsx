@@ -3,11 +3,13 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, Button, Card, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 import { listActivitySeries } from "@/core/api/activity-series";
 import { layout } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { EmptyState } from "@/shared/EmptyState";
+import { userMessage } from "@/shared/errors";
+import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 
 export function ActivitySeriesScreen() {
@@ -23,22 +25,13 @@ export function ActivitySeriesScreen() {
   });
   const items = series.data?.pages.flatMap((page) => page.items) ?? [];
   return (
-    <ScreenLayout>
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">Actividades recurrentes</Text>
+    <ScreenLayout
+      header={{ title: "Actividades recurrentes" }}
+      fab={{ label: "Nueva serie", onPress: () => navigation.navigate("ActivitySeriesForm") }}
+    >
       <Text>
         Al crear una serie se generan sus instancias; las anteriores no cambian de forma silenciosa.
       </Text>
-      <Button
-        mode="contained"
-        icon="plus"
-        disabled={offline}
-        onPress={() => navigation.navigate("ActivitySeriesForm")}
-      >
-        Nueva serie
-      </Button>
       {offline && (
         <Text style={{ color: theme.colors.error }}>
           Sin conexión. Se muestran datos guardados en esta sesión.
@@ -47,7 +40,7 @@ export function ActivitySeriesScreen() {
       {series.isPending && !offline && <ActivityIndicator accessibilityLabel="Cargando series" />}
       {series.isError && (
         <View style={styles.group}>
-          <Text accessibilityRole="alert">{series.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(series.error)}</Text>
           <Button onPress={() => void series.refetch()}>Reintentar</Button>
         </View>
       )}

@@ -3,20 +3,15 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  HelperText,
-  Text,
-  TextInput,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, HelperText, Text, useTheme } from "react-native-paper";
 import { z } from "zod";
 import {
   getNotificationPreferences,
   updateNotificationPreferences,
 } from "@/core/api/notifications";
 import { layout } from "@/core/theme/layout";
+import { userMessage } from "@/shared/errors";
+import { Button, TextInput } from "@/shared/paper";
 
 const minutesBetween = (minimum: number, maximum: number) =>
   z
@@ -43,7 +38,7 @@ export function NotificationPreferencesForm() {
   if (preferences.isError)
     return (
       <View style={styles.group}>
-        <Text accessibilityRole="alert">{preferences.error.message}</Text>
+        <Text accessibilityRole="alert">{userMessage(preferences.error)}</Text>
         <Button onPress={() => void preferences.refetch()}>Reintentar</Button>
       </View>
     );
@@ -110,7 +105,6 @@ function Form({ value }: { value: Awaited<ReturnType<typeof getNotificationPrefe
       {offline && (
         <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
       )}
-      {save.isError && <Text accessibilityRole="alert">{save.error.message}</Text>}
       {save.isSuccess && <Text accessibilityRole="alert">Preferencias de avisos guardadas.</Text>}
       <Button
         mode="outlined"

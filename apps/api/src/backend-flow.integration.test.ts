@@ -182,7 +182,6 @@ test("a student can consent, plan, work, see risk, revoke AI and keep manual pla
       await post("/v1/subjects", {
         id: subjectId,
         name: "Cálculo",
-        code: "MAT101",
         colorToken: "primary",
       })
     ).status,

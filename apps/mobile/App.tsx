@@ -3,10 +3,18 @@ import {
   createNativeStackNavigator,
   type NativeStackScreenProps,
 } from "@react-navigation/native-stack";
-import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { ActivityIndicator, Button, Text } from "react-native-paper";
+import {
+  MutationCache,
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { ActivityIndicator, Text } from "react-native-paper";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { OfflineQueuedError } from "@/core/api/client";
+import { getProfile } from "@/core/api/profile";
 import { getCurrentUser } from "@/core/auth/auth-client";
 import { clearPrivateCache } from "@/core/auth/query-cache";
 import { OfflineSyncProvider } from "@/core/offline/OfflineSyncProvider";
@@ -28,29 +36,52 @@ import { AcademicPeriodsScreen } from "@/features/periods/AcademicPeriodsScreen"
 import { PlanningScreen } from "@/features/planning/PlanningScreen";
 import { PreferencesScreen } from "@/features/preferences/PreferencesScreen";
 import { PrivacyScreen } from "@/features/privacy/PrivacyScreen";
+import { ProfileEditScreen } from "@/features/profile/ProfileEditScreen";
 import { ProfileScreen } from "@/features/profile/ProfileScreen";
+import { ProgressScreen } from "@/features/progress/ProgressScreen";
 import { ActivitySeriesFormScreen } from "@/features/series/ActivitySeriesFormScreen";
 import { ActivitySeriesScreen } from "@/features/series/ActivitySeriesScreen";
 import { SubjectFormScreen } from "@/features/subjects/SubjectFormScreen";
 import { SubjectsScreen } from "@/features/subjects/SubjectsScreen";
 import { TimeTrackingScreen } from "@/features/time/TimeTrackingScreen";
 import { ToolsScreen } from "@/features/tools/ToolsScreen";
-import type { RootStackParamList } from "@/navigation/types";
+import type { RootStackParamList, TabParams } from "@/navigation/types";
+import { userMessage } from "@/shared/errors";
+import { Button } from "@/shared/paper";
+import { showToast } from "@/shared/Toast";
+import { adoptDeviceTimeZone } from "@/shared/time-zones";
 
-const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+  // Todo error de una acción (guardar, borrar, completar…) se avisa una sola vez,
+  // como toast. Las pantallas solo marcan campos; no repiten el mensaje.
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      if (error instanceof OfflineQueuedError) showToast(error.message, "info");
+      else showToast(userMessage(error));
+    },
+  }),
+});
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const tabScreen = { animation: "none" } as const;
+// Entre pestañas, la nueva entra por el lado hacia el que se movió la barra:
+// a una pestaña de la derecha, desde la derecha; a una de la izquierda, al revés.
+const tabScreen = ({ route }: { route: { params?: TabParams } }) =>
+  ({
+    animation: route.params?.direction === "left" ? "ios_from_left" : "ios_from_right",
+  }) as const;
 
 function SubjectFormRoute({ route }: NativeStackScreenProps<RootStackParamList, "SubjectForm">) {
   return <SubjectFormScreen id={route.params.id} />;
 }
 
 function ActivityFormRoute({ route }: NativeStackScreenProps<RootStackParamList, "ActivityForm">) {
-  return <ActivityFormScreen id={route.params.id} draft={route.params.draft} />;
+  return (
+    <ActivityFormScreen id={route.params.id} draft={route.params.draft} date={route.params.date} />
+  );
 }
 
 function EventFormRoute({ route }: NativeStackScreenProps<RootStackParamList, "EventForm">) {
-  return <EventFormScreen id={route.params.id} />;
+  return <EventFormScreen id={route.params.id} date={route.params.date} />;
 }
 
 function AcademicPeriodFormRoute({
@@ -59,9 +90,27 @@ function AcademicPeriodFormRoute({
   return <AcademicPeriodFormScreen id={route.params.id} />;
 }
 
+/** Perfiles sin zona elegida adoptan la del teléfono al entrar. */
+function TimeZoneSync() {
+  const queryClient = useQueryClient();
+  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
+  const adopted = useRef(false);
+  useEffect(() => {
+    if (!profile.data || adopted.current) return;
+    adopted.current = true;
+    // Sin conexión o con conflicto se reintenta en la próxima sesión.
+    adoptDeviceTimeZone(profile.data, queryClient).catch(() => undefined);
+  }, [profile.data, queryClient]);
+  return null;
+}
+
 function Main() {
   const currentQueryClient = useQueryClient();
-  const session = useQuery({ queryKey: ["session"], queryFn: getCurrentUser, retry: false });
+  const session = useQuery({
+    queryKey: ["session"],
+    queryFn: getCurrentUser,
+    retry: false,
+  });
   useEffect(() => {
     if (session.isSuccess && !session.data) void clearPrivateCache(currentQueryClient);
   }, [currentQueryClient, session.isSuccess, session.data]);
@@ -83,16 +132,26 @@ function Main() {
   if (!session.data) return <AuthScreen />;
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <TimeZoneSync />
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          // Deslizamiento lateral sin fundido: la nueva pantalla entra por la
+          // derecha y empuja un poco a la anterior; al volver, al revés.
+          animation: "ios_from_right",
+        }}
+      >
         <Stack.Screen name="Home" options={tabScreen} component={HomeScreen} />
+        <Stack.Screen name="Progress" options={tabScreen} component={ProgressScreen} />
+        <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
         <Stack.Screen name="Subjects" component={SubjectsScreen} />
         <Stack.Screen name="SubjectForm" component={SubjectFormRoute} />
-        <Stack.Screen name="Activities" options={tabScreen} component={ActivityListScreen} />
+        <Stack.Screen name="Activities" component={ActivityListScreen} />
         <Stack.Screen name="ActivityForm" component={ActivityFormRoute} />
         <Stack.Screen name="Agenda" options={tabScreen} component={AgendaScreen} />
-        <Stack.Screen name="Events" options={tabScreen} component={EventsScreen} />
+        <Stack.Screen name="Events" component={EventsScreen} />
         <Stack.Screen name="EventForm" component={EventFormRoute} />
-        <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="Profile" options={tabScreen} component={ProfileScreen} />
         <Stack.Screen name="Tools" component={ToolsScreen} />
         <Stack.Screen name="AcademicPeriods" component={AcademicPeriodsScreen} />
         <Stack.Screen name="AcademicPeriodForm" component={AcademicPeriodFormRoute} />

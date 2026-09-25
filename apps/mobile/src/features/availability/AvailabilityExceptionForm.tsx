@@ -4,17 +4,13 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  HelperText,
-  Text,
-  TextInput,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, HelperText, IconButton, Text, useTheme } from "react-native-paper";
 import { z } from "zod";
 import { listAvailabilityExceptions, replaceAvailabilityException } from "@/core/api/availability";
 import { layout } from "@/core/theme/layout";
+import { userMessage } from "@/shared/errors";
+import { DateField, FormSection, TimeField } from "@/shared/fields";
+import { Button } from "@/shared/paper";
 import { parseWindows, windowsToText } from "./time";
 
 const dateSchema = z.iso.date("Usa AAAA-MM-DD.");
@@ -50,67 +46,54 @@ export function AvailabilityExceptionForm() {
         windows: parseWindows(values.windows),
       }),
     onSuccess: (updated) => {
-      queryClient.setQueryData(["availability-exception", updated.date], { items: [updated] });
-      void queryClient.invalidateQueries({ queryKey: ["availability-capacity"] });
+      queryClient.setQueryData(["availability-exception", updated.date], {
+        items: [updated],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["availability-capacity"],
+      });
     },
   });
 
   return (
     <View style={styles.group}>
-      <Text variant="titleMedium">Excepción por fecha</Text>
-      <Text variant="bodySmall">
-        Deja los intervalos vacíos para marcar todo el día como no disponible.
-      </Text>
-      <Controller
-        control={control}
-        name="date"
-        render={({ field }) => (
-          <TextInput
-            mode="outlined"
-            label="Fecha"
-            placeholder="2026-10-15"
-            value={field.value}
-            onChangeText={(value) => {
-              field.onChange(value);
-              setValue("windows", "");
-            }}
-            onBlur={field.onBlur}
-            error={!!errors.date}
-          />
+      <FormSection
+        title="Excepción por fecha"
+        hint="Sin intervalos, todo el día queda como no disponible."
+      >
+        <Controller
+          control={control}
+          name="date"
+          render={({ field }) => (
+            <DateField
+              label="Fecha"
+              value={field.value}
+              onChange={(value) => {
+                field.onChange(value);
+                setValue("windows", "");
+              }}
+              error={!!errors.date}
+            />
+          )}
+        />
+        {errors.date && <HelperText type="error">{errors.date.message}</HelperText>}
+        {existing.isFetching && <ActivityIndicator accessibilityLabel="Consultando excepción" />}
+        {current && (
+          <Button onPress={() => setValue("windows", windowsToText(current.windows))}>
+            Cargar intervalos actuales
+          </Button>
         )}
-      />
-      <HelperText type="error" visible={!!errors.date}>
-        {errors.date?.message}
-      </HelperText>
-      {existing.isFetching && <ActivityIndicator accessibilityLabel="Consultando excepción" />}
-      {current && (
-        <Button onPress={() => setValue("windows", windowsToText(current.windows))}>
-          Cargar intervalos actuales
-        </Button>
-      )}
-      <Controller
-        control={control}
-        name="windows"
-        render={({ field }) => (
-          <TextInput
-            mode="outlined"
-            label="Intervalos disponibles"
-            placeholder="08:00-10:00, 14:00-16:00"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.windows}
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.windows}>
-        {errors.windows?.message}
-      </HelperText>
-      {existing.isError && <Text accessibilityRole="alert">{existing.error.message}</Text>}
+        <Controller
+          control={control}
+          name="windows"
+          render={({ field }) => <WindowsEditor value={field.value} onChange={field.onChange} />}
+        />
+        {errors.windows && <HelperText type="error">{errors.windows.message}</HelperText>}
+      </FormSection>
+      {existing.isError && <Text accessibilityRole="alert">{userMessage(existing.error)}</Text>}
       {offline && (
         <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
       )}
-      {save.isError && <Text accessibilityRole="alert">{save.error.message}</Text>}
       {save.isSuccess && <Text accessibilityRole="alert">Excepción guardada.</Text>}
       <Button
         mode="contained"
@@ -124,4 +107,76 @@ export function AvailabilityExceptionForm() {
   );
 }
 
-const styles = StyleSheet.create({ group: { gap: layout.fieldGap } });
+type Window = { start: string; end: string };
+
+// El formulario guarda los intervalos como "08:00-10:00, 14:00-16:00" (lo que
+// valida parseWindows); aquí se editan como filas con relojes.
+function toRows(value: string): Window[] {
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [start = "", end = ""] = part.split("-").map((item) => item.trim());
+      return { start, end };
+    });
+}
+const toText = (rows: Window[]) => rows.map((row) => `${row.start}-${row.end}`).join(", ");
+
+function WindowsEditor({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const theme = useTheme();
+  const rows = toRows(value);
+  const update = (index: number, change: Partial<Window>) =>
+    onChange(toText(rows.map((row, i) => (i === index ? { ...row, ...change } : row))));
+  return (
+    <View style={styles.windows}>
+      <Text variant="labelLarge" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
+        Horas disponibles ese día
+      </Text>
+      {rows.length === 0 && (
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+          Ninguna: todo el día queda no disponible.
+        </Text>
+      )}
+      {rows.map((row, index) => (
+        // Las filas no tienen identidad propia: la posición es la fila.
+        // biome-ignore lint/suspicious/noArrayIndexKey: la posición identifica el intervalo
+        <View key={index} style={styles.windowRow}>
+          <TimeField
+            label="Desde"
+            value={row.start}
+            onChange={(start) => update(index, { start })}
+          />
+          <TimeField label="Hasta" value={row.end} onChange={(end) => update(index, { end })} />
+          <IconButton
+            icon="close"
+            size={20}
+            accessibilityLabel={`Quitar intervalo ${index + 1}`}
+            onPress={() => onChange(toText(rows.filter((_, i) => i !== index)))}
+            style={styles.remove}
+          />
+        </View>
+      ))}
+      <Button
+        mode="outlined"
+        icon="plus"
+        onPress={() => {
+          const last = rows.at(-1)?.end;
+          const start = last && /^\d{2}:\d{2}$/.test(last) ? last : "08:00";
+          const end = `${String(Math.min(23, Number(start.slice(0, 2)) + 2)).padStart(2, "0")}:${start.slice(3)}`;
+          onChange(toText([...rows, { start, end }]));
+        }}
+      >
+        Agregar intervalo
+      </Button>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  group: { gap: layout.fieldGap },
+  windows: { gap: 10 },
+  label: { fontWeight: "600" },
+  windowRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  remove: { margin: 0, marginTop: 6 },
+});

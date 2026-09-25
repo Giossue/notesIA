@@ -26,16 +26,16 @@ describe("FloatingNavBar", () => {
       </PaperProvider>,
     );
 
-    for (const label of ["Inicio", "Agenda", "Tareas", "Eventos"]) {
+    for (const label of ["Inicio", "Calendario", "Estadísticas", "Perfil"]) {
       expect(screen.getByLabelText(`Ir a ${label}`)).toBeOnTheScreen();
     }
-    expect(screen.queryByLabelText("Ir a Perfil")).toBeNull();
+    expect(screen.queryByLabelText("Ir a Tareas")).toBeNull();
     expect(screen.getByLabelText("Crear")).toBeOnTheScreen();
     const user = userEvent.setup();
-    await user.press(screen.getByLabelText("Ir a Agenda"));
+    await user.press(screen.getByLabelText("Ir a Calendario"));
     expect(mockReset).toHaveBeenCalledWith({
       index: 1,
-      routes: [{ name: "Home" }, { name: "Agenda" }],
+      routes: [{ name: "Home" }, { name: "Agenda", params: { direction: "right" } }],
     });
     await user.press(screen.getByLabelText("Ir a Inicio"));
     expect(mockReset).toHaveBeenCalledTimes(1);

@@ -1,7 +1,8 @@
 import { StyleSheet, View } from "react-native";
-import { Button, Icon, Surface, Text, useTheme } from "react-native-paper";
+import { Icon, Surface, Text, useTheme } from "react-native-paper";
 import { layout } from "@/core/theme/layout";
 import { iconTint } from "@/core/theme/theme";
+import { Button } from "@/shared/paper";
 
 export function EmptyState({
   message,
@@ -18,23 +19,18 @@ export function EmptyState({
 }) {
   const theme = useTheme();
   const iconColor = iconTint[theme.dark ? "dark" : "light"];
+  const surface = [{ backgroundColor: theme.colors.surface }];
 
   if (!title && !icon && !actionLabel) {
     return (
-      <Surface
-        elevation={0}
-        style={[styles.container, { backgroundColor: theme.colors.surfaceVariant }]}
-      >
+      <Surface elevation={0} style={[styles.container, surface]}>
         <Text variant="bodyLarge">{message}</Text>
       </Surface>
     );
   }
 
   return (
-    <Surface
-      elevation={0}
-      style={[styles.container, styles.rich, { backgroundColor: theme.colors.surfaceVariant }]}
-    >
+    <Surface elevation={0} style={[styles.container, styles.rich, surface]}>
       {icon && (
         <View style={styles.iconBox}>
           <Icon source={icon} size={40} color={iconColor} />
@@ -78,5 +74,9 @@ const styles = StyleSheet.create({
   },
   copy: { flex: 1, gap: 4 },
   title: { fontWeight: "700" },
-  action: { alignSelf: "flex-start", marginTop: 8, borderRadius: layout.navRadius },
+  action: {
+    alignSelf: "flex-start",
+    marginTop: 8,
+    borderRadius: layout.smallRadius,
+  },
 });

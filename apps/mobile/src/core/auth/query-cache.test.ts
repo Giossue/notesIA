@@ -7,9 +7,15 @@ test("clears all cached student data while retaining the session query", async (
   queryClient.setQueryData(["session"], { id: "student-a" });
   queryClient.setQueryData(["profile"], { email: "student-a@example.test" });
   queryClient.setQueryData(["subjects", false], { items: ["private-subject"] });
-  queryClient.setQueryData(["activities", "active"], { items: ["private-activity"] });
-  queryClient.setQueryData(["subtasks", "activity-a", false], { items: ["private-subtask"] });
-  queryClient.setQueryData(["agenda", "2026-09-23"], { items: ["private-deadline"] });
+  queryClient.setQueryData(["activities", "active"], {
+    items: ["private-activity"],
+  });
+  queryClient.setQueryData(["subtasks", "activity-a", false], {
+    items: ["private-subtask"],
+  });
+  queryClient.setQueryData(["agenda", "2026-09-23"], {
+    items: ["private-deadline"],
+  });
 
   let localCleared = false;
   await clearPrivateCache(queryClient, async () => {

@@ -4,15 +4,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Card,
-  Dialog,
-  Portal,
-  Text,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, Portal, Text, useTheme } from "react-native-paper";
 import {
   discardQueuedMutation,
   listQueuedMutations,
@@ -22,15 +14,25 @@ import {
 import { layout } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { EmptyState } from "@/shared/EmptyState";
+import { userMessage } from "@/shared/errors";
+import { Button, Card, Dialog } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 
-const statusLabels = { pending: "Pendiente", conflict: "Conflicto", failed: "Falló" };
+const statusLabels = {
+  pending: "Pendiente",
+  conflict: "Conflicto",
+  failed: "Falló",
+};
 const entityLabels = {
   activity: "Actividad",
   progress: "Progreso",
   time_entry: "Registro de tiempo",
 };
-const operationLabels = { create: "crear", update: "actualizar", delete: "eliminar" };
+const operationLabels = {
+  create: "crear",
+  update: "actualizar",
+  delete: "eliminar",
+};
 
 export function OfflineChangesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -55,7 +57,10 @@ export function OfflineChangesScreen() {
         });
     },
   });
-  const retry = useMutation({ mutationFn: retryQueuedMutation, onSuccess: refresh });
+  const retry = useMutation({
+    mutationFn: retryQueuedMutation,
+    onSuccess: refresh,
+  });
   const discard = useMutation({
     mutationFn: discardQueuedMutation,
     onSuccess: () => {
@@ -64,11 +69,7 @@ export function OfflineChangesScreen() {
     },
   });
   return (
-    <ScreenLayout>
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">Cambios sin conexión</Text>
+    <ScreenLayout header={{ title: "Cambios sin conexión" }}>
       <Text>
         Los cambios se envían en orden al recuperar la conexión. Los conflictos nunca se reemplazan
         de forma silenciosa.
@@ -86,11 +87,10 @@ export function OfflineChangesScreen() {
       >
         Sincronizar ahora
       </Button>
-      {sync.isError && <Text accessibilityRole="alert">{sync.error.message}</Text>}
       {queue.isPending && <ActivityIndicator accessibilityLabel="Cargando cambios pendientes" />}
       {queue.isError && (
         <View style={styles.group}>
-          <Text accessibilityRole="alert">{queue.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(queue.error)}</Text>
           <Button onPress={() => void queue.refetch()}>Reintentar</Button>
         </View>
       )}

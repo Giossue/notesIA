@@ -1,11 +1,13 @@
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import { StatusBar, useColorScheme, View } from "react-native";
 import { ActivityIndicator, PaperProvider } from "react-native-paper";
+import { ToastProvider } from "@/shared/Toast";
 import {
   type AppearancePreference,
   readAppearancePreference,
   writeAppearancePreference,
 } from "./appearance-storage";
+import { renderIcon } from "./icons";
 import { darkTheme, lightTheme } from "./theme";
 
 type AppearanceContextValue = {
@@ -52,13 +54,16 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppearanceContext.Provider value={{ preference, setPreference }}>
-      <PaperProvider theme={theme}>
+      <PaperProvider theme={theme} settings={{ icon: renderIcon }}>
         <StatusBar
           barStyle={isDark ? "light-content" : "dark-content"}
-          backgroundColor={theme.colors.background}
+          // Transparente: cada pantalla pinta detrás de la barra de estado (el panel
+          // del encabezado la cubre); las zonas seguras reservan su espacio.
+          translucent
+          backgroundColor="transparent"
         />
         {ready ? (
-          children
+          <ToastProvider>{children}</ToastProvider>
         ) : (
           <View
             style={{

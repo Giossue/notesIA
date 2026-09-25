@@ -96,7 +96,7 @@ test("fixed events are private, versioned and appear on each overlapping local d
       await app.request("/v1/subjects", {
         method: "POST",
         headers: headers(cookieA),
-        body: JSON.stringify({ id: subjectId, name: "Cálculo", code: null, colorToken: "primary" }),
+        body: JSON.stringify({ id: subjectId, name: "Cálculo", colorToken: "primary" }),
       })
     ).status,
   ).toBe(201);

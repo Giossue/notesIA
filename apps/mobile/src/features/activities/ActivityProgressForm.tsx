@@ -2,9 +2,10 @@ import type { Activity } from "@notesia/contracts";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { Button, HelperText, Text, TextInput, useTheme } from "react-native-paper";
+import { HelperText, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { updateActivityProgress } from "@/core/api/activities";
+import { Button, TextInput } from "@/shared/paper";
 
 export function ActivityProgressForm({ activity }: { activity: Activity }) {
   const queryClient = useQueryClient();
@@ -52,7 +53,6 @@ export function ActivityProgressForm({ activity }: { activity: Activity }) {
           Sin conexión. El cambio quedará pendiente en este dispositivo.
         </Text>
       )}
-      {save.isError && <Text accessibilityRole="alert">{save.error.message}</Text>}
       <Button
         mode="outlined"
         disabled={

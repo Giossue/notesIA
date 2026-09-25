@@ -1,20 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNetInfo } from "@react-native-community/netinfo";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import { Share, StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Card,
-  Divider,
-  HelperText,
-  Text,
-  TextInput,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, Divider, HelperText, Text, useTheme } from "react-native-paper";
 import { z } from "zod";
 import {
   cancelAccountDeletion,
@@ -23,10 +12,13 @@ import {
   requestAccountDeletion,
 } from "@/core/api/account";
 import { layout } from "@/core/theme/layout";
-import type { RootStackParamList } from "@/navigation/types";
+import { userMessage } from "@/shared/errors";
+import { Button, Card, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 
-const passwordSchema = z.object({ password: z.string().min(1, "Confirma tu contraseña.") });
+const passwordSchema = z.object({
+  password: z.string().min(1, "Confirma tu contraseña."),
+});
 const deletionSchema = passwordSchema.extend({
   confirmation: z.literal("ELIMINAR", "Escribe ELIMINAR."),
 });
@@ -38,18 +30,13 @@ type DeletionValues = z.infer<typeof deletionSchema>;
 type CancelValues = z.infer<typeof cancelSchema>;
 
 export function AccountScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const deletion = useQuery({
     queryKey: ["account-deletion"],
     queryFn: getDeletionRequest,
     retry: false,
   });
   return (
-    <ScreenLayout keyboardShouldPersistTaps="handled">
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">Datos y cuenta</Text>
+    <ScreenLayout keyboardShouldPersistTaps="handled" header={{ title: "Datos y cuenta" }}>
       <ExportForm />
       <Divider />
       {deletion.isPending && (
@@ -57,7 +44,7 @@ export function AccountScreen() {
       )}
       {deletion.isError && (
         <View style={styles.group}>
-          <Text accessibilityRole="alert">{deletion.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(deletion.error)}</Text>
           <Button onPress={() => void deletion.refetch()}>Reintentar</Button>
         </View>
       )}
@@ -114,7 +101,6 @@ function ExportForm() {
         {offline && (
           <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para exportar.</Text>
         )}
-        {mutation.isError && <Text accessibilityRole="alert">{mutation.error.message}</Text>}
         <Button
           mode="contained"
           loading={mutation.isPending}
@@ -192,7 +178,6 @@ function DeletionPanel({ status }: { status: Awaited<ReturnType<typeof getDeleti
           <HelperText type="error" visible={!!cancelForm.formState.errors.password}>
             {cancelForm.formState.errors.password?.message}
           </HelperText>
-          {cancel.isError && <Text accessibilityRole="alert">{cancel.error.message}</Text>}
           <Button
             loading={cancel.isPending}
             disabled={offline || cancel.isPending}
@@ -250,7 +235,6 @@ function DeletionPanel({ status }: { status: Awaited<ReturnType<typeof getDeleti
         {offline && (
           <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para continuar.</Text>
         )}
-        {request.isError && <Text accessibilityRole="alert">{request.error.message}</Text>}
         <Button
           mode="outlined"
           loading={request.isPending}

@@ -161,7 +161,7 @@ test("Idempotency-Key replays a committed mutation and is scoped to a user and b
   cookieA = await register(emailA);
   cookieB = await register(emailB);
   const key = crypto.randomUUID();
-  const subject = { id: crypto.randomUUID(), name: "Cálculo", code: null, colorToken: "primary" };
+  const subject = { id: crypto.randomUUID(), name: "Cálculo", colorToken: "primary" };
   const request = (cookie: string, body: unknown, idempotencyKey: string) =>
     app.request("/v1/subjects", {
       method: "POST",
@@ -181,13 +181,18 @@ test("Idempotency-Key replays a committed mutation and is scoped to a user and b
   expect(other.status).toBe(201);
   const concurrentKey = crypto.randomUUID();
   const [concurrentA, concurrentB] = await Promise.all([
-    request(cookieA, { ...subject, id: crypto.randomUUID() }, concurrentKey),
-    request(cookieB, { ...subject, id: crypto.randomUUID() }, concurrentKey),
+    request(cookieA, { ...subject, id: crypto.randomUUID(), name: "Álgebra" }, concurrentKey),
+    request(cookieB, { ...subject, id: crypto.randomUUID(), name: "Álgebra" }, concurrentKey),
   ]);
   expect([concurrentA.status, concurrentB.status]).toEqual([201, 201]);
   const tenAtOnce = await Promise.all(
-    Array.from({ length: 10 }, () =>
-      request(cookieA, { ...subject, id: crypto.randomUUID() }, crypto.randomUUID()),
+    // Cada materia necesita un nombre propio: el nombre es único por usuario.
+    Array.from({ length: 10 }, (_, index) =>
+      request(
+        cookieA,
+        { ...subject, id: crypto.randomUUID(), name: `Materia ${index}` },
+        crypto.randomUUID(),
+      ),
     ),
   );
   expect(tenAtOnce.map((response) => response.status)).toEqual(Array(10).fill(201));
@@ -200,7 +205,7 @@ test("Idempotency-Key replays a committed mutation and is scoped to a user and b
         "content-type": "application/json",
         "Idempotency-Key": updateKey,
       },
-      body: JSON.stringify({ name: "Cálculo II", code: null, colorToken: "primary", version: 1 }),
+      body: JSON.stringify({ name: "Cálculo II", colorToken: "primary", version: 1 }),
     });
   const updated = await update();
   expect(updated.status).toBe(200);
@@ -211,7 +216,7 @@ test("Idempotency-Key replays a committed mutation and is scoped to a user and b
 });
 
 test("failed response commit rolls back domain writes and permits the same key to retry", async () => {
-  const subject = { id: crypto.randomUUID(), name: "Historia", code: null, colorToken: "primary" };
+  const subject = { id: crypto.randomUUID(), name: "Historia", colorToken: "primary" };
   const key = crypto.randomUUID();
   const create = () =>
     app.request("/v1/subjects", {

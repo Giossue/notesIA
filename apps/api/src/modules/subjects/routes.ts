@@ -44,7 +44,6 @@ function toSubject(row: Awaited<ReturnType<SubjectRepository["get"]>>) {
     id: row.id,
     periodId: row.periodId,
     name: row.name,
-    code: row.code,
     colorToken: row.colorToken,
     archivedAt: row.archivedAt?.toISOString() ?? null,
     version: row.version,
@@ -56,6 +55,9 @@ function hasUniqueViolation(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   const errorValue = value as { code?: unknown; cause?: unknown };
   return errorValue.code === "23505" || hasUniqueViolation(errorValue.cause);
+}
+function nameConflict(): Response {
+  return error(409, "SUBJECT_NAME_CONFLICT", "Ya tienes una materia activa con ese nombre.");
 }
 function hasForeignKeyViolation(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
@@ -129,6 +131,7 @@ export function registerSubjectRoutes(app: Hono, dependencies: Dependencies) {
       if (!result) return error(409, "SUBJECT_CONFLICT", "No se pudo guardar la materia.");
       return c.json(toSubject(result.row), result.created ? 201 : 200);
     } catch (caught) {
+      if (hasUniqueViolation(caught)) return nameConflict();
       if (hasForeignKeyViolation(caught))
         return error(422, "INVALID_PERIOD", "Elige un periodo de tu cuenta.");
       throw caught;
@@ -147,8 +150,7 @@ export function registerSubjectRoutes(app: Hono, dependencies: Dependencies) {
     try {
       row = await dependencies.subjects.update(session.user.id, id, parsed.data);
     } catch (caught) {
-      if (hasUniqueViolation(caught))
-        return error(409, "SUBJECT_CODE_CONFLICT", "Ese código ya se usa en otra materia.");
+      if (hasUniqueViolation(caught)) return nameConflict();
       if (hasForeignKeyViolation(caught))
         return error(422, "INVALID_PERIOD", "Elige un periodo de tu cuenta.");
       throw caught;
@@ -169,12 +171,19 @@ export function registerSubjectRoutes(app: Hono, dependencies: Dependencies) {
         return error(404, "SUBJECT_NOT_FOUND", "Materia no encontrada.");
       const parsed = subjectVersionSchema.safeParse(await readBody(c.req.raw));
       if (!parsed.success) return error(422, "VALIDATION_FAILED", "Versión inválida.");
-      const row = await dependencies.subjects.setArchived(
-        session.user.id,
-        id,
-        parsed.data.version,
-        archived,
-      );
+      let row: Awaited<ReturnType<SubjectRepository["setArchived"]>>;
+      try {
+        row = await dependencies.subjects.setArchived(
+          session.user.id,
+          id,
+          parsed.data.version,
+          archived,
+        );
+      } catch (caught) {
+        // Restaurar choca si ya hay otra materia activa con el mismo nombre.
+        if (hasUniqueViolation(caught)) return nameConflict();
+        throw caught;
+      }
       if (row) return c.json(toSubject(row));
       const existing = await dependencies.subjects.get(session.user.id, id);
       return existing

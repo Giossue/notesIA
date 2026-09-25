@@ -1,18 +1,8 @@
 import { useNetInfo } from "@react-native-community/netinfo";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Card,
-  Dialog,
-  Portal,
-  Text,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, Portal, Text, useTheme } from "react-native-paper";
 import {
   acceptConsent,
   listConsents,
@@ -21,8 +11,9 @@ import {
 } from "@/core/api/privacy";
 import { getProfile } from "@/core/api/profile";
 import { layout } from "@/core/theme/layout";
-import type { RootStackParamList } from "@/navigation/types";
 import { EmptyState } from "@/shared/EmptyState";
+import { userMessage } from "@/shared/errors";
+import { Button, Card, Dialog } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 
 const typeLabels = {
@@ -32,12 +23,15 @@ const typeLabels = {
 };
 
 export function PrivacyScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
   const [confirmRevoke, setConfirmRevoke] = useState(false);
-  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
+  const profile = useQuery({
+    queryKey: ["profile"],
+    queryFn: getProfile,
+    retry: false,
+  });
   const documents = useQuery({
     queryKey: ["privacy-documents", profile.data?.language],
     queryFn: () => listPrivacyDocuments(profile.data?.language ?? "es"),
@@ -64,11 +58,7 @@ export function PrivacyScreen() {
     consents.data?.find((item) => item.type === type && item.documentId === documentId);
 
   return (
-    <ScreenLayout>
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">Privacidad y consentimientos</Text>
+    <ScreenLayout header={{ title: "Privacidad y consentimientos" }}>
       <Text variant="bodyMedium">
         La IA es opcional. Revocarla conserva las funciones manuales.
       </Text>
@@ -83,7 +73,7 @@ export function PrivacyScreen() {
       {[profile, documents, consents].map((query, index) =>
         query.isError ? (
           <View key={String(index)} style={styles.group}>
-            <Text accessibilityRole="alert">{query.error.message}</Text>
+            <Text accessibilityRole="alert">{userMessage(query.error)}</Text>
             <Button onPress={() => void query.refetch()}>Reintentar</Button>
           </View>
         ) : null,
@@ -120,8 +110,6 @@ export function PrivacyScreen() {
           </Card>
         );
       })}
-      {accept.isError && <Text accessibilityRole="alert">{accept.error.message}</Text>}
-      {revoke.isError && <Text accessibilityRole="alert">{revoke.error.message}</Text>}
       <Portal>
         <Dialog visible={confirmRevoke} onDismiss={() => setConfirmRevoke(false)}>
           <Dialog.Title>Revocar uso de IA</Dialog.Title>

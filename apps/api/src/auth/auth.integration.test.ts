@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { problemSchema } from "@notesia/contracts";
+import { defaultAvatarId, problemSchema } from "@notesia/contracts";
 import { createProfileRepository, createSecureStorage } from "@notesia/db";
 import { createApp } from "../app";
 import { createAuth } from "./create-auth";
@@ -83,7 +83,11 @@ describe("Better Auth with encrypted PostgreSQL sessions", () => {
     const ownProfile = await app.request("/v1/me", { headers: { cookie: cookie ?? "" } });
     expect(ownProfile.status).toBe(200);
     const initialProfile = (await ownProfile.json()) as { displayName: string; version: number };
-    expect(initialProfile).toMatchObject({ displayName: "Auth Test", version: 1 });
+    expect(initialProfile).toMatchObject({
+      displayName: "Auth Test",
+      avatar: defaultAvatarId,
+      version: 1,
+    });
 
     const update = await app.request("/v1/me/profile", {
       method: "PATCH",

@@ -1,10 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { avatarIdSchema, defaultAvatarId } from "@notesia/contracts";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Linking, ScrollView, StyleSheet, View } from "react-native";
-import { Button, HelperText, Surface, Text, TextInput, useTheme } from "react-native-paper";
+import { HelperText, Surface, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 import {
@@ -17,6 +18,8 @@ import {
 } from "@/core/auth/auth-client";
 import { clearPrivateCache } from "@/core/auth/query-cache";
 import { layout, sharedStyles } from "@/core/theme/layout";
+import { AvatarPicker } from "@/shared/AvatarPicker";
+import { Button, TextInput } from "@/shared/paper";
 
 const signInSchema = z.object({
   email: z.email("Escribe un correo válido."),
@@ -25,9 +28,12 @@ const signInSchema = z.object({
 
 const signUpSchema = signInSchema.extend({
   name: z.string().trim().min(1, "Escribe tu nombre."),
+  avatar: avatarIdSchema,
   password: z.string().min(12, "Usa al menos 12 caracteres."),
 });
-const recoverySchema = z.object({ email: z.email("Escribe un correo válido.") });
+const recoverySchema = z.object({
+  email: z.email("Escribe un correo válido."),
+});
 
 type SignInValues = z.infer<typeof signInSchema>;
 type SignUpValues = z.infer<typeof signUpSchema>;
@@ -223,7 +229,6 @@ function SignInForm({
       <HelperText type="error" visible={!!errors.password}>
         {errors.password?.message}
       </HelperText>
-      {mutation.isError && <Text accessibilityRole="alert">{mutation.error.message}</Text>}
       <Button
         mode="contained"
         loading={mutation.isPending}
@@ -281,7 +286,6 @@ function PasswordRecoveryForm({ offline, onBack }: { offline: boolean; onBack():
       {mutation.isSuccess && (
         <Text accessibilityRole="alert">Revisa tu correo para continuar.</Text>
       )}
-      {mutation.isError && <Text accessibilityRole="alert">{mutation.error.message}</Text>}
       <Button
         mode="contained"
         loading={mutation.isPending}
@@ -311,16 +315,21 @@ function SignUpForm({
     formState: { errors },
   } = useForm<SignUpValues>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { name: "", email: "", password: "" },
+    defaultValues: { name: "", email: "", password: "", avatar: defaultAvatarId },
   });
   const mutation = useMutation({
     mutationFn: (values: SignUpValues) =>
-      signUp(values.name.trim(), values.email.trim().toLowerCase(), values.password),
+      signUp(values.name.trim(), values.email.trim().toLowerCase(), values.password, values.avatar),
     onSuccess: ({ email }) => onVerificationRequired(email),
   });
 
   return (
     <View style={styles.fields}>
+      <Controller
+        control={control}
+        name="avatar"
+        render={({ field }) => <AvatarPicker value={field.value} onChange={field.onChange} />}
+      />
       <Controller
         control={control}
         name="name"
@@ -388,7 +397,6 @@ function SignUpForm({
       <HelperText type="error" visible={!!errors.password}>
         {errors.password?.message}
       </HelperText>
-      {mutation.isError && <Text accessibilityRole="alert">{mutation.error.message}</Text>}
       <Button
         mode="contained"
         loading={mutation.isPending}
@@ -411,14 +419,15 @@ function EmailVerificationPanel({
   offline: boolean;
   onContinue(): void;
 }) {
-  const resend = useMutation({ mutationFn: () => resendVerificationEmail(email) });
+  const resend = useMutation({
+    mutationFn: () => resendVerificationEmail(email),
+  });
   return (
     <View style={styles.fields}>
       <Text>
         Enviamos un enlace a {email}. Ábrelo para activar la cuenta antes de iniciar sesión.
       </Text>
       {resend.isSuccess && <Text accessibilityRole="alert">Correo enviado nuevamente.</Text>}
-      {resend.isError && <Text accessibilityRole="alert">{resend.error.message}</Text>}
       <Button
         mode="contained"
         loading={resend.isPending}
@@ -437,8 +446,17 @@ function EmailVerificationPanel({
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: "center", gap: 32, padding: layout.pagePadding },
+  content: {
+    flexGrow: 1,
+    justifyContent: "center",
+    gap: 32,
+    padding: layout.pagePadding,
+  },
   heading: { gap: layout.itemGap },
-  form: { borderRadius: layout.cardRadius, padding: layout.pagePadding, gap: layout.sectionGap },
+  form: {
+    borderRadius: layout.cardRadius,
+    padding: layout.pagePadding,
+    gap: layout.sectionGap,
+  },
   fields: { gap: 4 },
 });

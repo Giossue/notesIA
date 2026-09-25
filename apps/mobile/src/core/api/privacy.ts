@@ -22,5 +22,7 @@ export function acceptConsent(documentId: string) {
 }
 
 export function revokeAiConsent() {
-  return requestJson("/me/consents/ai/revoke", consentRecordSchema.nullable(), { method: "POST" });
+  return requestJson("/me/consents/ai/revoke", consentRecordSchema.nullable(), {
+    method: "POST",
+  });
 }

@@ -1,5 +1,5 @@
+import type { CalendarEvent } from "@notesia/contracts";
 import {
-  type CalendarRangeView,
   calendarRangeForDate,
   shiftLocalDate,
   todayInTimeZone,
@@ -9,159 +9,312 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Card,
-  SegmentedButtons,
-  Text,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, Icon, Text, TouchableRipple, useTheme } from "react-native-paper";
+import Svg, { Circle } from "react-native-svg";
 import { listActivities } from "@/core/api/activities";
 import { listCalendarEvents } from "@/core/api/calendar-events";
 import { getActivePlan } from "@/core/api/plans";
 import { getProfile } from "@/core/api/profile";
-import { layout, sharedStyles } from "@/core/theme/layout";
+import { listSubjects } from "@/core/api/subjects";
+import { layout } from "@/core/theme/layout";
+import { type CategoryColor, categoryColors, subjectCategory } from "@/core/theme/theme";
 import type { RootStackParamList } from "@/navigation/types";
-import { EmptyState } from "@/shared/EmptyState";
+import { userMessage } from "@/shared/errors";
+import { clockTime, shortWeekday } from "@/shared/format";
+import { Button } from "@/shared/paper";
+import { HeaderButton } from "@/shared/ScreenHeader";
 import { ScreenLayout } from "@/shared/ScreenLayout";
+import { DayTimeline, type TimelineEntryData } from "./DayTimeline";
 
-const viewLabels: Record<CalendarRangeView, string> = {
-  day: "Día",
-  week: "Semana",
-  month: "Mes",
+const eventKinds: Record<
+  CalendarEvent["kind"],
+  { label: string; color: CategoryColor; icon: string }
+> = {
+  class: { label: "Clase", color: "blue", icon: "school-outline" },
+  work: { label: "Trabajo", color: "orange", icon: "briefcase-outline" },
+  appointment: { label: "Cita", color: "cyan", icon: "account-clock-outline" },
+  personal: { label: "Personal", color: "pink", icon: "heart-outline" },
+  unavailable: { label: "No disponible", color: "gray", icon: "cancel" },
+  other: { label: "Otro", color: "gray", icon: "dots-horizontal" },
+};
+
+const monthNames = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+type TimelineItem = {
+  key: string;
+  startsAt: string;
+  endsAt: string | null;
+  time: string;
+  range: string;
+  label: string;
+  color: CategoryColor;
+  title: string;
+  meta: string;
+  metaIcon: string;
+  open: () => void;
 };
 
 export function AgendaScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const theme = useTheme();
+  const categories = categoryColors[theme.dark ? "dark" : "light"];
   const offline = useNetInfo().isConnected === false;
-  const [view, setView] = useState<CalendarRangeView>("day");
-  const [periodOffset, setPeriodOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [selected, setSelected] = useState<string | null>(null);
+  // Reloj para la línea de la hora actual; se actualiza cada minuto.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
   const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
-  const today = profile.data
-    ? todayInTimeZone(new Date().toISOString(), profile.data.timeZone)
-    : null;
-  const range = today ? calendarRangeForDate(today, view, periodOffset) : null;
+  const timeZone = profile.data?.timeZone;
+  const today = timeZone ? todayInTimeZone(new Date().toISOString(), timeZone) : null;
+  const week = today ? calendarRangeForDate(today, "week", weekOffset) : null;
+  const weekDays = week
+    ? Array.from({ length: 7 }, (_, index) => shiftLocalDate(week.from, index))
+    : [];
+  const selectedDay =
+    selected && weekDays.includes(selected)
+      ? selected
+      : today && weekDays.includes(today)
+        ? today
+        : (weekDays[0] ?? null);
+
   const deadlines = useInfiniteQuery({
-    queryKey: ["agenda", view, range?.from, range?.through],
+    queryKey: ["agenda", "week", week?.from, week?.through],
     queryFn: ({ pageParam }) =>
-      listActivities({
-        dueFrom: range?.from,
-        dueThrough: range?.through,
-        cursor: pageParam,
-      }),
+      listActivities({ dueFrom: week?.from, dueThrough: week?.through, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: !!range,
+    enabled: !!week,
     retry: false,
   });
   const events = useInfiniteQuery({
-    queryKey: ["agenda-events", view, range?.from, range?.through],
+    queryKey: ["agenda-events", "week", week?.from, week?.through],
     queryFn: ({ pageParam }) =>
-      listCalendarEvents({ from: range?.from, through: range?.through, cursor: pageParam }),
+      listCalendarEvents({ from: week?.from, through: week?.through, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: !!range,
-    retry: false,
-  });
-  const upcoming = useInfiniteQuery({
-    queryKey: ["agenda-upcoming", range?.through],
-    queryFn: ({ pageParam }) =>
-      listActivities({
-        dueFrom: range?.through,
-        dueThrough: range ? shiftLocalDate(range.through, 7) : undefined,
-        cursor: pageParam,
-      }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: view === "day" && !!range,
+    enabled: !!week,
     retry: false,
   });
   const activePlan = useQuery({ queryKey: ["active-plan"], queryFn: getActivePlan, retry: false });
+  const subjects = useInfiniteQuery({
+    queryKey: ["subjects", false],
+    queryFn: ({ pageParam }) => listSubjects(false, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    retry: false,
+  });
+
+  const subjectById = new Map(
+    (subjects.data?.pages.flatMap((page) => page.items) ?? []).map((item) => [item.id, item]),
+  );
+  const local = (instant: string) => (timeZone ? utcToLocalDateTime(instant, timeZone) : "");
+  const hhmm = (instant: string) => local(instant).slice(11, 16);
   const deadlineItems = deadlines.data?.pages.flatMap((page) => page.items) ?? [];
   const eventItems = events.data?.pages.flatMap((page) => page.items) ?? [];
-  const upcomingItems =
-    upcoming.data?.pages
-      .flatMap((page) => page.items)
-      .filter((item) => item.status !== "completed" && item.status !== "cancelled") ?? [];
-  const blockItems =
-    activePlan.data?.blocks.filter((block) => {
-      if (!range || !profile.data) return false;
-      const localDay = utcToLocalDateTime(block.startsAt, profile.data.timeZone).slice(0, 10);
-      return localDay >= range.from && localDay < range.through;
-    }) ?? [];
-  const summary = useMemo(() => {
-    if (view !== "month" || !profile.data) return [];
-    const rows = new Map<string, { events: number; deadlines: number; blocks: number }>();
-    const row = (day: string) => {
-      const current = rows.get(day) ?? { events: 0, deadlines: 0, blocks: 0 };
-      rows.set(day, current);
-      return current;
-    };
-    for (const item of eventItems)
-      row(utcToLocalDateTime(item.startsAt, profile.data.timeZone).slice(0, 10)).events += 1;
-    for (const item of deadlineItems) {
-      if (item.deadlineAt)
-        row(utcToLocalDateTime(item.deadlineAt, profile.data.timeZone).slice(0, 10)).deadlines += 1;
-    }
-    for (const item of blockItems)
-      row(utcToLocalDateTime(item.startsAt, profile.data.timeZone).slice(0, 10)).blocks += 1;
-    return [...rows.entries()].sort(([left], [right]) => left.localeCompare(right));
-  }, [blockItems, deadlineItems, eventItems, profile.data, view]);
+  const activityTitles = new Map(deadlineItems.map((item) => [item.id, item.title]));
 
-  const setAgendaView = (value: string) => {
-    setView(value as CalendarRangeView);
-    setPeriodOffset(0);
-  };
-  const rangeLabel = range
-    ? view === "day"
-      ? range.from
-      : view === "month"
-        ? range.from.slice(0, 7)
-        : `${range.from} a ${shiftLocalDate(range.through, -1)}`
+  const items: TimelineItem[] = [
+    ...eventItems.map((item) => {
+      const kind = eventKinds[item.kind];
+      return {
+        key: `event-${item.id}`,
+        startsAt: item.startsAt,
+        endsAt: item.endsAt,
+        time: hhmm(item.startsAt),
+        range: `${clockTime(hhmm(item.startsAt))} – ${clockTime(hhmm(item.endsAt))}`,
+        label: kind.label,
+        color: kind.color,
+        title: item.title,
+        meta: item.description?.trim() || "Evento fijo",
+        metaIcon: kind.icon,
+        open: () => navigation.navigate("EventForm", { id: item.id }),
+      };
+    }),
+    ...deadlineItems.flatMap((item) => {
+      if (!item.deadlineAt || item.status === "cancelled") return [];
+      const subject = item.subjectId ? subjectById.get(item.subjectId) : undefined;
+      return [
+        {
+          key: `deadline-${item.id}`,
+          startsAt: item.deadlineAt,
+          endsAt: null,
+          time: hhmm(item.deadlineAt),
+          range: `Entrega ${clockTime(hhmm(item.deadlineAt))}`,
+          label: "Entrega",
+          color: subject ? subjectCategory[subject.colorToken] : ("orange" as const),
+          title: item.title,
+          meta:
+            item.status === "completed"
+              ? "Completada"
+              : (subject?.name ?? `${item.progressPercent}% de avance`),
+          metaIcon: item.status === "completed" ? "check-circle-outline" : "file-document-outline",
+          open: () => navigation.navigate("ActivityForm", { id: item.id }),
+        },
+      ];
+    }),
+    ...(activePlan.data?.blocks ?? []).map((block) => ({
+      key: `block-${block.id}`,
+      startsAt: block.startsAt,
+      endsAt: block.endsAt,
+      time: hhmm(block.startsAt),
+      range: `${clockTime(hhmm(block.startsAt))} – ${clockTime(hhmm(block.endsAt))}`,
+      label: "Estudio",
+      color: "cyan" as const,
+      title: activityTitles.get(block.activityId) ?? "Bloque de estudio",
+      meta: block.isLocked ? "Bloque fijo del plan" : "Bloque del plan",
+      metaIcon: "timer-outline",
+      open: () => navigation.navigate("ActivityForm", { id: block.activityId }),
+    })),
+  ].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+
+  const busyDays = new Set(items.map((item) => local(item.startsAt).slice(0, 10)));
+  const dayItems = items.filter((item) => local(item.startsAt).slice(0, 10) === selectedDay);
+  const loading = !!week && (events.isPending || deadlines.isPending) && !offline;
+  const monthLabel = selectedDay
+    ? `${monthNames[Number(selectedDay.slice(5, 7)) - 1]} ${selectedDay.slice(0, 4)}`
     : "";
 
+  // Minutos locales desde la medianoche del día elegido (lo que pasa a otro día se recorta).
+  const minuteOf = (instant: string) => {
+    const value = local(instant);
+    if (value.slice(0, 10) > (selectedDay ?? "")) return 24 * 60;
+    return Number(value.slice(11, 13)) * 60 + Number(value.slice(14, 16));
+  };
+  const entries: TimelineEntryData[] = dayItems.map((item) => ({
+    key: item.key,
+    startMinute: minuteOf(item.startsAt),
+    endMinute: item.endsAt ? minuteOf(item.endsAt) : null,
+    range: item.range,
+    label: item.label,
+    color: categories[item.color],
+    title: item.title,
+    meta: item.meta,
+    metaIcon: item.metaIcon,
+    open: item.open,
+  }));
+  const nowLocal = timeZone ? utcToLocalDateTime(now.toISOString(), timeZone) : "";
+  const nowMinute =
+    selectedDay && nowLocal.slice(0, 10) === selectedDay
+      ? Number(nowLocal.slice(11, 13)) * 60 + Number(nowLocal.slice(14, 16))
+      : null;
+  const failed = events.isError || deadlines.isError;
+
+  const weekStrip = week ? (
+    <View style={styles.weekBlock}>
+      <View style={styles.weekHeader}>
+        <HeaderButton
+          icon="chevron-left"
+          label="Semana anterior"
+          onPress={() => setWeekOffset((value) => value - 1)}
+        />
+        <TouchableRipple
+          borderless
+          onPress={() => {
+            setWeekOffset(0);
+            setSelected(null);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Volver a hoy"
+          style={styles.monthButton}
+        >
+          <Text variant="titleMedium" style={styles.bold}>
+            {monthLabel}
+          </Text>
+        </TouchableRipple>
+        <HeaderButton
+          icon="chevron-right"
+          label="Semana siguiente"
+          onPress={() => setWeekOffset((value) => value + 1)}
+        />
+      </View>
+      <View style={styles.strip}>
+        {weekDays.map((date) => {
+          const active = date === selectedDay;
+          return (
+            <TouchableRipple
+              borderless
+              key={date}
+              onPress={() => setSelected(date)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={`${shortWeekday(date)} ${Number(date.slice(8))}`}
+              style={[
+                styles.day,
+                // Pastillas del mismo tono que las tarjetas, sobre el fondo.
+                { backgroundColor: active ? theme.colors.primary : theme.colors.surface },
+              ]}
+            >
+              <View style={styles.dayContent}>
+                <Text
+                  variant="titleMedium"
+                  style={[styles.bold, active && { color: theme.colors.onPrimary }]}
+                >
+                  {Number(date.slice(8))}
+                </Text>
+                <Text
+                  variant="labelSmall"
+                  style={{
+                    color: active ? theme.colors.onPrimary : theme.colors.onSurfaceVariant,
+                  }}
+                >
+                  {shortWeekday(date)}
+                </Text>
+                {/* Círculo en SVG: con un View tan pequeño, Android lo dibujaba cuadrado. */}
+                <Svg width={6} height={6} style={styles.busyDot}>
+                  <Circle
+                    cx={3}
+                    cy={3}
+                    r={3}
+                    fill={
+                      busyDays.has(date)
+                        ? active
+                          ? theme.colors.onPrimary
+                          : theme.colors.primary
+                        : "transparent"
+                    }
+                  />
+                </Svg>
+              </View>
+            </TouchableRipple>
+          );
+        })}
+      </View>
+    </View>
+  ) : null;
+
   return (
-    <ScreenLayout tab="Agenda">
-      <Text variant="headlineMedium">Agenda</Text>
-      <Text variant="bodyMedium">Eventos, fechas límite y bloques de trabajo del plan activo.</Text>
-      <SegmentedButtons
-        value={view}
-        onValueChange={setAgendaView}
-        buttons={(Object.keys(viewLabels) as CalendarRangeView[]).map((value) => ({
-          value,
-          label: viewLabels[value],
-        }))}
-      />
-      {profile.isPending && <ActivityIndicator accessibilityLabel="Cargando zona horaria" />}
+    <ScreenLayout
+      fab={{ date: selectedDay ?? undefined }}
+      header={{
+        title: "Agenda",
+        right: {
+          icon: "calendar-month-outline",
+          label: "Ver mis eventos fijos",
+          onPress: () => navigation.navigate("Events"),
+        },
+      }}
+    >
       {profile.isError && (
-        <View style={styles.message}>
-          <Text accessibilityRole="alert">{profile.error.message}</Text>
-          <Button onPress={() => void profile.refetch()}>Reintentar</Button>
-        </View>
-      )}
-      {range && (
-        <>
-          <View style={styles.periodPicker}>
-            <Button
-              onPress={() => setPeriodOffset((value) => value - 1)}
-              accessibilityLabel={`${viewLabels[view]} anterior`}
-            >
-              Anterior
-            </Button>
-            <Text variant="titleMedium">{rangeLabel}</Text>
-            <Button
-              onPress={() => setPeriodOffset((value) => value + 1)}
-              accessibilityLabel={`${viewLabels[view]} siguiente`}
-            >
-              Siguiente
-            </Button>
-          </View>
-          {periodOffset !== 0 && <Button onPress={() => setPeriodOffset(0)}>Volver a hoy</Button>}
-        </>
+        <ErrorRetry message={userMessage(profile.error)} onRetry={() => void profile.refetch()} />
       )}
       {offline && (
         <Text style={{ color: theme.colors.error }}>
@@ -169,191 +322,40 @@ export function AgendaScreen() {
         </Text>
       )}
 
-      {view === "month" && (
-        <View style={styles.message}>
-          <Text variant="titleLarge">Resumen mensual</Text>
-          {summary.length === 0 && !deadlines.isPending && !events.isPending ? (
-            <EmptyState message="No hay compromisos en este mes." />
-          ) : (
-            summary.map(([day, counts]) => (
-              <Card key={day} mode="outlined">
-                <Card.Content style={sharedStyles.listItem}>
-                  <Text variant="titleSmall">{day}</Text>
-                  <Text>
-                    {counts.events} eventos · {counts.deadlines} fechas límite · {counts.blocks}{" "}
-                    bloques
-                  </Text>
-                </Card.Content>
-              </Card>
-            ))
+      {weekStrip}
+      {week && (
+        <View style={styles.card}>
+          {loading && <ActivityIndicator accessibilityLabel="Cargando agenda" />}
+          {events.isError && (
+            <ErrorRetry message={userMessage(events.error)} onRetry={() => void events.refetch()} />
           )}
-        </View>
-      )}
-
-      <View style={styles.sectionHeading}>
-        <Text variant="titleLarge">Eventos fijos</Text>
-        <Button mode="outlined" onPress={() => navigation.navigate("Events")}>
-          Mis eventos
-        </Button>
-      </View>
-      {range && events.isPending && !offline && (
-        <ActivityIndicator accessibilityLabel="Cargando eventos" />
-      )}
-      {events.isError && (
-        <View style={styles.message}>
-          <Text accessibilityRole="alert">{events.error.message}</Text>
-          <Button onPress={() => void events.refetch()}>Reintentar eventos</Button>
-        </View>
-      )}
-      {range && !events.isPending && !events.isError && eventItems.length === 0 && (
-        <EmptyState message="No hay eventos fijos en este periodo." />
-      )}
-      {eventItems.map((item) => (
-        <Card
-          key={item.id}
-          mode="contained"
-          onPress={() => navigation.navigate("EventForm", { id: item.id })}
-          accessibilityLabel={`Abrir evento ${item.title}`}
-        >
-          <Card.Content style={sharedStyles.listItem}>
-            <Text variant="titleMedium">{item.title}</Text>
-            {profile.data && (
-              <Text variant="bodyMedium">
-                {utcToLocalDateTime(item.startsAt, profile.data.timeZone).replace("T", " ")}
-                {" → "}
-                {utcToLocalDateTime(item.endsAt, profile.data.timeZone).replace("T", " ")}
-              </Text>
-            )}
-          </Card.Content>
-        </Card>
-      ))}
-      {events.hasNextPage && (
-        <Button
-          mode="outlined"
-          loading={events.isFetchingNextPage}
-          disabled={offline || events.isFetchingNextPage}
-          onPress={() => void events.fetchNextPage()}
-          contentStyle={sharedStyles.actionContent}
-        >
-          Cargar más eventos
-        </Button>
-      )}
-
-      <Text variant="titleLarge">Fechas límite</Text>
-      {range && deadlines.isPending && !offline && (
-        <ActivityIndicator accessibilityLabel="Cargando fechas límite" />
-      )}
-      {deadlines.isError && (
-        <View style={styles.message}>
-          <Text accessibilityRole="alert">{deadlines.error.message}</Text>
-          <Button onPress={() => void deadlines.refetch()}>Reintentar</Button>
-        </View>
-      )}
-      {range && !deadlines.isPending && !deadlines.isError && deadlineItems.length === 0 && (
-        <EmptyState message="No hay fechas límite en este periodo." />
-      )}
-      {deadlineItems.map((item) => (
-        <Card
-          key={item.id}
-          mode="contained"
-          onPress={() => navigation.navigate("ActivityForm", { id: item.id })}
-          accessibilityLabel={`Abrir actividad ${item.title}`}
-        >
-          <Card.Content style={sharedStyles.listItem}>
-            <Text variant="titleMedium">{item.title}</Text>
-            {item.deadlineAt && profile.data && (
-              <Text variant="bodyMedium">
-                Fecha límite:{" "}
-                {utcToLocalDateTime(item.deadlineAt, profile.data.timeZone).replace("T", " ")}
-              </Text>
-            )}
-            <Text variant="bodySmall">
-              {item.status === "completed" ? "Completada" : "Pendiente"}
-            </Text>
-          </Card.Content>
-        </Card>
-      ))}
-      {deadlines.hasNextPage && (
-        <Button
-          mode="outlined"
-          loading={deadlines.isFetchingNextPage}
-          disabled={offline || deadlines.isFetchingNextPage}
-          onPress={() => void deadlines.fetchNextPage()}
-          contentStyle={sharedStyles.actionContent}
-        >
-          Cargar más fechas límite
-        </Button>
-      )}
-
-      <Text variant="titleLarge">Bloques de trabajo</Text>
-      {activePlan.isPending && !offline && (
-        <ActivityIndicator accessibilityLabel="Cargando plan activo" />
-      )}
-      {activePlan.isError && (
-        <View style={styles.message}>
-          <Text accessibilityRole="alert">{activePlan.error.message}</Text>
-          <Button onPress={() => void activePlan.refetch()}>Reintentar plan</Button>
-        </View>
-      )}
-      {!activePlan.isPending && !activePlan.isError && blockItems.length === 0 && (
-        <EmptyState message="No hay bloques del plan activo en este periodo." />
-      )}
-      {blockItems.map((block) => (
-        <Card
-          key={block.id}
-          mode="outlined"
-          onPress={() => navigation.navigate("ActivityForm", { id: block.activityId })}
-          accessibilityLabel="Abrir actividad del bloque de trabajo"
-        >
-          <Card.Content style={sharedStyles.listItem}>
-            <Text variant="titleMedium">Bloque de trabajo</Text>
-            {profile.data && (
-              <Text>
-                {utcToLocalDateTime(block.startsAt, profile.data.timeZone).replace("T", " ")}
-                {" → "}
-                {utcToLocalDateTime(block.endsAt, profile.data.timeZone).replace("T", " ")}
-              </Text>
-            )}
-            <Text variant="bodySmall">{block.isLocked ? "Bloqueado" : "Movible"}</Text>
-          </Card.Content>
-        </Card>
-      ))}
-
-      {view === "day" && (
-        <View style={styles.message}>
-          <Text variant="titleLarge">Próximas actividades</Text>
-          <Text variant="bodySmall">Fechas límite de los próximos siete días.</Text>
-          {upcoming.isPending && !offline && (
-            <ActivityIndicator accessibilityLabel="Cargando próximas actividades" />
+          {deadlines.isError && (
+            <ErrorRetry
+              message={userMessage(deadlines.error)}
+              onRetry={() => void deadlines.refetch()}
+            />
           )}
-          {upcoming.isError && <Text accessibilityRole="alert">{upcoming.error.message}</Text>}
-          {!upcoming.isPending && !upcoming.isError && upcomingItems.length === 0 && (
-            <EmptyState message="No hay actividades próximas." />
+          {!loading && !failed && dayItems.length === 0 && (
+            <View style={styles.empty}>
+              <Icon source="calendar-blank-outline" size={32} color={theme.colors.outline} />
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                Nada programado para este día.
+              </Text>
+            </View>
           )}
-          {upcomingItems.map((item) => (
-            <Card
-              key={item.id}
-              mode="outlined"
-              onPress={() => navigation.navigate("ActivityForm", { id: item.id })}
-            >
-              <Card.Content style={sharedStyles.listItem}>
-                <Text variant="titleMedium">{item.title}</Text>
-                {item.deadlineAt && profile.data && (
-                  <Text>
-                    {utcToLocalDateTime(item.deadlineAt, profile.data.timeZone).replace("T", " ")}
-                  </Text>
-                )}
-              </Card.Content>
-            </Card>
-          ))}
-          {upcoming.hasNextPage && (
+
+          {dayItems.length > 0 && <DayTimeline entries={entries} nowMinute={nowMinute} />}
+          {(events.hasNextPage || deadlines.hasNextPage) && (
             <Button
               mode="outlined"
-              loading={upcoming.isFetchingNextPage}
-              disabled={offline || upcoming.isFetchingNextPage}
-              onPress={() => void upcoming.fetchNextPage()}
+              loading={events.isFetchingNextPage || deadlines.isFetchingNextPage}
+              disabled={offline}
+              onPress={() => {
+                if (events.hasNextPage) void events.fetchNextPage();
+                if (deadlines.hasNextPage) void deadlines.fetchNextPage();
+              }}
             >
-              Cargar más próximas
+              Cargar más
             </Button>
           )}
         </View>
@@ -362,8 +364,26 @@ export function AgendaScreen() {
   );
 }
 
+function ErrorRetry({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <View style={styles.message}>
+      <Text accessibilityRole="alert">{message}</Text>
+      <Button onPress={onRetry}>Reintentar</Button>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  periodPicker: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   message: { gap: layout.itemGap },
-  sectionHeading: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  bold: { fontWeight: "700" },
+  card: { gap: 16 },
+  weekBlock: { gap: 12 },
+  // Flechas junto al mes, lejos de las acciones del encabezado.
+  weekHeader: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 },
+  monthButton: { borderRadius: layout.smallRadius, paddingHorizontal: 12, paddingVertical: 6 },
+  strip: { flexDirection: "row", gap: 6 },
+  day: { flex: 1, borderRadius: 26 },
+  dayContent: { alignItems: "center", paddingVertical: 8, gap: 1 },
+  busyDot: { marginTop: 3 },
+  empty: { alignItems: "center", gap: 8, paddingVertical: 24 },
 });

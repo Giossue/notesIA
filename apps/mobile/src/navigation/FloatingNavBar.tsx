@@ -1,51 +1,39 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { FAB, Icon, Portal, Surface, Text, TouchableRipple, useTheme } from "react-native-paper";
+import { StyleSheet, View } from "react-native";
+import { Icon, Surface, Text, TouchableRipple, useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { layout } from "@/core/theme/layout";
-import { iconTint } from "@/core/theme/theme";
+import { CreateMenu, FAB_SIZE } from "./CreateMenu";
 import type { RootStackParamList } from "./types";
 
-export type MainTab = "Home" | "Agenda" | "Activities" | "Events";
+export type MainTab = "Home" | "Agenda" | "Progress" | "Profile";
 
-const tabs: {
-  route: MainTab;
-  label: string;
-  icon: string;
-  selectedIcon: string;
-}[] = [
-  {
-    route: "Home",
-    label: "Inicio",
-    icon: "home-outline",
-    selectedIcon: "home",
-  },
+const tabs: { route: MainTab; label: string; icon: string }[] = [
+  { route: "Home", label: "Inicio", icon: "home-outline" },
   {
     route: "Agenda",
-    label: "Agenda",
+    label: "Calendario",
     icon: "calendar-blank-outline",
-    selectedIcon: "calendar",
   },
   {
-    route: "Activities",
-    label: "Tareas",
-    icon: "checkbox-marked-outline",
-    selectedIcon: "checkbox-marked",
+    route: "Progress",
+    label: "Estadísticas",
+    icon: "chart-bar",
   },
-  {
-    route: "Events",
-    label: "Eventos",
-    icon: "bell-outline",
-    selectedIcon: "bell",
-  },
+  { route: "Profile", label: "Perfil", icon: "account-outline" },
 ];
+
+const BAR_TOP_PADDING = 10;
 
 export function FloatingNavBar({ active }: { active: MainTab }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const theme = useTheme();
-  const iconColor = iconTint[theme.dark ? "dark" : "light"];
+  const insets = useSafeAreaInsets();
   const [createOpen, setCreateOpen] = useState(false);
+  // La barra respeta la zona segura inferior; el botón central se centra en su borde superior.
+  const bottomInset = Math.max(insets.bottom, 10);
 
   const renderTab = (tab: (typeof tabs)[number]) => {
     const selected = active === tab.route;
@@ -55,15 +43,18 @@ export function FloatingNavBar({ active }: { active: MainTab }) {
         key={tab.route}
         onPress={() => {
           if (!selected) {
+            const order = tabs.map((item) => item.route);
+            const direction = order.indexOf(tab.route) > order.indexOf(active) ? "right" : "left";
             navigation.reset({
               index: tab.route === "Home" ? 0 : 1,
               routes:
-                tab.route === "Home" ? [{ name: "Home" }] : [{ name: "Home" }, { name: tab.route }],
+                tab.route === "Home"
+                  ? [{ name: "Home", params: { direction } }]
+                  : [{ name: "Home" }, { name: tab.route, params: { direction } }],
             });
           }
         }}
-        borderless
-        style={[styles.tab, selected && { backgroundColor: theme.colors.surfaceVariant }]}
+        style={styles.tab}
         rippleColor="transparent"
         underlayColor="transparent"
         accessibilityRole="tab"
@@ -71,12 +62,14 @@ export function FloatingNavBar({ active }: { active: MainTab }) {
         accessibilityLabel={`Ir a ${tab.label}`}
       >
         <View style={styles.tabContent}>
-          <Icon
-            source={selected ? tab.selectedIcon : tab.icon}
-            color={iconColor}
-            size={layout.iconSize}
-          />
-          <Text variant="labelSmall" numberOfLines={1} style={[styles.label, { color }]}>
+          <Icon source={tab.icon} color={color} size={26} />
+          <Text
+            variant="labelMedium"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+            style={[styles.label, { color }, selected && styles.selectedLabel]}
+          >
             {tab.label}
           </Text>
         </View>
@@ -84,95 +77,47 @@ export function FloatingNavBar({ active }: { active: MainTab }) {
     );
   };
 
-  const actions = [
-    {
-      icon: "format-list-checks",
-      label: "Nueva tarea",
-      route: "ActivityForm" as const,
-    },
-    {
-      icon: "book-outline",
-      label: "Nueva materia",
-      route: "SubjectForm" as const,
-    },
-    {
-      icon: "calendar-plus",
-      label: "Nuevo evento",
-      route: "EventForm" as const,
-    },
-  ];
-
   return (
     <>
       <Surface
-        elevation={0}
+        elevation={2}
         style={[
           styles.bar,
           {
             backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.outlineVariant,
-            elevation: 0,
-            shadowColor: "transparent",
-            shadowOpacity: 0,
-            shadowRadius: 0,
-            shadowOffset: { width: 0, height: 0 },
+            paddingBottom: bottomInset,
+            shadowColor: theme.colors.shadow,
           },
         ]}
         accessibilityLabel="Navegación principal"
       >
         <View style={styles.row}>
           {tabs.slice(0, 2).map(renderTab)}
-          <View style={styles.fabSpace}>
-            <FAB
-              icon={createOpen ? "close" : "plus"}
-              accessibilityLabel="Crear"
-              accessibilityState={{ expanded: createOpen }}
-              color={theme.colors.onPrimary}
-              style={[styles.mainFab, { backgroundColor: iconColor }]}
-              onPress={() => setCreateOpen((open) => !open)}
-            />
-          </View>
+          <View style={styles.fabSpace} />
           {tabs.slice(2).map(renderTab)}
         </View>
       </Surface>
-      {createOpen && (
-        <Portal>
-          <Pressable
-            style={[styles.backdrop, { backgroundColor: theme.colors.backdrop }]}
-            onPress={() => setCreateOpen(false)}
-            accessibilityLabel="Cerrar"
-          />
-          <Surface
-            elevation={0}
-            style={[
-              styles.menu,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.outlineVariant,
-              },
-            ]}
-          >
-            {actions.map((action) => (
-              <TouchableRipple
-                key={action.route}
-                accessibilityRole="button"
-                accessibilityLabel={action.label}
-                rippleColor={theme.colors.surfaceVariant}
-                style={styles.action}
-                onPress={() => {
-                  setCreateOpen(false);
-                  navigation.navigate(action.route, {});
-                }}
-              >
-                <View style={styles.actionContent}>
-                  <Icon source={action.icon} size={layout.iconSize} color={iconColor} />
-                  <Text variant="bodyLarge">{action.label}</Text>
-                </View>
-              </TouchableRipple>
-            ))}
-          </Surface>
-        </Portal>
-      )}
+      <TouchableRipple
+        borderless
+        onPress={() => setCreateOpen((open) => !open)}
+        accessibilityRole="button"
+        accessibilityLabel="Crear"
+        accessibilityState={{ expanded: createOpen }}
+        style={[
+          styles.fab,
+          {
+            bottom: bottomInset + BAR_TOP_PADDING + layout.navTabHeight - FAB_SIZE / 2,
+            backgroundColor: theme.colors.primary,
+          },
+        ]}
+      >
+        <Icon source={createOpen ? "close" : "plus"} size={34} color={theme.colors.onPrimary} />
+      </TouchableRipple>
+      <CreateMenu
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        bottom={bottomInset + BAR_TOP_PADDING + layout.navTabHeight + FAB_SIZE / 2 + 16}
+      />
     </>
   );
 }
@@ -180,64 +125,35 @@ export function FloatingNavBar({ active }: { active: MainTab }) {
 const styles = StyleSheet.create({
   bar: {
     position: "absolute",
-    alignSelf: "center",
-    width: "88%",
-    maxWidth: 360,
-    bottom: 14,
-    borderRadius: layout.navRadius,
-    borderWidth: 1,
-    padding: 5,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopLeftRadius: layout.navRadius,
+    borderTopRightRadius: layout.navRadius,
+    paddingTop: BAR_TOP_PADDING,
+    paddingHorizontal: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: -4 },
   },
-  row: { width: "100%", flexDirection: "row", alignItems: "center" },
+  row: { flexDirection: "row", alignItems: "center" },
   tab: {
     flex: 1,
     minWidth: 0,
     minHeight: layout.navTabHeight,
-    borderRadius: layout.navTabRadius,
     justifyContent: "center",
   },
-  tabContent: {
-    width: "100%",
-    minWidth: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 2,
-  },
-  fabSpace: {
-    width: 64,
-    minHeight: layout.navTabHeight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  backdrop: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
-  menu: {
+  tabContent: { alignItems: "center", justifyContent: "center", gap: 4 },
+  label: { textAlign: "center" },
+  selectedLabel: { fontWeight: "600" },
+  fabSpace: { width: FAB_SIZE + 4 },
+  fab: {
     position: "absolute",
     alignSelf: "center",
-    bottom: 14 + layout.navTabHeight + 10 + 26,
-    minWidth: 220,
-    borderRadius: layout.navRadius,
-    borderWidth: 1,
-    padding: 6,
-    overflow: "hidden",
-  },
-  action: { borderRadius: layout.navTabRadius },
-  actionContent: {
-    flexDirection: "row",
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
     alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 14,
-    minHeight: layout.minTouch,
+    justifyContent: "center",
   },
-  mainFab: {
-    borderRadius: 28,
-    width: 56,
-    height: 56,
-    marginTop: -28,
-    elevation: 0,
-    shadowColor: "transparent",
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  label: { width: "100%", flexShrink: 1, textAlign: "center" },
 });

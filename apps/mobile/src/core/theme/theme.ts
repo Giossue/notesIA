@@ -1,112 +1,133 @@
 import { configureFonts, MD3DarkTheme, MD3LightTheme, type MD3Theme } from "react-native-paper";
 
-// Neutral surfaces; blue is reserved for icon glyphs.
-export const iconTint = { light: "#4F98FF", dark: "#4F98FF" } as const;
+// Azul vivo como color principal; naranja, cian y rosa identifican categorías
+// (materias, tipos de evento). Rojo-rosa solo para atrasado/riesgo alto.
+export const iconTint = { light: "#3468E1", dark: "#3A6EE6" } as const;
+
+export const categoryColors = {
+  light: { blue: "#3468E1", orange: "#F97316", cyan: "#22C3E6", pink: "#F43F5E", gray: "#94A3B8" },
+  dark: { blue: "#3A6EE6", orange: "#FB923C", cyan: "#22D3EE", pink: "#FB7185", gray: "#64748B" },
+} as const;
+
+export type CategoryColor = keyof (typeof categoryColors)["light"];
+
+/** Color de categoría para el color elegido en una materia. */
+export const subjectCategory = {
+  primary: "blue",
+  secondary: "orange",
+  tertiary: "cyan",
+} as const satisfies Record<string, CategoryColor>;
+
+export const statusColors = {
+  light: { done: "#15803D", ongoing: "#F97316", overdue: "#E11D48" },
+  dark: { done: "#4ADE80", ongoing: "#FB923C", overdue: "#FB7185" },
+} as const;
 
 const lightColors = {
-  primary: "#27333D",
+  primary: "#3468E1",
   onPrimary: "#FFFFFF",
-  primaryContainer: "#EFF1F2",
-  onPrimaryContainer: "#27333D",
-  secondary: "#365D4A",
-  onSecondary: "#FFFFFF",
-  secondaryContainer: "#EFF1F2",
-  onSecondaryContainer: "#27333D",
-  tertiary: "#76593D",
-  onTertiary: "#FFFFFF",
-  tertiaryContainer: "#EFF1F2",
-  onTertiaryContainer: "#27333D",
-  error: "#BA1A1A",
+  primaryContainer: "#E7EEFF",
+  onPrimaryContainer: "#0B2A6B",
+  secondary: "#F97316",
+  onSecondary: "#2A1000",
+  // Paper pinta con secondaryContainer lo seleccionado (segmentados, chips):
+  // se usa el azul suave del primario para que toda selección sea azul.
+  secondaryContainer: "#E7EEFF",
+  onSecondaryContainer: "#0B2A6B",
+  tertiary: "#22C3E6",
+  onTertiary: "#032B33",
+  tertiaryContainer: "#DDF7FC",
+  onTertiaryContainer: "#053A45",
+  error: "#E11D48",
   onError: "#FFFFFF",
-  errorContainer: "#FFDAD6",
-  onErrorContainer: "#410002",
-  background: "#FAFAF9",
-  onBackground: "#18212A",
+  errorContainer: "#FFE4EA",
+  onErrorContainer: "#5C0A1E",
+  background: "#F3F5F9",
+  onBackground: "#111827",
   surface: "#FFFFFF",
-  onSurface: "#18212A",
-  surfaceVariant: "#F3F4F4",
-  onSurfaceVariant: "#4D5962",
-  surfaceDisabled: "rgba(24, 33, 42, 0.12)",
-  onSurfaceDisabled: "rgba(24, 33, 42, 0.38)",
-  outline: "#717981",
-  outlineVariant: "#E1E4E5",
-  inverseSurface: "#27333D",
-  inverseOnSurface: "#F3F5F6",
-  inversePrimary: "#DCE3E6",
-  shadow: "#000000",
+  onSurface: "#111827",
+  surfaceVariant: "#EEF1F6",
+  onSurfaceVariant: "#5B6474",
+  surfaceDisabled: "rgba(17, 24, 39, 0.12)",
+  onSurfaceDisabled: "rgba(17, 24, 39, 0.38)",
+  outline: "#9AA3B2",
+  outlineVariant: "#E6E9F0",
+  inverseSurface: "#111827",
+  inverseOnSurface: "#F3F5F9",
+  inversePrimary: "#93B4FF",
+  shadow: "#1E293B",
   scrim: "#000000",
-  backdrop: "rgba(24, 33, 42, 0.40)",
+  backdrop: "rgba(17, 24, 39, 0.40)",
   elevation: {
     level0: "transparent",
-    level1: "#F8F8F7",
-    level2: "#F4F5F4",
-    level3: "#F0F2F1",
-    level4: "#ECEFEE",
-    level5: "#E8ECEA",
+    level1: "#FFFFFF",
+    level2: "#FFFFFF",
+    level3: "#FAFBFD",
+    level4: "#F7F8FB",
+    level5: "#F3F5F9",
   },
 } satisfies MD3Theme["colors"];
 
 const darkColors = {
-  primary: "#E2E7EA",
-  onPrimary: "#182126",
-  primaryContainer: "#30373B",
-  onPrimaryContainer: "#F2F4F5",
-  secondary: "#B6D8C2",
-  onSecondary: "#163322",
-  secondaryContainer: "#30373B",
-  onSecondaryContainer: "#F2F4F5",
-  tertiary: "#DBC4A6",
-  onTertiary: "#3F2C18",
-  tertiaryContainer: "#30373B",
-  onTertiaryContainer: "#F2F4F5",
-  error: "#FFB4AB",
-  onError: "#690005",
-  errorContainer: "#93000A",
-  onErrorContainer: "#FFDAD6",
-  background: "#0E1113",
-  onBackground: "#F2F7FA",
-  surface: "#1B1F22",
-  onSurface: "#F2F7FA",
-  surfaceVariant: "#292E32",
-  onSurfaceVariant: "#CDD3D6",
-  surfaceDisabled: "rgba(242, 247, 250, 0.12)",
-  onSurfaceDisabled: "rgba(242, 247, 250, 0.38)",
-  outline: "#AAB3B8",
-  outlineVariant: "#3E454A",
-  inverseSurface: "#F2F7FA",
-  inverseOnSurface: "#1B1F22",
-  inversePrimary: "#27333D",
+  primary: "#3A6EE6",
+  onPrimary: "#FFFFFF",
+  primaryContainer: "#1D3563",
+  onPrimaryContainer: "#DCE8FF",
+  secondary: "#FB923C",
+  onSecondary: "#2A1000",
+  secondaryContainer: "#1D3563",
+  onSecondaryContainer: "#DCE8FF",
+  tertiary: "#22D3EE",
+  onTertiary: "#032B33",
+  tertiaryContainer: "#0E3E48",
+  onTertiaryContainer: "#CFF6FC",
+  error: "#FB7185",
+  onError: "#3F0715",
+  errorContainer: "#5A1426",
+  onErrorContainer: "#FFE4EA",
+  background: "#121216",
+  onBackground: "#F3F4F6",
+  surface: "#1E1E24",
+  onSurface: "#F3F4F6",
+  surfaceVariant: "#28282F",
+  onSurfaceVariant: "#A1A7B3",
+  surfaceDisabled: "rgba(243, 244, 246, 0.12)",
+  onSurfaceDisabled: "rgba(243, 244, 246, 0.38)",
+  outline: "#6B7280",
+  outlineVariant: "#2E2E36",
+  inverseSurface: "#F3F4F6",
+  inverseOnSurface: "#1E1E24",
+  inversePrimary: "#3468E1",
   shadow: "#000000",
   scrim: "#000000",
-  backdrop: "rgba(0, 0, 0, 0.55)",
+  backdrop: "rgba(0, 0, 0, 0.60)",
   elevation: {
     level0: "transparent",
-    level1: "#1B1F22",
-    level2: "#22272A",
-    level3: "#292E32",
-    level4: "#2D3337",
-    level5: "#32383C",
+    level1: "#1E1E24",
+    level2: "#222229",
+    level3: "#26262D",
+    level4: "#2A2A31",
+    level5: "#2E2E36",
   },
 } satisfies MD3Theme["colors"];
 
+// DM Sans registrada como familia nativa en Android (res/font/dm_sans.xml),
+// así fontWeight elige el archivo correcto sin negrita sintética.
 const fonts = configureFonts({
-  config: {
-    headlineMedium: {
-      ...MD3LightTheme.fonts.headlineMedium,
-      fontWeight: "700",
-    },
-  },
+  config: { fontFamily: "DM Sans" },
 });
+fonts.headlineMedium = { ...fonts.headlineMedium, fontWeight: "700" };
+fonts.headlineLarge = { ...fonts.headlineLarge, fontWeight: "700" };
 
 export const lightTheme: MD3Theme = {
   ...MD3LightTheme,
-  roundness: 4,
+  roundness: 2.4, // ×5 en botones y segmentados = layout.cardRadius (12)
   colors: lightColors,
   fonts,
 };
 export const darkTheme: MD3Theme = {
   ...MD3DarkTheme,
-  roundness: 4,
+  roundness: 2.4, // ×5 en botones y segmentados = layout.cardRadius (12)
   colors: darkColors,
   fonts,
 };

@@ -4,18 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Card,
-  HelperText,
-  Text,
-  TextInput,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, HelperText, Text, useTheme } from "react-native-paper";
 import { getAvailabilityCapacity } from "@/core/api/availability";
 import { layout } from "@/core/theme/layout";
 import { type ExclusiveDateRange, exclusiveDateRangeSchema } from "@/shared/date-range";
+import { userMessage } from "@/shared/errors";
+import { DateField } from "@/shared/fields";
+import { Button, Card } from "@/shared/paper";
 
 export function AvailabilityCapacity() {
   const theme = useTheme();
@@ -44,20 +39,15 @@ export function AvailabilityCapacity() {
             control={control}
             name={name}
             render={({ field }) => (
-              <TextInput
-                mode="outlined"
+              <DateField
                 label={name === "from" ? "Desde" : "Hasta"}
-                placeholder="2026-10-01"
                 value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
+                onChange={field.onChange}
                 error={!!errors[name]}
               />
             )}
           />
-          <HelperText type="error" visible={!!errors[name]}>
-            {errors[name]?.message}
-          </HelperText>
+          {errors[name] && <HelperText type="error">{errors[name]?.message}</HelperText>}
         </View>
       ))}
       <Text variant="bodySmall">“Hasta” es el primer día fuera del cálculo.</Text>
@@ -68,7 +58,7 @@ export function AvailabilityCapacity() {
         Calcular capacidad
       </Button>
       {capacity.isFetching && <ActivityIndicator accessibilityLabel="Calculando capacidad" />}
-      {capacity.isError && <Text accessibilityRole="alert">{capacity.error.message}</Text>}
+      {capacity.isError && <Text accessibilityRole="alert">{userMessage(capacity.error)}</Text>}
       {capacity.data && (
         <Card mode="contained">
           <Card.Content style={styles.group}>

@@ -1,30 +1,21 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { planSchema } from "@notesia/contracts";
 import { useNetInfo } from "@react-native-community/netinfo";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Card,
-  Divider,
-  HelperText,
-  Text,
-  TextInput,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, Divider, HelperText, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import type { z } from "zod";
 import { getActivePlan, listPlanHistory, previewPlan } from "@/core/api/plans";
 import { getProfile } from "@/core/api/profile";
 import { layout } from "@/core/theme/layout";
-import type { RootStackParamList } from "@/navigation/types";
 import { type ExclusiveDateRange, exclusiveDateRangeSchema } from "@/shared/date-range";
 import { EmptyState } from "@/shared/EmptyState";
+import { userMessage } from "@/shared/errors";
+import { DateField } from "@/shared/fields";
+import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { PlanReview } from "./PlanReview";
 import { RiskPanel } from "./RiskPanel";
@@ -33,13 +24,16 @@ import { planStatusLabels } from "./risk-labels";
 type Plan = z.infer<typeof planSchema>;
 
 export function PlanningScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
   const [draft, setDraft] = useState<Plan | null>(null);
   const requestIdentity = useRef({ fingerprint: "", id: uuidv4() });
-  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
+  const profile = useQuery({
+    queryKey: ["profile"],
+    queryFn: getProfile,
+    retry: false,
+  });
   const active = useQuery({
     queryKey: ["active-plan"],
     queryFn: getActivePlan,
@@ -77,11 +71,7 @@ export function PlanningScreen() {
   };
   const historyItems = history.data?.pages.flatMap((page) => page.items) ?? [];
   return (
-    <ScreenLayout keyboardShouldPersistTaps="handled">
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">Planificación</Text>
+    <ScreenLayout keyboardShouldPersistTaps="handled" header={{ title: "Planificación" }}>
       <Text variant="bodyMedium">
         La propuesta no modifica tu agenda hasta que pulses “Aplicar plan”.
       </Text>
@@ -94,20 +84,15 @@ export function PlanningScreen() {
                 control={control}
                 name={name}
                 render={({ field }) => (
-                  <TextInput
-                    mode="outlined"
+                  <DateField
                     label={name === "from" ? "Desde" : "Hasta"}
-                    placeholder="2026-10-01"
                     value={field.value}
-                    onChangeText={field.onChange}
-                    onBlur={field.onBlur}
+                    onChange={field.onChange}
                     error={!!errors[name]}
                   />
                 )}
               />
-              <HelperText type="error" visible={!!errors[name]}>
-                {errors[name]?.message}
-              </HelperText>
+              {errors[name] && <HelperText type="error">{errors[name]?.message}</HelperText>}
             </View>
           ))}
           <Text variant="bodySmall">“Hasta” es el primer día que queda fuera del plan.</Text>
@@ -116,7 +101,6 @@ export function PlanningScreen() {
               Sin conexión. Conéctate para generar el plan.
             </Text>
           )}
-          {preview.isError && <Text accessibilityRole="alert">{preview.error.message}</Text>}
           <Button
             mode="contained"
             loading={preview.isPending}
@@ -143,7 +127,7 @@ export function PlanningScreen() {
       )}
       {active.isError && (
         <View style={styles.group}>
-          <Text accessibilityRole="alert">{active.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(active.error)}</Text>
           <Button onPress={() => void active.refetch()}>Reintentar</Button>
         </View>
       )}
@@ -171,7 +155,7 @@ export function PlanningScreen() {
       {history.isPending && !offline && (
         <ActivityIndicator accessibilityLabel="Cargando historial de planes" />
       )}
-      {history.isError && <Text accessibilityRole="alert">{history.error.message}</Text>}
+      {history.isError && <Text accessibilityRole="alert">{userMessage(history.error)}</Text>}
       {!history.isPending && !history.isError && historyItems.length === 0 && (
         <EmptyState message="Aún no hay planes anteriores." />
       )}

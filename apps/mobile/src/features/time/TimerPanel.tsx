@@ -2,12 +2,14 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, Button, Card, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { getActiveTimeEntry, startTimeEntry, stopTimeEntry } from "@/core/api/time-entries";
 import { layout } from "@/core/theme/layout";
 import { ActivityPicker } from "@/features/activities/ActivityPicker";
 import { ActivityTitle } from "@/features/activities/ActivityTitle";
+import { userMessage } from "@/shared/errors";
+import { Button, Card } from "@/shared/paper";
 
 export function TimerPanel() {
   const queryClient = useQueryClient();
@@ -54,7 +56,7 @@ export function TimerPanel() {
         {active.isPending && !offline && (
           <ActivityIndicator accessibilityLabel="Consultando temporizador" />
         )}
-        {active.isError && <Text accessibilityRole="alert">{active.error.message}</Text>}
+        {active.isError && <Text accessibilityRole="alert">{userMessage(active.error)}</Text>}
         {offline && (
           <Text style={{ color: theme.colors.error }}>
             Sin conexión. El temporizador requiere conexión para mantener una sola sesión activa.
@@ -87,9 +89,6 @@ export function TimerPanel() {
               Iniciar sesión
             </Button>
           </View>
-        )}
-        {(start.isError || stop.isError) && (
-          <Text accessibilityRole="alert">{start.error?.message ?? stop.error?.message}</Text>
         )}
       </Card.Content>
     </Card>

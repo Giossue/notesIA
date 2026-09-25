@@ -33,7 +33,7 @@ export function SubjectColorPicker({
               styles.option,
               {
                 backgroundColor: selected ? theme.colors.secondaryContainer : theme.colors.surface,
-                borderColor: selected ? theme.colors.secondary : theme.colors.outlineVariant,
+                borderColor: selected ? theme.colors.primary : theme.colors.outlineVariant,
               },
             ]}
           >
@@ -55,7 +55,18 @@ export function SubjectColorPicker({
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: layout.itemGap },
-  option: { flex: 1, minHeight: 72, borderWidth: 1, borderRadius: layout.choiceRadius },
-  optionContent: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6, padding: 8 },
+  option: {
+    flex: 1,
+    minHeight: 72,
+    borderWidth: 1,
+    borderRadius: layout.choiceRadius,
+  },
+  optionContent: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    padding: 8,
+  },
   swatch: { width: 22, height: 22, borderRadius: 11 },
 });

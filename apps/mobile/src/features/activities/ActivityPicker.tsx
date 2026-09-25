@@ -1,8 +1,10 @@
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Button, Menu, Text } from "react-native-paper";
+import { Text } from "react-native-paper";
 import { listActivities } from "@/core/api/activities";
+import { userMessage } from "@/shared/errors";
+import { SelectField } from "@/shared/fields";
+import { Menu } from "@/shared/paper";
 
 export function ActivityPicker({
   value,
@@ -14,7 +16,6 @@ export function ActivityPicker({
   label?: string;
 }) {
   const offline = useNetInfo().isConnected === false;
-  const [open, setOpen] = useState(false);
   const activities = useInfiniteQuery({
     queryKey: ["activities", "picker"],
     queryFn: ({ pageParam }) => listActivities({ cursor: pageParam }),
@@ -28,34 +29,22 @@ export function ActivityPicker({
       .filter((item) => item.status !== "completed" && item.status !== "cancelled") ?? [];
   return (
     <>
-      <Menu
-        visible={open}
-        onDismiss={() => setOpen(false)}
-        anchor={
-          <Button mode="outlined" onPress={() => setOpen(true)}>
-            {label}: {items.find((item) => item.id === value)?.title ?? "Seleccionar"}
-          </Button>
+      <SelectField
+        label={label}
+        value={value}
+        options={items.map((item) => ({ value: item.id, label: item.title }))}
+        onChange={onChange}
+        footer={
+          activities.hasNextPage && (
+            <Menu.Item
+              title="Cargar más"
+              disabled={offline}
+              onPress={() => void activities.fetchNextPage()}
+            />
+          )
         }
-      >
-        {items.map((item) => (
-          <Menu.Item
-            key={item.id}
-            title={item.title}
-            onPress={() => {
-              onChange(item.id);
-              setOpen(false);
-            }}
-          />
-        ))}
-        {activities.hasNextPage && (
-          <Menu.Item
-            title="Cargar más"
-            disabled={offline}
-            onPress={() => void activities.fetchNextPage()}
-          />
-        )}
-      </Menu>
-      {activities.isError && <Text accessibilityRole="alert">{activities.error.message}</Text>}
+      />
+      {activities.isError && <Text accessibilityRole="alert">{userMessage(activities.error)}</Text>}
     </>
   );
 }

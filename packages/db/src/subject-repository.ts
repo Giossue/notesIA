@@ -6,7 +6,6 @@ import { subjects } from "./schema";
 type SubjectFields = {
   periodId?: string | null;
   name: string;
-  code: string | null;
   colorToken: "primary" | "secondary" | "tertiary";
 };
 
@@ -44,7 +43,8 @@ export function createSubjectRepository(pool: Pool) {
       const inserted = await db
         .insert(subjects)
         .values({ id, userId, ...fields, periodId: fields.periodId ?? null })
-        .onConflictDoNothing()
+        // Solo el reintento con el mismo id es idempotente; un nombre repetido debe fallar.
+        .onConflictDoNothing({ target: subjects.id })
         .returning();
       if (inserted[0]) return { row: inserted[0], created: true };
       const existing = await this.get(userId, id);
@@ -53,7 +53,6 @@ export function createSubjectRepository(pool: Pool) {
         existing.archivedAt === null &&
         existing.periodId === (fields.periodId ?? null) &&
         existing.name === fields.name &&
-        existing.code === fields.code &&
         existing.colorToken === fields.colorToken
       ) {
         return { row: existing, created: false };
@@ -66,7 +65,6 @@ export function createSubjectRepository(pool: Pool) {
         .set({
           name: fields.name,
           ...(fields.periodId !== undefined ? { periodId: fields.periodId } : {}),
-          code: fields.code,
           colorToken: fields.colorToken,
           version: sql`${subjects.version} + 1`,
           updatedAt: new Date(),

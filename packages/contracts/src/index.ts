@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { avatarIds } from "./avatars.generated";
+
+export { avatarIds, defaultAvatarId } from "./avatars.generated";
 
 export const healthSchema = z.object({ status: z.literal("ok") });
 
@@ -32,10 +35,15 @@ export const timeZoneSchema = z
     }
   }, "Zona horaria inválida.");
 
+/** Avatar del perfil: uno de los SVG incluidos en la app. */
+export const avatarIdSchema = z.enum(avatarIds);
+export type AvatarId = z.infer<typeof avatarIdSchema>;
+
 export const profileUpdateSchema = z.strictObject({
   displayName: z.string().trim().min(1).max(80),
   language: z.enum(["es", "en"]),
   timeZone: timeZoneSchema,
+  avatar: avatarIdSchema.optional(),
   version: z.number().int().positive(),
 });
 
@@ -45,6 +53,7 @@ export const profileSchema = z.object({
   displayName: z.string(),
   language: z.enum(["es", "en"]),
   timeZone: z.string(),
+  avatar: avatarIdSchema,
   version: z.number().int().positive(),
   updatedAt: z.iso.datetime(),
 });
@@ -470,8 +479,13 @@ export const subjectColorSchema = z.enum(["primary", "secondary", "tertiary"]);
 export const subjectCreateSchema = z.strictObject({
   id: z.uuid(),
   periodId: z.uuid().nullable().optional(),
-  name: z.string().trim().min(1).max(160),
-  code: z.string().trim().min(1).max(40).nullable(),
+  // Espacios internos colapsados; la unicidad (sin mayúsculas ni tildes) la aplica la base.
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(160)
+    .transform((value) => value.replace(/\s+/g, " ")),
   colorToken: subjectColorSchema,
 });
 
@@ -485,7 +499,6 @@ export const subjectSchema = z.object({
   id: z.uuid(),
   periodId: z.uuid().nullable(),
   name: z.string(),
-  code: z.string().nullable(),
   colorToken: subjectColorSchema,
   archivedAt: z.iso.datetime().nullable(),
   version: z.number().int().positive(),
@@ -506,14 +519,20 @@ export type SubjectCreate = z.infer<typeof subjectCreateSchema>;
 export type SubjectUpdate = z.infer<typeof subjectUpdateSchema>;
 export type SubjectPage = z.infer<typeof subjectPageSchema>;
 
-export const academicPeriodCreateSchema = z
-  .strictObject({
-    id: z.uuid(),
-    name: z.string().trim().min(1).max(120),
-    startsOn: z.iso.date(),
-    endsOn: z.iso.date(),
-  })
-  .refine((value) => value.endsOn >= value.startsOn, { path: ["endsOn"] });
+const academicPeriodFieldsSchema = z.strictObject({
+  name: z.string().trim().min(1).max(120),
+  startsOn: z.iso.date(),
+  endsOn: z.iso.date(),
+});
+const periodOrder = <T extends { startsOn: string; endsOn: string }>(value: T) =>
+  value.endsOn >= value.startsOn;
+/** Campos editables de un periodo, sin id; para formularios. */
+export const academicPeriodFormSchema = academicPeriodFieldsSchema.refine(periodOrder, {
+  path: ["endsOn"],
+});
+export const academicPeriodCreateSchema = academicPeriodFieldsSchema
+  .safeExtend({ id: z.uuid() })
+  .refine(periodOrder, { path: ["endsOn"] });
 export const academicPeriodUpdateSchema = z
   .strictObject({
     name: z.string().trim().min(1).max(120),
@@ -626,6 +645,43 @@ export const activityPageSchema = z.object({
   items: z.array(activitySchema),
   nextCursor: z.string().nullable(),
 });
+
+export const activitySummarySchema = z.object({
+  day: z.iso.date(),
+  dueToday: z.number().int().nonnegative(),
+  pending: z.number().int().nonnegative(),
+  inProgress: z.number().int().nonnegative(),
+  overdue: z.number().int().nonnegative(),
+  /** Semana local lunes–domingo que contiene `day`. */
+  week: z.object({
+    from: z.iso.date(),
+    through: z.iso.date(),
+    due: z.number().int().nonnegative(),
+    completedDue: z.number().int().nonnegative(),
+    days: z
+      .array(
+        z.object({
+          date: z.iso.date(),
+          completed: z.number().int().nonnegative(),
+          due: z.number().int().nonnegative(),
+        }),
+      )
+      .length(7),
+  }),
+  /** Hasta tres materias activas con más actividades (sin canceladas). */
+  subjects: z.array(
+    z.object({
+      subjectId: z.uuid(),
+      name: z.string(),
+      colorToken: z.enum(["primary", "secondary", "tertiary"]),
+      total: z.number().int().nonnegative(),
+      completed: z.number().int().nonnegative(),
+    }),
+  ),
+  /** Días locales consecutivos con al menos una actividad completada, hasta hoy o ayer. */
+  streakDays: z.number().int().nonnegative(),
+});
+export type ActivitySummary = z.infer<typeof activitySummarySchema>;
 
 export const activityCursorSchema = z.strictObject({
   sortOrder: z.string().regex(/^[1-9]\d{0,18}$/),

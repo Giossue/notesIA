@@ -71,7 +71,7 @@ test("subjects are scoped, versioned, idempotent and paginated", async () => {
   cookieB = b.cookie;
 
   const id = crypto.randomUUID();
-  const input = { id, name: "Matemáticas", code: "MAT101", colorToken: "primary" };
+  const input = { id, name: "Matemáticas", colorToken: "primary" };
   const create = await app.request("/v1/subjects", {
     method: "POST",
     headers: { cookie: cookieA, "content-type": "application/json" },
@@ -87,26 +87,42 @@ test("subjects are scoped, versioned, idempotent and paginated", async () => {
   });
   expect(retry.status).toBe(200);
 
-  const duplicateCode = await app.request("/v1/subjects", {
+  const duplicateName = await app.request("/v1/subjects", {
     method: "POST",
     headers: { cookie: cookieA, "content-type": "application/json" },
-    body: JSON.stringify({ ...input, id: crypto.randomUUID() }),
+    body: JSON.stringify({ ...input, id: crypto.randomUUID(), name: "  matemáticas " }),
   });
-  expect(duplicateCode.status).toBe(409);
+  expect(duplicateName.status).toBe(409);
+  expect(await duplicateName.json()).toMatchObject({ code: "SUBJECT_NAME_CONFLICT" });
+  // Sin tilde, en mayúsculas o con espacios de más sigue siendo la misma materia.
+  for (const variant of ["MATEMATICAS", "matematicas", " Matemáticas\t"]) {
+    const clash = await app.request("/v1/subjects", {
+      method: "POST",
+      headers: { cookie: cookieA, "content-type": "application/json" },
+      body: JSON.stringify({ ...input, id: crypto.randomUUID(), name: variant }),
+    });
+    expect({ variant, status: clash.status }).toEqual({ variant, status: 409 });
+  }
+  const withCode = await app.request("/v1/subjects", {
+    method: "POST",
+    headers: { cookie: cookieA, "content-type": "application/json" },
+    body: JSON.stringify({ ...input, id: crypto.randomUUID(), name: "Física", code: "FIS1" }),
+  });
+  expect(withCode.status).toBe(422);
 
   const inaccessible = await app.request(`/v1/subjects/${id}`, { headers: { cookie: cookieB } });
   expect(inaccessible.status).toBe(404);
   const crossUpdate = await app.request(`/v1/subjects/${id}`, {
     method: "PATCH",
     headers: { cookie: cookieB, "content-type": "application/json" },
-    body: JSON.stringify({ name: "Ajena", code: null, colorToken: "secondary", version: 1 }),
+    body: JSON.stringify({ name: "Ajena", colorToken: "secondary", version: 1 }),
   });
   expect(crossUpdate.status).toBe(404);
 
   const update = await app.request(`/v1/subjects/${id}`, {
     method: "PATCH",
     headers: { cookie: cookieA, "content-type": "application/json" },
-    body: JSON.stringify({ name: "Cálculo", code: "CAL101", colorToken: "secondary", version: 1 }),
+    body: JSON.stringify({ name: "Cálculo", colorToken: "secondary", version: 1 }),
   });
   expect(update.status).toBe(200);
   expect(await update.json()).toMatchObject({ name: "Cálculo", version: 2 });
@@ -114,7 +130,7 @@ test("subjects are scoped, versioned, idempotent and paginated", async () => {
   const stale = await app.request(`/v1/subjects/${id}`, {
     method: "PATCH",
     headers: { cookie: cookieA, "content-type": "application/json" },
-    body: JSON.stringify({ name: "Viejo", code: null, colorToken: "primary", version: 1 }),
+    body: JSON.stringify({ name: "Viejo", colorToken: "primary", version: 1 }),
   });
   expect(stale.status).toBe(409);
 
@@ -133,6 +149,28 @@ test("subjects are scoped, versioned, idempotent and paginated", async () => {
   });
   expect(((await archived.json()) as { items: unknown[] }).items).toHaveLength(1);
 
+  // Archivada, el nombre queda libre; restaurarla choca con la nueva activa.
+  const reuseId = crypto.randomUUID();
+  const reuse = await app.request("/v1/subjects", {
+    method: "POST",
+    headers: { cookie: cookieA, "content-type": "application/json" },
+    body: JSON.stringify({ id: reuseId, name: "cálculo", colorToken: "primary" }),
+  });
+  expect(reuse.status).toBe(201);
+  const blockedRestore = await app.request(`/v1/subjects/${id}/restore`, {
+    method: "POST",
+    headers: { cookie: cookieA, "content-type": "application/json" },
+    body: JSON.stringify({ version: 3 }),
+  });
+  expect(blockedRestore.status).toBe(409);
+  expect(await blockedRestore.json()).toMatchObject({ code: "SUBJECT_NAME_CONFLICT" });
+  const archiveReuse = await app.request(`/v1/subjects/${reuseId}/archive`, {
+    method: "POST",
+    headers: { cookie: cookieA, "content-type": "application/json" },
+    body: JSON.stringify({ version: 1 }),
+  });
+  expect(archiveReuse.status).toBe(200);
+
   const restore = await app.request(`/v1/subjects/${id}/restore`, {
     method: "POST",
     headers: { cookie: cookieA, "content-type": "application/json" },
@@ -144,15 +182,30 @@ test("subjects are scoped, versioned, idempotent and paginated", async () => {
   const otherSubject = await app.request("/v1/subjects", {
     method: "POST",
     headers: { cookie: cookieB, "content-type": "application/json" },
-    body: JSON.stringify({ ...input, id: crypto.randomUUID(), code: "CAL101" }),
+    body: JSON.stringify({ ...input, id: crypto.randomUUID() }),
   });
   expect(otherSubject.status).toBe(201);
+
+  // El nombre se guarda con espacios simples y la comparación los ignora.
+  const spaced = await app.request("/v1/subjects", {
+    method: "POST",
+    headers: { cookie: cookieB, "content-type": "application/json" },
+    body: JSON.stringify({ ...input, id: crypto.randomUUID(), name: "  Física   Moderna " }),
+  });
+  expect(spaced.status).toBe(201);
+  const spacedBody = (await spaced.json()) as { id: string; name: string; version: number };
+  expect(spacedBody.name).toBe("Física Moderna");
+  const spacedClash = await app.request("/v1/subjects", {
+    method: "POST",
+    headers: { cookie: cookieB, "content-type": "application/json" },
+    body: JSON.stringify({ ...input, id: crypto.randomUUID(), name: "fisica moderna" }),
+  });
+  expect(spacedClash.status).toBe(409);
 
   await Promise.all(
     Array.from({ length: 21 }, (_, number) =>
       subjects.create(a.user.id, crypto.randomUUID(), {
         name: `Materia ${number}`,
-        code: null,
         colorToken: "tertiary",
       }),
     ),

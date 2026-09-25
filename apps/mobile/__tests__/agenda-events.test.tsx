@@ -18,7 +18,8 @@ jest.mock("@/navigation/FloatingNavBar", () => ({ FloatingNavBar: () => null }))
 const mockedInfiniteQuery = useInfiniteQuery as jest.Mock;
 const mockedQuery = useQuery as jest.Mock;
 
-test("agenda separates fixed events from deadlines and uses the profile time zone", async () => {
+test("la agenda muestra eventos y entregas del día en la zona horaria del perfil", async () => {
+  jest.useFakeTimers({ now: new Date("2026-09-23T20:00:00.000Z") });
   mockedQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) =>
     queryKey[0] === "profile"
       ? {
@@ -39,6 +40,8 @@ test("agenda separates fixed events from deadlines and uses the profile time zon
                 ? [
                     {
                       id: "event-1",
+                      kind: "class",
+                      description: null,
                       title: "Clase de cálculo",
                       startsAt: "2026-09-24T03:00:00.000Z",
                       endsAt: "2026-09-24T04:00:00.000Z",
@@ -47,6 +50,8 @@ test("agenda separates fixed events from deadlines and uses the profile time zon
                 : [
                     {
                       id: "activity-1",
+                      subjectId: null,
+                      progressPercent: 0,
                       title: "Entrega de informe",
                       deadlineAt: "2026-09-24T04:00:00.000Z",
                       status: "backlog",
@@ -67,9 +72,11 @@ test("agenda separates fixed events from deadlines and uses the profile time zon
     </PaperProvider>,
   );
 
-  expect(screen.getByText("Eventos fijos")).toBeOnTheScreen();
-  expect(screen.getByText("Fechas límite")).toBeOnTheScreen();
+  expect(screen.getByText("CLASE")).toBeOnTheScreen();
+  expect(screen.getByText("ENTREGA")).toBeOnTheScreen();
   expect(screen.getByText("Clase de cálculo")).toBeOnTheScreen();
   expect(screen.getByText("Entrega de informe")).toBeOnTheScreen();
-  expect(screen.getByText("2026-09-23 22:00 → 2026-09-23 23:00")).toBeOnTheScreen();
+  expect(screen.getByText("10:00 p. m. – 11:00 p. m.")).toBeOnTheScreen();
+  expect(screen.getByText("Entrega 11:00 p. m.")).toBeOnTheScreen();
+  jest.useRealTimers();
 });

@@ -4,20 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Card,
-  HelperText,
-  Text,
-  TextInput,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, HelperText, Text, useTheme } from "react-native-paper";
 import { getRiskAssessment } from "@/core/api/plans";
 import { layout } from "@/core/theme/layout";
 import { ActivityTitle } from "@/features/activities/ActivityTitle";
 import { type ExclusiveDateRange, exclusiveDateRangeSchema } from "@/shared/date-range";
 import { EmptyState } from "@/shared/EmptyState";
+import { userMessage } from "@/shared/errors";
+import { DateField } from "@/shared/fields";
+import { Button, Card } from "@/shared/paper";
 import { riskLevelLabels, riskReasonLabel } from "./risk-labels";
 
 export function RiskPanel() {
@@ -47,20 +42,15 @@ export function RiskPanel() {
             control={control}
             name={name}
             render={({ field }) => (
-              <TextInput
-                mode="outlined"
+              <DateField
                 label={name === "from" ? "Desde" : "Hasta"}
-                placeholder="2026-10-01"
                 value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
+                onChange={field.onChange}
                 error={!!errors[name]}
               />
             )}
           />
-          <HelperText type="error" visible={!!errors[name]}>
-            {errors[name]?.message}
-          </HelperText>
+          {errors[name] && <HelperText type="error">{errors[name]?.message}</HelperText>}
         </View>
       ))}
       <Text variant="bodySmall">“Hasta” es el primer día fuera del cálculo.</Text>
@@ -71,7 +61,7 @@ export function RiskPanel() {
         <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para calcular.</Text>
       )}
       {risk.isFetching && <ActivityIndicator accessibilityLabel="Calculando riesgo" />}
-      {risk.isError && <Text accessibilityRole="alert">{risk.error.message}</Text>}
+      {risk.isError && <Text accessibilityRole="alert">{userMessage(risk.error)}</Text>}
       {risk.data && risk.data.risk.length === 0 && (
         <EmptyState message="No se detectó riesgo para ese periodo." />
       )}

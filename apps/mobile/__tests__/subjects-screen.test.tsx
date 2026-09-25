@@ -32,7 +32,7 @@ describe("SubjectsScreen", () => {
     );
 
     expect(screen.getByText("Aún no tienes materias. Crea la primera.")).toBeOnTheScreen();
-    expect(screen.getByText("Nueva materia")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Nueva materia")).toBeOnTheScreen();
   });
 
   test("shows a retry action when the API fails", async () => {

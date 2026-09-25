@@ -1,0 +1,58 @@
+import { useQuery } from "@tanstack/react-query";
+import { render, screen } from "@testing-library/react-native";
+import { PaperProvider } from "react-native-paper";
+import { ProgressScreen } from "@/features/progress/ProgressScreen";
+
+jest.mock("@tanstack/react-query", () => ({ useQuery: jest.fn() }));
+jest.mock("@react-native-vector-icons/material-design-icons", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+jest.mock("@react-native-community/netinfo", () => ({ useNetInfo: () => ({ isConnected: true }) }));
+jest.mock("@react-navigation/native", () => ({ useNavigation: () => ({ navigate: jest.fn() }) }));
+jest.mock("@/navigation/FloatingNavBar", () => ({ FloatingNavBar: () => null }));
+
+const days = ["21", "22", "23", "24", "25", "26", "27"].map((day, index) => ({
+  date: `2026-09-${day}`,
+  completed: index === 2 ? 3 : 0,
+  due: index === 2 ? 4 : 1,
+}));
+
+test("estadísticas muestra el avance semanal, las materias y la racha", async () => {
+  (useQuery as jest.Mock).mockReturnValue({
+    data: {
+      day: "2026-09-23",
+      dueToday: 1,
+      pending: 4,
+      inProgress: 1,
+      overdue: 0,
+      week: { from: "2026-09-21", through: "2026-09-28", due: 10, completedDue: 7, days },
+      subjects: [
+        {
+          subjectId: "7d1f1c0e-4f2a-4d5e-9a1b-2c3d4e5f6a7b",
+          name: "Cálculo",
+          colorToken: "secondary",
+          total: 10,
+          completed: 7,
+        },
+      ],
+      streakDays: 3,
+    },
+    isPending: false,
+    isError: false,
+  });
+
+  await render(
+    <PaperProvider>
+      <ProgressScreen />
+    </PaperProvider>,
+  );
+
+  expect(screen.getAllByText("70%").length).toBeGreaterThan(0);
+  expect(screen.getByText("21 – 27 sep")).toBeOnTheScreen();
+  expect(screen.getByText("7 de 10 entregas de la semana")).toBeOnTheScreen();
+  expect(screen.getAllByText("Cálculo")).toHaveLength(2);
+  expect(screen.getByText("7 de 10 tareas")).toBeOnTheScreen();
+  expect(screen.getByText("Racha de 3 días")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Mié: 3 completadas de 4 con plazo")).toBeOnTheScreen();
+});

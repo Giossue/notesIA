@@ -312,8 +312,8 @@ test("another account cannot read or change owned work, notices or devices", asy
   const deviceId = crypto.randomUUID();
   const deadline = new Date(Date.now() + 2 * 86400000);
   await pool.query(
-    `INSERT INTO dominio.materias (id, usuario_id, nombre, codigo, color)
-     VALUES ($1,$2,'Materia privada',NULL,'primary')`,
+    `INSERT INTO dominio.materias (id, usuario_id, nombre, color)
+     VALUES ($1,$2,'Materia privada','primary')`,
     [subjectId, ownerUserId],
   );
   await pool.query(
@@ -345,7 +345,6 @@ test("another account cannot read or change owned work, notices or devices", asy
     headers: { cookie: otherCookie, "content-type": "application/json" },
     body: JSON.stringify({
       name: "Intento ajeno",
-      code: null,
       colorToken: "primary",
       version: 1,
     }),

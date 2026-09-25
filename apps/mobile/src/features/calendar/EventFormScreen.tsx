@@ -5,18 +5,10 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  HelperText,
-  Menu,
-  Text,
-  TextInput,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, HelperText, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import {
@@ -28,6 +20,9 @@ import { getProfile } from "@/core/api/profile";
 import { listSubjects } from "@/core/api/subjects";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
+import { userMessage } from "@/shared/errors";
+import { DateTimeField, FormSection, SelectField } from "@/shared/fields";
+import { Button, Menu, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { EventActions } from "./EventActions";
 
@@ -62,9 +57,12 @@ function toUtc(value: string, timeZone: string) {
   }
 }
 
-export function EventFormScreen({ id }: { id?: string }) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
+export function EventFormScreen({ id, date }: { id?: string; date?: string }) {
+  const profile = useQuery({
+    queryKey: ["profile"],
+    queryFn: getProfile,
+    retry: false,
+  });
   const event = useQuery({
     queryKey: ["calendar-event", id],
     queryFn: () => getCalendarEvent(id ?? ""),
@@ -73,30 +71,30 @@ export function EventFormScreen({ id }: { id?: string }) {
   });
 
   return (
-    <ScreenLayout keyboardShouldPersistTaps="handled">
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">{id ? "Evento fijo" : "Nuevo evento fijo"}</Text>
+    <ScreenLayout
+      keyboardShouldPersistTaps="handled"
+      header={{ title: id ? "Evento fijo" : "Nuevo evento fijo" }}
+    >
       {(profile.isPending || (id && event.isPending)) && (
         <ActivityIndicator accessibilityLabel="Cargando evento" />
       )}
       {profile.isError && (
         <View style={styles.message}>
-          <Text accessibilityRole="alert">{profile.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(profile.error)}</Text>
           <Button onPress={() => void profile.refetch()}>Reintentar perfil</Button>
         </View>
       )}
       {id && event.isError && (
         <View style={styles.message}>
-          <Text accessibilityRole="alert">{event.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(event.error)}</Text>
           <Button onPress={() => void event.refetch()}>Reintentar evento</Button>
         </View>
       )}
       {profile.data && (!id || event.data) && (
         <EventForm
-          key={`${event.data?.id ?? "new"}-${event.data?.version ?? 0}`}
+          key={`${event.data?.id ?? "new"}-${event.data?.version ?? 0}-${date}`}
           event={event.data}
+          date={date}
           profile={profile.data}
         />
       )}
@@ -104,13 +102,26 @@ export function EventFormScreen({ id }: { id?: string }) {
   );
 }
 
-function EventForm({ event, profile }: { event?: CalendarEvent; profile: Profile }) {
+/** "AAAA-MM-DD HH:mm" una hora después (sin pasar de las 23:59 del mismo día). */
+function plusOneHour(value: string) {
+  const hour = Math.min(23, Number(value.slice(11, 13)) + 1);
+  const minutes = hour === 23 && Number(value.slice(11, 13)) === 23 ? "59" : value.slice(14, 16);
+  return `${value.slice(0, 10)} ${String(hour).padStart(2, "0")}:${minutes}`;
+}
+
+function EventForm({
+  event,
+  profile,
+  date,
+}: {
+  event?: CalendarEvent;
+  profile: Profile;
+  date?: string;
+}) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
-  const [kindMenuOpen, setKindMenuOpen] = useState(false);
-  const [subjectMenuOpen, setSubjectMenuOpen] = useState(false);
   const requestIdentity = useRef({ fingerprint: "", id: uuidv4() });
   const subjects = useInfiniteQuery({
     queryKey: ["subjects", false],
@@ -125,6 +136,7 @@ function EventForm({ event, profile }: { event?: CalendarEvent; profile: Profile
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -135,8 +147,14 @@ function EventForm({ event, profile }: { event?: CalendarEvent; profile: Profile
       subjectId: event?.subjectId ?? "",
       startsLocal: event
         ? utcToLocalDateTime(event.startsAt, event.timeZone).replace("T", " ")
-        : "",
-      endsLocal: event ? utcToLocalDateTime(event.endsAt, event.timeZone).replace("T", " ") : "",
+        : date
+          ? `${date} 09:00`
+          : "",
+      endsLocal: event
+        ? utcToLocalDateTime(event.endsAt, event.timeZone).replace("T", " ")
+        : date
+          ? `${date} 10:00`
+          : "",
       timeZone: event?.timeZone ?? profile.timeZone,
     },
   });
@@ -168,7 +186,10 @@ function EventForm({ event, profile }: { event?: CalendarEvent; profile: Profile
         });
       }
       return createCalendarEvent(
-        calendarEventCreateSchema.parse({ ...fields, id: requestIdentity.current.id }),
+        calendarEventCreateSchema.parse({
+          ...fields,
+          id: requestIdentity.current.id,
+        }),
       );
     },
     onSuccess: (updated) => {
@@ -180,171 +201,116 @@ function EventForm({ event, profile }: { event?: CalendarEvent; profile: Profile
   });
 
   return (
-    <View style={styles.fields}>
+    <View style={styles.form}>
       {event?.archivedAt && <Text>Evento archivado. Restáuralo para editarlo.</Text>}
-      <Controller
-        control={control}
-        name="title"
-        render={({ field }) => (
-          <TextInput
-            label="Título"
-            mode="outlined"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.title}
-            accessibilityLabel="Título del evento"
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.title}>
-        {errors.title?.message}
-      </HelperText>
-      <Controller
-        control={control}
-        name="description"
-        render={({ field }) => (
-          <TextInput
-            label="Descripción (opcional)"
-            mode="outlined"
-            multiline
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.description}
-            accessibilityLabel="Descripción del evento"
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.description}>
-        {errors.description?.message}
-      </HelperText>
-      <Menu
-        visible={kindMenuOpen}
-        onDismiss={() => setKindMenuOpen(false)}
-        anchor={
-          <Button
-            mode="outlined"
-            onPress={() => setKindMenuOpen(true)}
-            accessibilityLabel="Elegir tipo de evento"
-          >
-            Tipo: {kindLabels[kind]}
-          </Button>
-        }
-      >
-        {Object.entries(kindLabels).map(([value, label]) => (
-          <Menu.Item
-            key={value}
-            title={label}
-            onPress={() => {
-              setValue("kind", value as FormValues["kind"]);
-              setKindMenuOpen(false);
-            }}
-          />
-        ))}
-      </Menu>
-      <Menu
-        visible={subjectMenuOpen}
-        onDismiss={() => setSubjectMenuOpen(false)}
-        anchor={
-          <Button
-            mode="outlined"
-            onPress={() => setSubjectMenuOpen(true)}
-            accessibilityLabel="Elegir materia"
-          >
-            Materia: {subjectItems.find((item) => item.id === subjectId)?.name ?? "Ninguna"}
-          </Button>
-        }
-      >
-        <Menu.Item
-          title="Ninguna"
-          onPress={() => {
-            setValue("subjectId", "");
-            setSubjectMenuOpen(false);
-          }}
+      <FormSection title="Detalles">
+        <Controller
+          control={control}
+          name="title"
+          render={({ field }) => (
+            <TextInput
+              label="Título"
+              mode="outlined"
+              value={field.value}
+              onChangeText={field.onChange}
+              onBlur={field.onBlur}
+              error={!!errors.title}
+              accessibilityLabel="Título del evento"
+            />
+          )}
         />
-        {subjectItems.map((item) => (
-          <Menu.Item
-            key={item.id}
-            title={item.name}
-            onPress={() => {
-              setValue("subjectId", item.id);
-              setSubjectMenuOpen(false);
-            }}
-          />
-        ))}
-        {subjects.hasNextPage && (
-          <Menu.Item title="Cargar más materias" onPress={() => void subjects.fetchNextPage()} />
+        {errors.title && <HelperText type="error">{errors.title.message}</HelperText>}
+        <Controller
+          control={control}
+          name="description"
+          render={({ field }) => (
+            <TextInput
+              label="Descripción (opcional)"
+              mode="outlined"
+              multiline
+              value={field.value}
+              onChangeText={field.onChange}
+              onBlur={field.onBlur}
+              error={!!errors.description}
+              accessibilityLabel="Descripción del evento"
+            />
+          )}
+        />
+        {errors.description && <HelperText type="error">{errors.description.message}</HelperText>}
+      </FormSection>
+
+      <FormSection title="Clasificación">
+        <SelectField
+          label="Tipo"
+          value={kind}
+          options={(Object.entries(kindLabels) as [FormValues["kind"], string][]).map(
+            ([value, label]) => ({ value, label }),
+          )}
+          onChange={(value) => setValue("kind", value)}
+        />
+        <SelectField
+          label="Materia"
+          value={subjectId}
+          options={[
+            { value: "", label: "Ninguna" },
+            ...subjectItems.map((item) => ({ value: item.id, label: item.name })),
+          ]}
+          onChange={(value) => setValue("subjectId", value)}
+          footer={
+            subjects.hasNextPage && (
+              <Menu.Item
+                title="Cargar más materias"
+                onPress={() => void subjects.fetchNextPage()}
+              />
+            )
+          }
+        />
+        {subjects.isError && (
+          <View style={styles.message}>
+            <Text accessibilityRole="alert">{userMessage(subjects.error)}</Text>
+            <Button onPress={() => void subjects.refetch()}>Reintentar materias</Button>
+          </View>
         )}
-      </Menu>
-      {subjects.isError && (
-        <View style={styles.message}>
-          <Text accessibilityRole="alert">{subjects.error.message}</Text>
-          <Button onPress={() => void subjects.refetch()}>Reintentar materias</Button>
-        </View>
-      )}
-      <Controller
-        control={control}
-        name="timeZone"
-        render={({ field }) => (
-          <TextInput
-            label="Zona horaria IANA"
-            mode="outlined"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.timeZone}
-            autoCapitalize="none"
-            accessibilityLabel="Zona horaria del evento"
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.timeZone}>
-        {errors.timeZone?.message}
-      </HelperText>
-      <Text variant="bodySmall">Horas en la zona indicada. Formato: AAAA-MM-DD HH:mm.</Text>
-      <Controller
-        control={control}
-        name="startsLocal"
-        render={({ field }) => (
-          <TextInput
-            label="Inicio"
-            mode="outlined"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.startsLocal}
-            placeholder="2026-09-23 08:00"
-            accessibilityLabel="Inicio local del evento"
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.startsLocal}>
-        {errors.startsLocal?.message}
-      </HelperText>
-      <Controller
-        control={control}
-        name="endsLocal"
-        render={({ field }) => (
-          <TextInput
-            label="Fin"
-            mode="outlined"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.endsLocal}
-            placeholder="2026-09-23 09:00"
-            accessibilityLabel="Fin local del evento"
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.endsLocal}>
-        {errors.endsLocal?.message}
-      </HelperText>
+      </FormSection>
+
+      <FormSection title="Horario" hint={`Horas de ${watch("timeZone")}.`}>
+        <Controller
+          control={control}
+          name="startsLocal"
+          render={({ field }) => (
+            <DateTimeField
+              label="Inicio"
+              defaultTime="09:00"
+              value={field.value}
+              onChange={(value) => {
+                field.onChange(value);
+                // Si aún no hay fin, se propone una hora después del inicio.
+                if (!getValues("endsLocal") && value) setValue("endsLocal", plusOneHour(value));
+              }}
+              error={!!errors.startsLocal}
+            />
+          )}
+        />
+        {errors.startsLocal && <HelperText type="error">{errors.startsLocal.message}</HelperText>}
+        <Controller
+          control={control}
+          name="endsLocal"
+          render={({ field }) => (
+            <DateTimeField
+              label="Fin"
+              defaultTime="10:00"
+              value={field.value}
+              onChange={field.onChange}
+              error={!!errors.endsLocal}
+            />
+          )}
+        />
+        {errors.endsLocal && <HelperText type="error">{errors.endsLocal.message}</HelperText>}
+      </FormSection>
+
       {offline && (
         <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
       )}
-      {save.isError && <Text accessibilityRole="alert">{save.error.message}</Text>}
       <Button
         mode="contained"
         loading={save.isPending}
@@ -360,6 +326,6 @@ function EventForm({ event, profile }: { event?: CalendarEvent; profile: Profile
 }
 
 const styles = StyleSheet.create({
-  fields: { gap: layout.fieldGap },
+  form: { gap: layout.sectionGap },
   message: { gap: layout.itemGap },
 });

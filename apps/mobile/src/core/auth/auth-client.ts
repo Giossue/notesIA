@@ -1,8 +1,13 @@
+import type { AvatarId } from "@notesia/contracts";
 import { z } from "zod";
 import { getApiBaseUrl } from "@/core/config/api";
 import { clearSessionCookie, getSessionCookie, setSessionCookie } from "./session-storage";
 
-const userSchema = z.object({ id: z.string(), name: z.string(), email: z.email() });
+const userSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.email(),
+});
 const sessionSchema = z.object({ user: userSchema });
 const registrationSchema = z.object({
   token: z.null(),
@@ -101,14 +106,17 @@ export async function getCurrentUser() {
 }
 
 export async function signIn(email: string, password: string) {
-  await authRequest("/sign-in/email", { method: "POST", body: { email, password } });
+  await authRequest("/sign-in/email", {
+    method: "POST",
+    body: { email, password },
+  });
   if (!(await getSessionCookie())) throw new Error("No se pudo guardar la sesión de forma segura.");
 }
 
-export async function signUp(name: string, email: string, password: string) {
+export async function signUp(name: string, email: string, password: string, avatar: AvatarId) {
   const response = await authRequest("/sign-up/email", {
     method: "POST",
-    body: { name, email, password },
+    body: { name, email, password, avatar },
   });
   const parsed = registrationSchema.safeParse(await response.json());
   if (!parsed.success || (await getSessionCookie())) {
@@ -119,7 +127,10 @@ export async function signUp(name: string, email: string, password: string) {
 }
 
 export async function resendVerificationEmail(email: string) {
-  await authRequest("/send-verification-email", { method: "POST", body: { email } });
+  await authRequest("/send-verification-email", {
+    method: "POST",
+    body: { email },
+  });
 }
 
 export async function requestPasswordReset(email: string) {

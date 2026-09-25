@@ -1,21 +1,19 @@
 import { useNetInfo } from "@react-native-community/netinfo";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, Button, Card, Divider, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Divider, Text, useTheme } from "react-native-paper";
 import { listTimeEntries } from "@/core/api/time-entries";
 import { layout } from "@/core/theme/layout";
 import { ActivityTitle } from "@/features/activities/ActivityTitle";
-import type { RootStackParamList } from "@/navigation/types";
 import { EmptyState } from "@/shared/EmptyState";
+import { userMessage } from "@/shared/errors";
+import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { ManualTimeForm } from "./ManualTimeForm";
 import { TimerPanel } from "./TimerPanel";
 import { TimeStatisticsPanel } from "./TimeStatisticsPanel";
 
 export function TimeTrackingScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
   const entries = useInfiniteQuery({
@@ -27,11 +25,7 @@ export function TimeTrackingScreen() {
   });
   const items = entries.data?.pages.flatMap((page) => page.items) ?? [];
   return (
-    <ScreenLayout keyboardShouldPersistTaps="handled">
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">Tiempo de estudio</Text>
+    <ScreenLayout keyboardShouldPersistTaps="handled" header={{ title: "Tiempo de estudio" }}>
       <TimerPanel />
       <Divider />
       <ManualTimeForm />
@@ -47,7 +41,7 @@ export function TimeTrackingScreen() {
       )}
       {entries.isError && (
         <View style={styles.group}>
-          <Text accessibilityRole="alert">{entries.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(entries.error)}</Text>
           <Button onPress={() => void entries.refetch()}>Reintentar</Button>
         </View>
       )}

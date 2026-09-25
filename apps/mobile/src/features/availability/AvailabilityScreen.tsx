@@ -1,25 +1,17 @@
 import type { availabilityRuleSchema } from "@notesia/contracts";
 import { useNetInfo } from "@react-native-community/netinfo";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Card,
-  Divider,
-  SegmentedButtons,
-  Text,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, Divider, Text, useTheme } from "react-native-paper";
 import type { z } from "zod";
 import { listAvailabilityRules, setAvailabilityRuleArchived } from "@/core/api/availability";
 import { layout } from "@/core/theme/layout";
-import type { RootStackParamList } from "@/navigation/types";
 import { EmptyState } from "@/shared/EmptyState";
+import { userMessage } from "@/shared/errors";
+import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
+import { Tabs } from "@/shared/Tabs";
 import { AvailabilityCapacity } from "./AvailabilityCapacity";
 import { AvailabilityExceptionForm } from "./AvailabilityExceptionForm";
 import { AvailabilityRuleForm } from "./AvailabilityRuleForm";
@@ -29,7 +21,6 @@ type Rule = z.infer<typeof availabilityRuleSchema>;
 const weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
 export function AvailabilityScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
@@ -52,15 +43,11 @@ export function AvailabilityScreen() {
     rules.data?.items.filter((rule) => Boolean(rule.archivedAt) === showArchived) ?? [];
 
   return (
-    <ScreenLayout keyboardShouldPersistTaps="handled">
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">Disponibilidad</Text>
+    <ScreenLayout keyboardShouldPersistTaps="handled" header={{ title: "Disponibilidad" }}>
       <Text variant="bodyMedium">
         El planificador interpreta estos horarios en tu zona horaria.
       </Text>
-      <SegmentedButtons
+      <Tabs
         value={showArchived ? "archived" : "active"}
         onValueChange={(value) => {
           setShowArchived(value === "archived");
@@ -81,7 +68,7 @@ export function AvailabilityScreen() {
       )}
       {rules.isError && (
         <View style={styles.group}>
-          <Text accessibilityRole="alert">{rules.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(rules.error)}</Text>
           <Button onPress={() => void rules.refetch()}>Reintentar</Button>
         </View>
       )}
@@ -109,7 +96,6 @@ export function AvailabilityScreen() {
           </Card.Content>
         </Card>
       ))}
-      {archive.isError && <Text accessibilityRole="alert">{archive.error.message}</Text>}
       {!showArchived && (
         <AvailabilityRuleForm
           key={editing?.version ?? "new"}

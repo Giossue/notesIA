@@ -27,6 +27,7 @@ export const userProfiles = domainSchema.table("perfiles_usuario", {
   displayName: text("nombre").notNull(),
   language: text("idioma").notNull().default("es"),
   timeZone: text("zona_horaria").notNull().default("Etc/UTC"),
+  avatar: text("avatar").notNull().default("avatar-coffee-cup"),
   version: integer("version").notNull().default(1),
   createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
@@ -66,7 +67,6 @@ export const subjects = domainSchema.table("materias", {
     .references(() => authUsers.id, { onDelete: "cascade" }),
   periodId: uuid("periodo_id"),
   name: varchar("nombre", { length: 160 }).notNull(),
-  code: varchar("codigo", { length: 40 }),
   colorToken: text("color", { enum: ["primary", "secondary", "tertiary"] })
     .notNull()
     .default("primary"),

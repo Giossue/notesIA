@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { academicPeriodCreateSchema, type academicPeriodSchema } from "@notesia/contracts";
+import { academicPeriodFormSchema, type academicPeriodSchema } from "@notesia/contracts";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -7,16 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Dialog,
-  HelperText,
-  Portal,
-  Text,
-  TextInput,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, HelperText, Portal, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import type { z } from "zod";
 import {
@@ -27,14 +18,16 @@ import {
 } from "@/core/api/academic-periods";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
+import { userMessage } from "@/shared/errors";
+import { DateField, FormSection } from "@/shared/fields";
+import { Button, Dialog, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 
-const formSchema = academicPeriodCreateSchema.omit({ id: true });
+const formSchema = academicPeriodFormSchema;
 type FormValues = z.infer<typeof formSchema>;
 type AcademicPeriod = z.infer<typeof academicPeriodSchema>;
 
 export function AcademicPeriodFormScreen({ id }: { id?: string }) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const period = useQuery({
     queryKey: ["academic-period", id],
     queryFn: () => getAcademicPeriod(id ?? ""),
@@ -42,15 +35,14 @@ export function AcademicPeriodFormScreen({ id }: { id?: string }) {
     retry: false,
   });
   return (
-    <ScreenLayout keyboardShouldPersistTaps="handled">
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">{id ? "Editar periodo" : "Nuevo periodo"}</Text>
+    <ScreenLayout
+      keyboardShouldPersistTaps="handled"
+      header={{ title: id ? "Editar periodo" : "Nuevo periodo" }}
+    >
       {id && period.isPending && <ActivityIndicator accessibilityLabel="Cargando periodo" />}
       {period.isError && (
         <View style={styles.group}>
-          <Text accessibilityRole="alert">{period.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(period.error)}</Text>
           <Button onPress={() => void period.refetch()}>Reintentar</Button>
         </View>
       )}
@@ -83,7 +75,10 @@ function AcademicPeriodForm({ period }: { period?: AcademicPeriod }) {
   const save = useMutation({
     mutationFn: (values: FormValues) =>
       period
-        ? updateAcademicPeriod(period.id, { ...values, version: period.version })
+        ? updateAcademicPeriod(period.id, {
+            ...values,
+            version: period.version,
+          })
         : createAcademicPeriod({ id: newId, ...values }),
     onSuccess: (updated) => {
       queryClient.setQueryData(["academic-period", updated.id], updated);
@@ -103,66 +98,55 @@ function AcademicPeriodForm({ period }: { period?: AcademicPeriod }) {
 
   return (
     <View style={styles.group}>
-      <Controller
-        control={control}
-        name="name"
-        render={({ field }) => (
-          <TextInput
-            mode="outlined"
-            label="Nombre"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.name}
-            accessibilityLabel="Nombre del periodo"
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.name}>
-        {errors.name?.message}
-      </HelperText>
-      <Controller
-        control={control}
-        name="startsOn"
-        render={({ field }) => (
-          <TextInput
-            mode="outlined"
-            label="Fecha inicial"
-            placeholder="2026-10-01"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.startsOn}
-            accessibilityLabel="Fecha inicial en formato año mes día"
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.startsOn}>
-        {errors.startsOn?.message}
-      </HelperText>
-      <Controller
-        control={control}
-        name="endsOn"
-        render={({ field }) => (
-          <TextInput
-            mode="outlined"
-            label="Fecha final"
-            placeholder="2027-02-28"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.endsOn}
-            accessibilityLabel="Fecha final en formato año mes día"
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.endsOn}>
-        {errors.endsOn?.message}
-      </HelperText>
+      <FormSection title="Detalles">
+        <Controller
+          control={control}
+          name="name"
+          render={({ field }) => (
+            <TextInput
+              mode="outlined"
+              label="Nombre"
+              value={field.value}
+              onChangeText={field.onChange}
+              onBlur={field.onBlur}
+              error={!!errors.name}
+              accessibilityLabel="Nombre del periodo"
+            />
+          )}
+        />
+        {errors.name && <HelperText type="error">{errors.name.message}</HelperText>}
+      </FormSection>
+      <FormSection title="Fechas">
+        <Controller
+          control={control}
+          name="startsOn"
+          render={({ field }) => (
+            <DateField
+              label="Empieza"
+              value={field.value}
+              onChange={field.onChange}
+              error={!!errors.startsOn}
+            />
+          )}
+        />
+        {errors.startsOn && <HelperText type="error">{errors.startsOn.message}</HelperText>}
+        <Controller
+          control={control}
+          name="endsOn"
+          render={({ field }) => (
+            <DateField
+              label="Termina"
+              value={field.value}
+              onChange={field.onChange}
+              error={!!errors.endsOn}
+            />
+          )}
+        />
+        {errors.endsOn && <HelperText type="error">{errors.endsOn.message}</HelperText>}
+      </FormSection>
       {offline && (
         <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
       )}
-      {save.isError && <Text accessibilityRole="alert">{save.error.message}</Text>}
       <Button
         mode="contained"
         loading={save.isPending}
@@ -177,7 +161,6 @@ function AcademicPeriodForm({ period }: { period?: AcademicPeriod }) {
           {period.archivedAt ? "Restaurar periodo" : "Archivar periodo"}
         </Button>
       )}
-      {archive.isError && <Text accessibilityRole="alert">{archive.error.message}</Text>}
       <Portal>
         <Dialog visible={confirmArchive} onDismiss={() => setConfirmArchive(false)}>
           <Dialog.Title>
@@ -198,4 +181,4 @@ function AcademicPeriodForm({ period }: { period?: AcademicPeriod }) {
   );
 }
 
-const styles = StyleSheet.create({ group: { gap: layout.fieldGap } });
+const styles = StyleSheet.create({ group: { gap: layout.sectionGap } });

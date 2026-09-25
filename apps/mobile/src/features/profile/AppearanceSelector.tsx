@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { SegmentedButtons, Text, useTheme } from "react-native-paper";
+import { Text, useTheme } from "react-native-paper";
 import { useAppearance } from "@/core/theme/AppearanceProvider";
 import type { AppearancePreference } from "@/core/theme/appearance-storage";
 import { layout } from "@/core/theme/layout";
+import { Tabs } from "@/shared/Tabs";
 
 export function AppearanceSelector() {
   const { preference, setPreference } = useAppearance();
@@ -29,7 +30,7 @@ export function AppearanceSelector() {
       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
         Elige el tema de este dispositivo.
       </Text>
-      <SegmentedButtons
+      <Tabs
         value={preference}
         onValueChange={(value) => void change(value)}
         buttons={[

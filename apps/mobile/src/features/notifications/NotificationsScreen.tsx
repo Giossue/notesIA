@@ -3,11 +3,13 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, Button, Card, Divider, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Divider, Text, useTheme } from "react-native-paper";
 import { listNotifications, markNotificationRead } from "@/core/api/notifications";
 import { layout } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { EmptyState } from "@/shared/EmptyState";
+import { userMessage } from "@/shared/errors";
+import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { NotificationPreferencesForm } from "./NotificationPreferencesForm";
 
@@ -37,11 +39,7 @@ export function NotificationsScreen() {
   });
   const items = notifications.data?.pages.flatMap((page) => page.items) ?? [];
   return (
-    <ScreenLayout>
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">Notificaciones</Text>
+    <ScreenLayout header={{ title: "Notificaciones" }}>
       {offline && (
         <Text accessibilityRole="alert" style={{ color: theme.colors.error }}>
           Sin conexión. Se muestran los avisos guardados en esta sesión.
@@ -52,7 +50,7 @@ export function NotificationsScreen() {
       )}
       {notifications.isError && (
         <View style={styles.group}>
-          <Text accessibilityRole="alert">{notifications.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(notifications.error)}</Text>
           <Button onPress={() => void notifications.refetch()}>Reintentar</Button>
         </View>
       )}
@@ -67,7 +65,10 @@ export function NotificationsScreen() {
             {item.activityId && (
               <Button
                 onPress={() => {
-                  if (item.activityId) navigation.navigate("ActivityForm", { id: item.activityId });
+                  if (item.activityId)
+                    navigation.navigate("ActivityForm", {
+                      id: item.activityId,
+                    });
                 }}
               >
                 Abrir actividad
@@ -87,7 +88,6 @@ export function NotificationsScreen() {
           </Card.Content>
         </Card>
       ))}
-      {markRead.isError && <Text accessibilityRole="alert">{markRead.error.message}</Text>}
       {notifications.hasNextPage && (
         <Button
           mode="outlined"

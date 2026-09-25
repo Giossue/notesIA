@@ -125,7 +125,7 @@ test("series generate scoped independent instances and replay safely", async () 
       await app.request("/v1/subjects", {
         method: "POST",
         headers: headers(a),
-        body: JSON.stringify({ id: subjectId, name: "Cálculo", code: null, colorToken: "primary" }),
+        body: JSON.stringify({ id: subjectId, name: "Cálculo", colorToken: "primary" }),
       })
     ).status,
   ).toBe(201);

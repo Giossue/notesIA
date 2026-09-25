@@ -79,7 +79,7 @@ El estudiante puede tener toda la información registrada y aun así no saber si
 ### Organización académica
 
 - periodos académicos opcionales;
-- materias con nombre, código y color semántico;
+- materias con nombre único y color semántico;
 - clases y compromisos fijos;
 - actividades académicas, exámenes, personales y rutinas;
 - subtareas;

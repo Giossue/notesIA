@@ -3,13 +3,14 @@ import type { AiSuggestionResponse } from "@notesia/contracts";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import { Button, Card, Dialog, Menu, Portal, Text, TextInput, useTheme } from "react-native-paper";
+import { Portal, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
+import { getActivity } from "@/core/api/activities";
 import { requestAiSuggestion } from "@/core/api/ai";
 import { getActivePlan } from "@/core/api/plans";
 import { getProfile } from "@/core/api/profile";
@@ -24,6 +25,9 @@ import {
 import { layout } from "@/core/theme/layout";
 import { ActivityPicker } from "@/features/activities/ActivityPicker";
 import type { RootStackParamList } from "@/navigation/types";
+import { userMessage } from "@/shared/errors";
+import { SelectField } from "@/shared/fields";
+import { Button, Card, Dialog, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 
 type UseCase = Exclude<AiSuggestionResponse, { kind: "manual" }>["useCase"];
@@ -86,14 +90,14 @@ function requiredId(value: string, message: string) {
   return parsed.data;
 }
 
+const riskLevelLabels = { low: "bajo", medium: "medio", high: "alto" } as const;
+
 export function AiAssistantScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
   const [useCase, setUseCase] = useState<UseCase>("extract_activity");
-  const [caseMenu, setCaseMenu] = useState(false);
-  const [riskMenu, setRiskMenu] = useState(false);
   const [result, setResult] = useState<AiSuggestionResponse | null>(null);
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -107,7 +111,11 @@ export function AiAssistantScreen() {
     queryFn: getActivePlan,
     retry: false,
   });
-  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
+  const profile = useQuery({
+    queryKey: ["profile"],
+    queryFn: getProfile,
+    retry: false,
+  });
   const {
     control,
     handleSubmit,
@@ -138,7 +146,9 @@ export function AiAssistantScreen() {
           activityId: requiredId(values.riskActivityId, "Selecciona una actividad con riesgo."),
         };
       } else {
-        payload = { planId: requiredId(values.planId, "Selecciona o escribe un plan válido.") };
+        payload = {
+          planId: requiredId(values.planId, "Selecciona o escribe un plan válido."),
+        };
       }
       return requestAiSuggestion(useCase, payload);
     },
@@ -167,10 +177,22 @@ export function AiAssistantScreen() {
     onSuccess: () => {
       setConfirmSubtasks(false);
       if (subtaskContext)
-        void queryClient.invalidateQueries({ queryKey: ["subtasks", subtaskContext.activityId] });
+        void queryClient.invalidateQueries({
+          queryKey: ["subtasks", subtaskContext.activityId],
+        });
     },
   });
   const riskItems = activePlan.data?.risk ?? [];
+  // El riesgo solo trae IDs: se piden los títulos para mostrarlos en el selector.
+  const riskActivities = useQueries({
+    queries: riskItems.map((item) => ({
+      queryKey: ["activity", item.activityId],
+      queryFn: () => getActivity(item.activityId),
+      retry: false,
+    })),
+  });
+  const riskTitle = (id: string) =>
+    riskActivities.find((query) => query.data?.id === id)?.data?.title ?? "Actividad";
   const canRequest = !offline && !request.isPending;
 
   useEffect(
@@ -203,36 +225,20 @@ export function AiAssistantScreen() {
   };
 
   return (
-    <ScreenLayout keyboardShouldPersistTaps="handled">
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">Ayuda con IA</Text>
+    <ScreenLayout keyboardShouldPersistTaps="handled" header={{ title: "Ayuda con IA" }}>
       <Text>
         Las respuestas son propuestas no confiables. Revisa y confirma antes de guardar cualquier
         cambio.
       </Text>
-      <Menu
-        visible={caseMenu}
-        onDismiss={() => setCaseMenu(false)}
-        anchor={
-          <Button mode="outlined" onPress={() => setCaseMenu(true)}>
-            {selectedCase.label}
-          </Button>
-        }
-      >
-        {cases.map((item) => (
-          <Menu.Item
-            key={item.value}
-            title={item.label}
-            onPress={() => {
-              setUseCase(item.value);
-              setResult(null);
-              setCaseMenu(false);
-            }}
-          />
-        ))}
-      </Menu>
+      <SelectField
+        label="¿Qué necesitas?"
+        value={useCase}
+        options={cases.map((item) => ({ value: item.value, label: item.label }))}
+        onChange={(value) => {
+          setUseCase(value);
+          setResult(null);
+        }}
+      />
       <Text variant="bodyMedium">{selectedCase.help}</Text>
       {(useCase === "extract_activity" ||
         useCase === "estimate_duration" ||
@@ -298,44 +304,27 @@ export function AiAssistantScreen() {
         </View>
       )}
       {useCase === "explain_risk" && (
-        <Menu
-          visible={riskMenu}
-          onDismiss={() => setRiskMenu(false)}
-          anchor={
-            <Button
-              mode="outlined"
-              disabled={!activePlan.data || riskItems.length === 0}
-              onPress={() => setRiskMenu(true)}
-            >
-              Actividad con riesgo: {riskActivityId || "Seleccionar"}
-            </Button>
-          }
-        >
-          {riskItems.map((item) => (
-            <Menu.Item
-              key={item.activityId}
-              title={`${item.activityId} · ${item.level}`}
-              onPress={() => {
-                setValue("planId", activePlan.data?.id ?? "");
-                setValue("riskActivityId", item.activityId);
-                setRiskMenu(false);
-              }}
-            />
-          ))}
-        </Menu>
+        <SelectField
+          label="Actividad con riesgo"
+          value={riskActivityId}
+          disabled={!activePlan.data || riskItems.length === 0}
+          options={riskItems.map((item) => ({
+            value: item.activityId,
+            label: `${riskTitle(item.activityId)} · riesgo ${riskLevelLabels[item.level]}`,
+          }))}
+          onChange={(value) => {
+            setValue("planId", activePlan.data?.id ?? "");
+            setValue("riskActivityId", value);
+          }}
+        />
       )}
       {offline && (
         <Text style={{ color: theme.colors.error }}>
           Sin conexión. La ayuda de IA requiere conexión.
         </Text>
       )}
-      {request.isError && (
-        <View style={styles.group}>
-          <Text accessibilityRole="alert">{request.error.message}</Text>
-          {request.error instanceof Error && request.error.message.includes("consentimiento") && (
-            <Button onPress={() => navigation.navigate("Privacy")}>Revisar consentimiento</Button>
-          )}
-        </View>
+      {request.isError && userMessage(request.error).includes("consentimiento") && (
+        <Button onPress={() => navigation.navigate("Privacy")}>Revisar consentimiento</Button>
       )}
       <Button
         mode="contained"
@@ -353,9 +342,6 @@ export function AiAssistantScreen() {
           onConfirmSubtasks={() => setConfirmSubtasks(true)}
           subtasksApplied={applySubtasks.isSuccess}
         />
-      )}
-      {applySubtasks.isError && (
-        <Text accessibilityRole="alert">{applySubtasks.error.message}</Text>
       )}
       <Portal>
         <Dialog visible={confirmSubtasks} onDismiss={() => setConfirmSubtasks(false)}>

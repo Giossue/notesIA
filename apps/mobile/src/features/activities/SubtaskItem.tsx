@@ -2,10 +2,11 @@ import type { Subtask } from "@notesia/contracts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { View } from "react-native";
-import { Button, Card, Checkbox, Dialog, Portal, Text, useTheme } from "react-native-paper";
+import { Checkbox, Portal, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { setSubtaskArchived, updateSubtask } from "@/core/api/subtasks";
 import { layout } from "@/core/theme/layout";
+import { Button, Card, Dialog } from "@/shared/paper";
 import { SubtaskEditor } from "./SubtaskEditor";
 
 export function SubtaskItem({ subtask, disabled }: { subtask: Subtask; disabled: boolean }) {
@@ -16,7 +17,9 @@ export function SubtaskItem({ subtask, disabled }: { subtask: Subtask; disabled:
   const [toggleId, setToggleId] = useState(() => uuidv4());
   const [archiveId, setArchiveId] = useState(() => uuidv4());
   const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: ["subtasks", subtask.activityId] });
+    queryClient.invalidateQueries({
+      queryKey: ["subtasks", subtask.activityId],
+    });
   const toggle = useMutation({
     mutationFn: () =>
       updateSubtask(subtask.activityId, subtask.id, {
@@ -62,8 +65,13 @@ export function SubtaskItem({ subtask, disabled }: { subtask: Subtask; disabled:
             Estimado: {subtask.estimatedMinutes} minutos
           </Text>
         )}
-        {toggle.isError && <Text accessibilityRole="alert">{toggle.error.message}</Text>}
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: layout.itemGap }}>
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: layout.itemGap,
+          }}
+        >
           {!subtask.archivedAt && (
             <Button mode="text" icon="pencil" disabled={disabled} onPress={() => setEditOpen(true)}>
               Editar
@@ -78,7 +86,6 @@ export function SubtaskItem({ subtask, disabled }: { subtask: Subtask; disabled:
             {subtask.archivedAt ? "Restaurar" : "Archivar"}
           </Button>
         </View>
-        {archive.isError && <Text accessibilityRole="alert">{archive.error.message}</Text>}
       </Card.Content>
       <Portal>
         <Dialog visible={editOpen} onDismiss={() => setEditOpen(false)}>

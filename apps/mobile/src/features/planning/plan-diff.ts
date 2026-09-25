@@ -39,7 +39,12 @@ export function diffPlanBlocks(previous: Block[], next: Block[]): PlanBlockChang
       const previousBlock = before[index];
       const nextBlock = after[index];
       if (previousBlock && nextBlock)
-        changes.push({ kind: "moved", activityId, previous: previousBlock, next: nextBlock });
+        changes.push({
+          kind: "moved",
+          activityId,
+          previous: previousBlock,
+          next: nextBlock,
+        });
     }
     for (const nextBlock of after.slice(paired))
       changes.push({ kind: "added", activityId, next: nextBlock });

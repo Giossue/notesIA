@@ -11,15 +11,24 @@ import {
   activityProgressSchema,
   activitySchema,
   activityStatusSchema,
+  activitySummarySchema,
   activityTransitionSchema,
   activityUpdateSchema,
   type Problem,
   subjectVersionSchema,
 } from "@notesia/contracts";
 import type { ActivityRepository, ProfileRepository } from "@notesia/db";
-import { localDayBounds, shiftLocalDate } from "@notesia/domain";
+import {
+  calendarRangeForDate,
+  localDayBounds,
+  shiftLocalDate,
+  todayInTimeZone,
+  utcToLocalDateTime,
+} from "@notesia/domain";
 import type { Hono } from "hono";
 import { z } from "zod";
+
+const STREAK_LOOKBACK_DAYS = 120;
 
 type Session = { user: { id: string } };
 type Dependencies = {
@@ -173,6 +182,73 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
       activityPageSchema.parse({
         items: pageRows.map(toActivity),
         nextCursor: rows.length > 20 && last ? encodeCursor(last.sortOrder, "sortOrder") : null,
+      }),
+    );
+  });
+
+  app.get("/v1/activities/summary", async (c) => {
+    const session = await dependencies.getSession(c.req.raw.headers);
+    if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
+    const profile = await dependencies.profiles.get(session.user.id);
+    if (!profile) return error(404, "PROFILE_NOT_FOUND", "Perfil no disponible.");
+
+    const zone = profile.timeZone;
+    const now = new Date();
+    const day = todayInTimeZone(now.toISOString(), zone);
+    const startOf = (date: string) => new Date(localDayBounds(date, zone).startsAt);
+    const localDay = (instant: Date) =>
+      utcToLocalDateTime(instant.toISOString(), zone).slice(0, 10);
+    const week = calendarRangeForDate(day, "week");
+    const weekDays = Array.from({ length: 7 }, (_, index) => shiftLocalDate(week.from, index));
+    const streakFrom = shiftLocalDate(day, -STREAK_LOOKBACK_DAYS);
+
+    const [counts, weekRows, subjectRows, completions] = await Promise.all([
+      dependencies.activities.summary(
+        session.user.id,
+        { startsAt: startOf(day), endsAt: startOf(shiftLocalDate(day, 1)) },
+        now,
+      ),
+      dependencies.activities.completionsAndDeadlines(session.user.id, {
+        startsAt: startOf(week.from),
+        endsAt: startOf(week.through),
+      }),
+      dependencies.activities.subjectProgress(session.user.id, 3),
+      dependencies.activities.completionInstantsSince(session.user.id, startOf(streakFrom)),
+    ]);
+
+    const days = new Map(weekDays.map((date) => [date, { date, completed: 0, due: 0 }]));
+    let due = 0;
+    let completedDue = 0;
+    for (const row of weekRows) {
+      if (row.completedAt) {
+        const bucket = days.get(localDay(row.completedAt));
+        if (bucket) bucket.completed += 1;
+      }
+      if (row.deadlineAt && row.status !== "cancelled") {
+        const bucket = days.get(localDay(row.deadlineAt));
+        if (bucket) {
+          bucket.due += 1;
+          due += 1;
+          if (row.status === "completed") completedDue += 1;
+        }
+      }
+    }
+
+    const completedDays = new Set(completions.map(localDay));
+    let cursor = completedDays.has(day) ? day : shiftLocalDate(day, -1);
+    let streakDays = 0;
+    while (completedDays.has(cursor) && streakDays < STREAK_LOOKBACK_DAYS) {
+      streakDays += 1;
+      cursor = shiftLocalDate(cursor, -1);
+    }
+
+    return c.json(
+      activitySummarySchema.parse({
+        day,
+        ...counts,
+        week: { ...week, due, completedDue, days: [...days.values()] },
+        subjects: subjectRows,
+        streakDays,
       }),
     );
   });

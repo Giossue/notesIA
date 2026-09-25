@@ -1,9 +1,10 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { StyleSheet, View } from "react-native";
-import { Button, Card, Text } from "react-native-paper";
+import { StyleSheet } from "react-native";
+import { Text } from "react-native-paper";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
+import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 
 const destinations = [
@@ -63,14 +64,8 @@ const destinations = [
 export function ToolsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
-    <ScreenLayout>
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <View style={styles.heading}>
-        <Text variant="headlineMedium">Herramientas</Text>
-        <Text variant="bodyMedium">Accede a todas las funciones del planificador.</Text>
-      </View>
+    <ScreenLayout header={{ title: "Herramientas" }}>
+      <Text variant="bodyMedium">Accede a todas las funciones del planificador.</Text>
       {destinations.map(([route, title, description, icon]) => (
         <Card
           key={route}
@@ -97,6 +92,5 @@ export function ToolsScreen() {
 }
 
 const styles = StyleSheet.create({
-  heading: { gap: layout.itemGap },
   card: { gap: layout.itemGap },
 });

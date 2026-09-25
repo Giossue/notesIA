@@ -8,6 +8,7 @@ import {
   activityProgressSchema,
   activitySchema,
   activityStatusSchema,
+  activitySummarySchema,
   activityTransitionSchema,
   activityUpdateSchema,
   subjectVersionSchema,
@@ -25,7 +26,9 @@ export type ActivityFilter = {
 };
 
 export function listActivities(filter: ActivityFilter = {}) {
-  const query = new URLSearchParams({ archived: String(filter.archived ?? false) });
+  const query = new URLSearchParams({
+    archived: String(filter.archived ?? false),
+  });
   if (filter.status) query.set("status", activityStatusSchema.parse(filter.status));
   if (filter.dueOn) query.set("dueOn", filter.dueOn);
   if (filter.dueFrom) query.set("dueFrom", filter.dueFrom);
@@ -73,7 +76,11 @@ export function updateActivityProgress(
   mutationId: string,
   progressPercent: number,
 ) {
-  const body = activityProgressSchema.parse({ version, mutationId, progressPercent });
+  const body = activityProgressSchema.parse({
+    version,
+    mutationId,
+    progressPercent,
+  });
   return requestJson(`/activities/${encodeURIComponent(id)}/progress`, activitySchema, {
     method: "PATCH",
     body,
@@ -129,4 +136,8 @@ export function listActivityHistory(id: string, cursor?: string) {
     `/activities/${encodeURIComponent(id)}/history?${query.toString()}`,
     activityHistoryPageSchema,
   );
+}
+
+export function getActivitySummary() {
+  return requestJson("/activities/summary", activitySummarySchema);
 }

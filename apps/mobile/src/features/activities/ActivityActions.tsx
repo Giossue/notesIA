@@ -3,11 +3,12 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { Button, Dialog, Portal, Text, useTheme } from "react-native-paper";
+import { Portal, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { deleteActivity, setActivityArchived, transitionActivity } from "@/core/api/activities";
 import { OfflineQueuedError } from "@/core/api/client";
 import type { RootStackParamList } from "@/navigation/types";
+import { Button, Dialog } from "@/shared/paper";
 
 export function ActivityActions({ activity, offline }: { activity: Activity; offline: boolean }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -45,7 +46,9 @@ export function ActivityActions({ activity, offline }: { activity: Activity; off
       queryClient.setQueryData(["activity", updated.id], updated);
       void queryClient.invalidateQueries({ queryKey: ["activities"] });
       void queryClient.invalidateQueries({ queryKey: ["agenda"] });
-      void queryClient.invalidateQueries({ queryKey: ["activity-history", activity.id] });
+      void queryClient.invalidateQueries({
+        queryKey: ["activity-history", activity.id],
+      });
       setConfirmCancel(false);
       transitionIdentity.current = { fingerprint: "", id: uuidv4() };
     },
@@ -106,7 +109,6 @@ export function ActivityActions({ activity, offline }: { activity: Activity; off
             Cancelar actividad
           </Button>
         )}
-      {transition.isError && <Text accessibilityRole="alert">{transition.error.message}</Text>}
       <Button
         mode="outlined"
         icon={activity.archivedAt ? "archive-arrow-up" : "archive-outline"}
@@ -115,7 +117,6 @@ export function ActivityActions({ activity, offline }: { activity: Activity; off
       >
         {activity.archivedAt ? "Restaurar actividad" : "Archivar actividad"}
       </Button>
-      {archive.isError && <Text accessibilityRole="alert">{archive.error.message}</Text>}
       <Button
         mode="outlined"
         icon="delete-outline"
@@ -125,9 +126,6 @@ export function ActivityActions({ activity, offline }: { activity: Activity; off
       >
         Eliminar actividad
       </Button>
-      {remove.isError && !(remove.error instanceof OfflineQueuedError) && (
-        <Text accessibilityRole="alert">{remove.error.message}</Text>
-      )}
       <Portal>
         <Dialog visible={confirmCancel} onDismiss={() => setConfirmCancel(false)}>
           <Dialog.Title>Cancelar actividad</Dialog.Title>
@@ -177,9 +175,6 @@ export function ActivityActions({ activity, offline }: { activity: Activity; off
               <Text>
                 Estás sin conexión. La eliminación quedará pendiente hasta que sincronices.
               </Text>
-            )}
-            {remove.isError && !(remove.error instanceof OfflineQueuedError) && (
-              <Text accessibilityRole="alert">{remove.error.message}</Text>
             )}
           </Dialog.Content>
           <Dialog.Actions>

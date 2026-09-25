@@ -1,18 +1,12 @@
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useQuery } from "@tanstack/react-query";
 import { ScrollView, StatusBar, StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Avatar,
-  Button,
-  Card,
-  Divider,
-  Text,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, Avatar, Divider, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getReadiness } from "@/core/api/readiness";
 import { layout, sharedStyles } from "@/core/theme/layout";
+import { userMessage } from "@/shared/errors";
+import { Button, Card } from "@/shared/paper";
 
 export function ConnectionScreen() {
   const theme = useTheme();
@@ -41,7 +35,7 @@ export function ConnectionScreen() {
     statusIcon = "cloud-sync-outline";
   } else if (readiness.isError) {
     statusTitle = "No se pudo conectar";
-    statusDetail = readiness.error.message;
+    statusDetail = userMessage(readiness.error);
     statusIcon = "alert-circle-outline";
   } else if (!readiness.data) {
     statusTitle = "Sin respuesta";

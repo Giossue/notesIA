@@ -5,13 +5,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import { Button, HelperText, Text, TextInput, useTheme } from "react-native-paper";
+import { HelperText, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import { getProfile } from "@/core/api/profile";
 import { addManualTimeEntry } from "@/core/api/time-entries";
 import { layout } from "@/core/theme/layout";
 import { ActivityPicker } from "@/features/activities/ActivityPicker";
+import { DateTimeField } from "@/shared/fields";
+import { Button, TextInput } from "@/shared/paper";
 
 const formSchema = z.object({
   activityId: z.uuid("Selecciona una actividad."),
@@ -29,7 +31,11 @@ export function ManualTimeForm() {
   const queryClient = useQueryClient();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
-  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
+  const profile = useQuery({
+    queryKey: ["profile"],
+    queryFn: getProfile,
+    retry: false,
+  });
   const requestIdentity = useRef({ fingerprint: "", id: uuidv4() });
   const {
     control,
@@ -99,13 +105,10 @@ export function ManualTimeForm() {
         control={control}
         name="endsLocal"
         render={({ field }) => (
-          <TextInput
-            mode="outlined"
+          <DateTimeField
             label="Terminó en"
-            placeholder="2026-10-15 18:30"
             value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
+            onChange={field.onChange}
             error={!!errors.endsLocal}
           />
         )}
@@ -119,7 +122,6 @@ export function ManualTimeForm() {
           Sin conexión. El registro quedará pendiente en este dispositivo.
         </Text>
       )}
-      {save.isError && <Text accessibilityRole="alert">{save.error.message}</Text>}
       {save.isSuccess && <Text accessibilityRole="alert">Tiempo registrado.</Text>}
       <Button
         mode="outlined"

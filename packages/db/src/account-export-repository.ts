@@ -48,7 +48,7 @@ const sections = [
   {
     name: "subjects",
     sql: `SELECT id, periodo_id AS "periodId", nombre AS name,
-    codigo AS code, color AS "colorToken", version, creado_en AS "createdAt",
+    color AS "colorToken", version, creado_en AS "createdAt",
     actualizado_en AS "updatedAt", archivado_en AS "archivedAt",
     eliminado_en AS "deletedAt" FROM dominio.materias
     WHERE usuario_id = $1 ORDER BY id LIMIT $2 OFFSET $3`,

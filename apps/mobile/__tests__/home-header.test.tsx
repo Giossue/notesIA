@@ -1,29 +1,14 @@
-import { render, screen, userEvent } from "@testing-library/react-native";
+import { render, screen } from "@testing-library/react-native";
 import { PaperProvider } from "react-native-paper";
 import { HomeHeader } from "@/features/home/HomeHeader";
 
-jest.mock("@react-native-vector-icons/material-design-icons", () => ({
-  __esModule: true,
-  default: () => null,
-}));
-
-test("el perfil y las notificaciones se abren desde el encabezado", async () => {
-  const openProfile = jest.fn();
-  const openNotifications = jest.fn();
+test("el encabezado saluda con el nombre y la fecha", async () => {
   await render(
     <PaperProvider>
-      <HomeHeader
-        name="Josué"
-        greeting="Buenos días"
-        onOpenProfile={openProfile}
-        onOpenNotifications={openNotifications}
-      />
+      <HomeHeader name="Josué" dateLabel="Lunes, 28 de abril" />
     </PaperProvider>,
   );
 
-  expect(screen.getByText("Josué")).toBeOnTheScreen();
-  await userEvent.setup().press(screen.getByLabelText("Abrir perfil"));
-  expect(openProfile).toHaveBeenCalledTimes(1);
-  await userEvent.setup().press(screen.getByLabelText("Abrir notificaciones"));
-  expect(openNotifications).toHaveBeenCalledTimes(1);
+  expect(screen.getByText("Hola, Josué")).toBeOnTheScreen();
+  expect(screen.getByText("Lunes, 28 de abril")).toBeOnTheScreen();
 });

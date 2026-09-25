@@ -6,7 +6,9 @@ const databaseKeyService = "ec.notesia.planner.local-database-key";
 let databasePromise: Promise<DB> | null = null;
 
 async function databaseKey() {
-  const stored = await Keychain.getGenericPassword({ service: databaseKeyService });
+  const stored = await Keychain.getGenericPassword({
+    service: databaseKeyService,
+  });
   if (stored) return stored.password;
   const key = `${uuidv4()}${uuidv4()}`;
   await Keychain.setGenericPassword("database", key, {

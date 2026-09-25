@@ -5,20 +5,16 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Card,
-  SegmentedButtons,
-  Text,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 import { listActivities } from "@/core/api/activities";
 import { getProfile } from "@/core/api/profile";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { EmptyState } from "@/shared/EmptyState";
+import { userMessage } from "@/shared/errors";
+import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
+import { Tabs } from "@/shared/Tabs";
 
 const statusLabels = {
   backlog: "Pendiente",
@@ -33,7 +29,11 @@ export function ActivityListScreen() {
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
   const [view, setView] = useState<"active" | "completed" | "archived">("active");
-  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
+  const profile = useQuery({
+    queryKey: ["profile"],
+    queryFn: getProfile,
+    retry: false,
+  });
   const activities = useInfiniteQuery({
     queryKey: ["activities", view],
     queryFn: ({ pageParam }) =>
@@ -49,11 +49,13 @@ export function ActivityListScreen() {
   const items = activities.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <ScreenLayout tab="Activities">
-      <Text variant="headlineMedium">Actividades</Text>
-      <SegmentedButtons
+    <ScreenLayout
+      header={{ title: "Actividades" }}
+      fab={{ label: "Nueva actividad", onPress: () => navigation.navigate("ActivityForm", {}) }}
+    >
+      <Tabs
         value={view}
-        onValueChange={(value) => setView(value as typeof view)}
+        onValueChange={setView}
         buttons={[
           { value: "active", label: "Todas" },
           { value: "completed", label: "Hechas" },
@@ -65,23 +67,12 @@ export function ActivityListScreen() {
           Sin conexión. Se muestran los datos guardados en esta sesión.
         </Text>
       )}
-      {view !== "archived" && (
-        <Button
-          mode="contained"
-          icon="plus"
-          disabled={offline}
-          onPress={() => navigation.navigate("ActivityForm", {})}
-          contentStyle={sharedStyles.actionContent}
-        >
-          Nueva actividad
-        </Button>
-      )}
       {activities.isPending && !offline && (
         <ActivityIndicator accessibilityLabel="Cargando actividades" />
       )}
       {activities.isError && (
         <View style={styles.message}>
-          <Text accessibilityRole="alert">{activities.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(activities.error)}</Text>
           <Button onPress={() => void activities.refetch()}>Reintentar</Button>
         </View>
       )}

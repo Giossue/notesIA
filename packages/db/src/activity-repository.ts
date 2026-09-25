@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, isNotNull, isNull, lt, notInArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import type { Pool } from "pg";
-import { activities, activityHistory } from "./schema";
+import { activities, activityHistory, subjects } from "./schema";
 
 type ActivityFields = {
   subjectId: string | null;
@@ -72,6 +72,90 @@ export function createActivityRepository(pool: Pool) {
         )
         .orderBy(desc(activities.sortOrder))
         .limit(21);
+    },
+
+    async summary(userId: string, day: { startsAt: Date; endsAt: Date }, now: Date) {
+      const open = sql`${activities.status} not in ('completed', 'cancelled')`;
+      const rows = await db
+        .select({
+          dueToday: sql<number>`count(*) filter (where ${open} and ${activities.deadlineAt} >= ${day.startsAt} and ${activities.deadlineAt} < ${day.endsAt})::int`,
+          pending: sql<number>`count(*) filter (where ${activities.status} in ('backlog', 'planned'))::int`,
+          inProgress: sql<number>`count(*) filter (where ${activities.status} = 'in_progress')::int`,
+          overdue: sql<number>`count(*) filter (where ${open} and ${activities.deadlineAt} < ${now})::int`,
+        })
+        .from(activities)
+        .where(
+          and(
+            eq(activities.userId, userId),
+            isNull(activities.deletedAt),
+            isNull(activities.archivedAt),
+          ),
+        );
+      return rows[0] ?? { dueToday: 0, pending: 0, inProgress: 0, overdue: 0 };
+    },
+
+    /** Instantes de finalización y plazo dentro de un rango, para agrupar por día local. */
+    async completionsAndDeadlines(userId: string, range: { startsAt: Date; endsAt: Date }) {
+      const inRange = (column: typeof activities.completedAt | typeof activities.deadlineAt) =>
+        and(gte(column, range.startsAt), lt(column, range.endsAt));
+      return db
+        .select({
+          status: activities.status,
+          completedAt: activities.completedAt,
+          deadlineAt: activities.deadlineAt,
+        })
+        .from(activities)
+        .where(
+          and(
+            eq(activities.userId, userId),
+            isNull(activities.deletedAt),
+            sql`(${inRange(activities.completedAt)} or ${inRange(activities.deadlineAt)})`,
+          ),
+        );
+    },
+
+    async subjectProgress(userId: string, limit: number) {
+      const total = sql<number>`count(${activities.id}) filter (where ${activities.status} <> 'cancelled')::int`;
+      return db
+        .select({
+          subjectId: subjects.id,
+          name: subjects.name,
+          colorToken: subjects.colorToken,
+          total,
+          completed: sql<number>`count(${activities.id}) filter (where ${activities.status} = 'completed')::int`,
+        })
+        .from(subjects)
+        .innerJoin(
+          activities,
+          and(
+            eq(activities.userId, subjects.userId),
+            eq(activities.subjectId, subjects.id),
+            isNull(activities.deletedAt),
+            isNull(activities.archivedAt),
+          ),
+        )
+        .where(
+          and(eq(subjects.userId, userId), isNull(subjects.archivedAt), isNull(subjects.deletedAt)),
+        )
+        .groupBy(subjects.id, subjects.name, subjects.colorToken)
+        .having(sql`${total} > 0`)
+        .orderBy(desc(total), subjects.name)
+        .limit(limit);
+    },
+
+    async completionInstantsSince(userId: string, since: Date) {
+      const rows = await db
+        .select({ completedAt: activities.completedAt })
+        .from(activities)
+        .where(
+          and(
+            eq(activities.userId, userId),
+            isNull(activities.deletedAt),
+            eq(activities.status, "completed"),
+            gte(activities.completedAt, since),
+          ),
+        );
+      return rows.flatMap((row) => (row.completedAt ? [row.completedAt] : []));
     },
 
     async listForPlanning(userId: string) {

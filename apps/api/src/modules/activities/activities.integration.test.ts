@@ -97,7 +97,7 @@ test("activities stay private, use profile time zone, and keep transition histor
   const subject = await app.request("/v1/subjects", {
     method: "POST",
     headers: jsonHeaders(cookieA),
-    body: JSON.stringify({ id: subjectId, name: "Cálculo", code: null, colorToken: "primary" }),
+    body: JSON.stringify({ id: subjectId, name: "Cálculo", colorToken: "primary" }),
   });
   expect(subject.status).toBe(201);
 
@@ -413,4 +413,60 @@ test("activities stay private, use profile time zone, and keep transition histor
     [a.userId, id],
   );
   expect(deletedHistory.rows[0]?.count).toBe("1");
+});
+
+test("summary counts today, pending, in progress and overdue for the owner only", async () => {
+  expect((await app.request("/v1/activities/summary")).status).toBe(401);
+  const create = (deadlineAt: string | null) =>
+    app.request("/v1/activities", {
+      method: "POST",
+      headers: jsonHeaders(cookieA),
+      body: JSON.stringify({
+        id: crypto.randomUUID(),
+        subjectId: null,
+        kind: "academic_task",
+        title: "Resumen",
+        description: null,
+        priority: "medium",
+        startAfterAt: null,
+        deadlineAt,
+        estimatedMinutes: null,
+      }),
+    });
+  const before = (await (
+    await app.request("/v1/activities/summary", { headers: { cookie: cookieA } })
+  ).json()) as { dueToday: number; pending: number; inProgress: number; overdue: number };
+
+  const soon = new Date(Date.now() + 60_000).toISOString();
+  expect((await create(new Date(Date.now() - 86_400_000).toISOString())).status).toBe(201);
+  expect((await create(null)).status).toBe(201);
+  const soonResponse = await create(soon);
+  expect(soonResponse.status).toBe(201);
+
+  const after = await app.request("/v1/activities/summary", { headers: { cookie: cookieA } });
+  expect(after.status).toBe(200);
+  const body = (await after.json()) as typeof before & { day: string };
+  expect(body.pending).toBe(before.pending + 3);
+  expect(body.overdue).toBe(before.overdue + 1);
+  expect(body.inProgress).toBe(before.inProgress);
+  expect(body.dueToday).toBeGreaterThanOrEqual(before.dueToday);
+
+  const weekly = body as unknown as {
+    week: { days: Array<{ date: string; completed: number; due: number }> };
+    subjects: unknown[];
+    streakDays: number;
+  };
+  expect(weekly.week.days).toHaveLength(7);
+  expect(weekly.week.days.map((row) => row.date)).toContain(body.day);
+  expect(weekly.streakDays).toBeGreaterThanOrEqual(0);
+
+  const other = await app.request("/v1/activities/summary", { headers: { cookie: cookieB } });
+  const otherBody = (await other.json()) as {
+    pending: number;
+    subjects: unknown[];
+    week: { due: number };
+  };
+  expect(otherBody.pending).toBe(0);
+  expect(otherBody.subjects).toHaveLength(0);
+  expect(otherBody.week.due).toBe(0);
 });

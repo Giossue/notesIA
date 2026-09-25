@@ -3,11 +3,12 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button, Dialog, Portal, Text } from "react-native-paper";
+import { Portal, Text } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { setCalendarEventArchived } from "@/core/api/calendar-events";
 import { sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
+import { Button, Dialog } from "@/shared/paper";
 
 export function EventActions({ event, offline }: { event: CalendarEvent; offline: boolean }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -38,7 +39,6 @@ export function EventActions({ event, offline }: { event: CalendarEvent; offline
       >
         {event.archivedAt ? "Restaurar evento" : "Archivar evento"}
       </Button>
-      {archive.isError && <Text accessibilityRole="alert">{archive.error.message}</Text>}
       <Portal>
         <Dialog visible={confirmOpen} onDismiss={() => setConfirmOpen(false)}>
           <Dialog.Title>{event.archivedAt ? "Restaurar evento" : "Archivar evento"}</Dialog.Title>

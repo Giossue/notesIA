@@ -4,19 +4,15 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Card,
-  SegmentedButtons,
-  Text,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 import { listAcademicPeriods } from "@/core/api/academic-periods";
-import { layout, sharedStyles } from "@/core/theme/layout";
+import { layout } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { EmptyState } from "@/shared/EmptyState";
+import { userMessage } from "@/shared/errors";
+import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
+import { Tabs } from "@/shared/Tabs";
 
 export function AcademicPeriodsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -33,12 +29,11 @@ export function AcademicPeriodsScreen() {
   const items = periods.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <ScreenLayout>
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">Periodos académicos</Text>
-      <SegmentedButtons
+    <ScreenLayout
+      header={{ title: "Periodos académicos" }}
+      fab={{ label: "Nuevo periodo", onPress: () => navigation.navigate("AcademicPeriodForm", {}) }}
+    >
+      <Tabs
         value={archived ? "archived" : "active"}
         onValueChange={(value) => setArchived(value === "archived")}
         buttons={[
@@ -51,23 +46,12 @@ export function AcademicPeriodsScreen() {
           Sin conexión. Conéctate para actualizar los periodos.
         </Text>
       )}
-      {!archived && (
-        <Button
-          mode="contained"
-          icon="plus"
-          disabled={offline}
-          onPress={() => navigation.navigate("AcademicPeriodForm", {})}
-          contentStyle={sharedStyles.actionContent}
-        >
-          Nuevo periodo
-        </Button>
-      )}
       {periods.isPending && !offline && (
         <ActivityIndicator accessibilityLabel="Cargando periodos académicos" />
       )}
       {periods.isError && (
         <View style={styles.group}>
-          <Text accessibilityRole="alert">{periods.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(periods.error)}</Text>
           <Button onPress={() => void periods.refetch()}>Reintentar</Button>
         </View>
       )}

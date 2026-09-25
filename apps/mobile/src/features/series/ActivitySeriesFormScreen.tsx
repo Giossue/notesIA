@@ -4,24 +4,20 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { View } from "react-native";
-import {
-  Button,
-  HelperText,
-  Menu,
-  SegmentedButtons,
-  Text,
-  TextInput,
-  useTheme,
-} from "react-native-paper";
+import { StyleSheet, View } from "react-native";
+import { HelperText, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import { createActivitySeries } from "@/core/api/activity-series";
 import { listSubjects } from "@/core/api/subjects";
+import { layout } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
+import { DateField, DurationField, FormSection, LabeledField, SelectField } from "@/shared/fields";
+import { Button, Menu, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
+import { Tabs } from "@/shared/Tabs";
 
 const formSchema = z
   .object({
@@ -63,7 +59,6 @@ export function ActivitySeriesFormScreen() {
   const queryClient = useQueryClient();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
-  const [subjectMenuOpen, setSubjectMenuOpen] = useState(false);
   const requestIdentity = useRef({ fingerprint: "", id: uuidv4() });
   const subjects = useInfiniteQuery({
     queryKey: ["subjects", false],
@@ -110,7 +105,10 @@ export function ActivitySeriesFormScreen() {
       const fingerprint = JSON.stringify(fields);
       if (requestIdentity.current.fingerprint !== fingerprint)
         requestIdentity.current = { fingerprint, id: uuidv4() };
-      return createActivitySeries({ id: requestIdentity.current.id, ...fields });
+      return createActivitySeries({
+        id: requestIdentity.current.id,
+        ...fields,
+      });
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["activity-series"] });
@@ -118,167 +116,155 @@ export function ActivitySeriesFormScreen() {
     },
   });
   return (
-    <ScreenLayout keyboardShouldPersistTaps="handled">
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">Nueva actividad recurrente</Text>
-      <Controller
-        control={control}
-        name="title"
-        render={({ field }) => (
-          <TextInput
-            mode="outlined"
-            label="Título"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.title}
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.title}>
-        {errors.title?.message}
-      </HelperText>
-      <Controller
-        control={control}
-        name="description"
-        render={({ field }) => (
-          <TextInput
-            mode="outlined"
-            multiline
-            label="Descripción (opcional)"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.description}
-          />
-        )}
-      />
-      <Menu
-        visible={subjectMenuOpen}
-        onDismiss={() => setSubjectMenuOpen(false)}
-        anchor={
-          <Button mode="outlined" onPress={() => setSubjectMenuOpen(true)}>
-            Materia: {subjectItems.find((item) => item.id === subjectId)?.name ?? "Ninguna"}
-          </Button>
-        }
-      >
-        <Menu.Item
-          title="Ninguna"
-          onPress={() => {
-            setValue("subjectId", "");
-            setSubjectMenuOpen(false);
-          }}
-        />
-        {subjectItems.map((item) => (
-          <Menu.Item
-            key={item.id}
-            title={item.name}
-            onPress={() => {
-              setValue("subjectId", item.id);
-              setSubjectMenuOpen(false);
-            }}
-          />
-        ))}
-        {subjects.hasNextPage && (
-          <Menu.Item title="Cargar más" onPress={() => void subjects.fetchNextPage()} />
-        )}
-      </Menu>
-      <Text variant="titleSmall">Tipo</Text>
-      <Controller
-        control={control}
-        name="kind"
-        render={({ field }) => (
-          <SegmentedButtons
-            value={field.value}
-            onValueChange={field.onChange}
-            buttons={[
-              { value: "academic_task", label: "Académica" },
-              { value: "personal", label: "Personal" },
-              { value: "routine", label: "Rutina" },
-            ]}
-          />
-        )}
-      />
-      <Text variant="titleSmall">Prioridad</Text>
-      <Controller
-        control={control}
-        name="priority"
-        render={({ field }) => (
-          <SegmentedButtons
-            value={field.value}
-            onValueChange={field.onChange}
-            buttons={[
-              { value: "low", label: "Baja" },
-              { value: "medium", label: "Media" },
-              { value: "high", label: "Alta" },
-              { value: "critical", label: "Crítica" },
-            ]}
-          />
-        )}
-      />
-      <Controller
-        control={control}
-        name="estimatedMinutes"
-        render={({ field }) => (
-          <TextInput
-            mode="outlined"
-            label="Minutos por instancia"
-            keyboardType="number-pad"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.estimatedMinutes}
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.estimatedMinutes}>
-        {errors.estimatedMinutes?.message}
-      </HelperText>
-      <Text variant="titleSmall">Frecuencia</Text>
-      <Controller
-        control={control}
-        name="frequency"
-        render={({ field }) => (
-          <SegmentedButtons
-            value={field.value}
-            onValueChange={field.onChange}
-            buttons={[
-              { value: "daily", label: "Diaria" },
-              { value: "weekly", label: "Semanal" },
-            ]}
-          />
-        )}
-      />
-      {(["startOn", "throughOn"] as const).map((name) => (
-        <View key={name}>
+    <ScreenLayout
+      keyboardShouldPersistTaps="handled"
+      header={{ title: "Nueva actividad recurrente" }}
+    >
+      <View style={styles.form}>
+        <FormSection title="Detalles">
           <Controller
             control={control}
-            name={name}
+            name="title"
             render={({ field }) => (
               <TextInput
                 mode="outlined"
-                label={name === "startOn" ? "Fecha inicial" : "Fecha final"}
-                placeholder="2026-10-01"
+                label="Título"
                 value={field.value}
                 onChangeText={field.onChange}
                 onBlur={field.onBlur}
-                error={!!errors[name]}
+                error={!!errors.title}
               />
             )}
           />
-          <HelperText type="error" visible={!!errors[name]}>
-            {errors[name]?.message}
-          </HelperText>
-        </View>
-      ))}
+          {errors.title && <HelperText type="error">{errors.title.message}</HelperText>}
+          <Controller
+            control={control}
+            name="description"
+            render={({ field }) => (
+              <TextInput
+                mode="outlined"
+                multiline
+                label="Descripción (opcional)"
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                error={!!errors.description}
+              />
+            )}
+          />
+        </FormSection>
+
+        <FormSection title="Clasificación">
+          <SelectField
+            label="Materia"
+            value={subjectId}
+            options={[
+              { value: "", label: "Ninguna" },
+              ...subjectItems.map((item) => ({ value: item.id, label: item.name })),
+            ]}
+            onChange={(value) => setValue("subjectId", value)}
+            footer={
+              subjects.hasNextPage && (
+                <Menu.Item title="Cargar más" onPress={() => void subjects.fetchNextPage()} />
+              )
+            }
+          />
+          <LabeledField label="Tipo">
+            <Controller
+              control={control}
+              name="kind"
+              render={({ field }) => (
+                <Tabs
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  buttons={[
+                    { value: "academic_task", label: "Académica" },
+                    { value: "personal", label: "Personal" },
+                    { value: "routine", label: "Rutina" },
+                  ]}
+                />
+              )}
+            />
+          </LabeledField>
+          <LabeledField label="Prioridad">
+            <Controller
+              control={control}
+              name="priority"
+              render={({ field }) => (
+                <Tabs
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  buttons={[
+                    { value: "low", label: "Baja" },
+                    { value: "medium", label: "Media" },
+                    { value: "high", label: "Alta" },
+                    { value: "critical", label: "Crítica" },
+                  ]}
+                />
+              )}
+            />
+          </LabeledField>
+        </FormSection>
+
+        <FormSection title="Repetición">
+          <LabeledField label="Frecuencia">
+            <Controller
+              control={control}
+              name="frequency"
+              render={({ field }) => (
+                <Tabs
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  buttons={[
+                    { value: "daily", label: "Diaria" },
+                    { value: "weekly", label: "Semanal" },
+                  ]}
+                />
+              )}
+            />
+          </LabeledField>
+          {(["startOn", "throughOn"] as const).map((name) => (
+            <View key={name} style={styles.field}>
+              <Controller
+                control={control}
+                name={name}
+                render={({ field }) => (
+                  <DateField
+                    label={name === "startOn" ? "Desde" : "Hasta"}
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={!!errors[name]}
+                  />
+                )}
+              />
+              {errors[name] && <HelperText type="error">{errors[name]?.message}</HelperText>}
+            </View>
+          ))}
+          <Controller
+            control={control}
+            name="estimatedMinutes"
+            render={({ field }) => (
+              <DurationField
+                label="¿Cuánto dura cada vez?"
+                hint="Tiempo de trabajo de cada repetición."
+                optional={false}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={!!errors.estimatedMinutes}
+              />
+            )}
+          />
+          {errors.estimatedMinutes && (
+            <HelperText type="error">{errors.estimatedMinutes.message}</HelperText>
+          )}
+        </FormSection>
+      </View>
       {offline && (
         <Text style={{ color: theme.colors.error }}>
           Sin conexión. Conéctate para crear la serie.
         </Text>
       )}
-      {save.isError && <Text accessibilityRole="alert">{save.error.message}</Text>}
       <Button
         mode="contained"
         loading={save.isPending}
@@ -290,3 +276,8 @@ export function ActivitySeriesFormScreen() {
     </ScreenLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  form: { gap: layout.sectionGap },
+  field: { gap: 6 },
+});

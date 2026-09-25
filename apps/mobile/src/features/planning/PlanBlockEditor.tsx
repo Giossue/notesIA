@@ -5,10 +5,12 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import { Button, HelperText, Text, TextInput, useTheme } from "react-native-paper";
+import { HelperText, Text, useTheme } from "react-native-paper";
 import { z } from "zod";
 import { editPlanBlock } from "@/core/api/plans";
 import { layout } from "@/core/theme/layout";
+import { DateTimeField } from "@/shared/fields";
+import { Button } from "@/shared/paper";
 
 type Plan = z.infer<typeof planSchema>;
 type Block = z.infer<typeof planBlockSchema>;
@@ -74,40 +76,31 @@ export function PlanBlockEditor({
         control={control}
         name="startsLocal"
         render={({ field }) => (
-          <TextInput
-            mode="outlined"
+          <DateTimeField
             label="Inicio"
             value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
+            onChange={field.onChange}
             error={!!errors.startsLocal}
           />
         )}
       />
-      <HelperText type="error" visible={!!errors.startsLocal}>
-        {errors.startsLocal?.message}
-      </HelperText>
+      {errors.startsLocal && <HelperText type="error">{errors.startsLocal.message}</HelperText>}
       <Controller
         control={control}
         name="endsLocal"
         render={({ field }) => (
-          <TextInput
-            mode="outlined"
+          <DateTimeField
             label="Fin"
             value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
+            onChange={field.onChange}
             error={!!errors.endsLocal}
           />
         )}
       />
-      <HelperText type="error" visible={!!errors.endsLocal}>
-        {errors.endsLocal?.message}
-      </HelperText>
+      {errors.endsLocal && <HelperText type="error">{errors.endsLocal.message}</HelperText>}
       {offline && (
         <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
       )}
-      {save.isError && <Text accessibilityRole="alert">{save.error.message}</Text>}
       <View style={styles.actions}>
         <Button onPress={onCancel}>Cancelar</Button>
         <Button
@@ -124,5 +117,9 @@ export function PlanBlockEditor({
 
 const styles = StyleSheet.create({
   group: { gap: layout.fieldGap },
-  actions: { flexDirection: "row", justifyContent: "flex-end", gap: layout.itemGap },
+  actions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: layout.itemGap,
+  },
 });

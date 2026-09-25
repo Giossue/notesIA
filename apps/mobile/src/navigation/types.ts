@@ -1,16 +1,23 @@
+/** Hacia dónde se movió la barra inferior: decide de qué lado entra la pestaña. */
+export type TabParams = { direction?: "left" | "right" } | undefined;
+
 export type RootStackParamList = {
-  Home: undefined;
-  Profile: undefined;
+  Home: TabParams;
+  Progress: TabParams;
+  Profile: TabParams;
+  ProfileEdit: undefined;
   Subjects: undefined;
   SubjectForm: { id?: string };
   Activities: undefined;
   ActivityForm: {
     id?: string;
     draft?: { title?: string; description?: string; estimatedMinutes?: number };
+    /** Día (AAAA-MM-DD) que se propone como entrega. */
+    date?: string;
   };
-  Agenda: undefined;
+  Agenda: TabParams;
   Events: undefined;
-  EventForm: { id?: string };
+  EventForm: { id?: string /** Día (AAAA-MM-DD) en que empieza. */; date?: string };
   Tools: undefined;
   AcademicPeriods: undefined;
   AcademicPeriodForm: { id?: string };

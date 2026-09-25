@@ -8,15 +8,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  HelperText,
-  Menu,
-  Text,
-  TextInput,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, HelperText, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import { createActivity, getActivity, updateActivity } from "@/core/api/activities";
@@ -24,7 +16,17 @@ import { getProfile } from "@/core/api/profile";
 import { listSubjects } from "@/core/api/subjects";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
+import { userMessage } from "@/shared/errors";
+import {
+  DateTimeField,
+  DurationField,
+  FormSection,
+  LabeledField,
+  SelectField,
+} from "@/shared/fields";
+import { Button, Menu, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
+import { Tabs } from "@/shared/Tabs";
 import { ActivityActions } from "./ActivityActions";
 import { ActivityHistory } from "./ActivityHistory";
 import { ActivityProgressForm } from "./ActivityProgressForm";
@@ -36,21 +38,28 @@ const localDateTime = z
     (value) => !value || /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(value),
     "Usa AAAA-MM-DD HH:mm.",
   );
-const formSchema = z.object({
-  title: z.string().trim().min(1, "Escribe un título.").max(240),
-  description: z.string().trim().max(10000),
-  kind: z.enum(["academic_task", "exam", "personal", "routine"]),
-  priority: z.enum(["low", "medium", "high", "critical"]),
-  subjectId: z.union([z.literal(""), z.uuid()]),
-  startAfterLocal: localDateTime,
-  deadlineLocal: localDateTime,
-  estimatedMinutes: z
-    .string()
-    .refine(
-      (value) => !value || (/^\d+$/.test(value) && Number(value) > 0 && Number(value) <= 525600),
-      "Escribe minutos entre 1 y 525600.",
-    ),
-});
+const formSchema = z
+  .object({
+    title: z.string().trim().min(1, "Escribe un título.").max(240),
+    description: z.string().trim().max(10000),
+    kind: z.enum(["academic_task", "exam", "personal", "routine"]),
+    priority: z.enum(["low", "medium", "high", "critical"]),
+    subjectId: z.union([z.literal(""), z.uuid()]),
+    startAfterLocal: localDateTime,
+    deadlineLocal: localDateTime,
+    estimatedMinutes: z
+      .string()
+      .refine(
+        (value) => !value || (/^\d+$/.test(value) && Number(value) > 0 && Number(value) <= 525600),
+        "Escribe minutos entre 1 y 525600.",
+      ),
+  })
+  .refine(
+    // Mismo formato local ordena igual que la fecha: basta comparar el texto.
+    (value) =>
+      !value.startAfterLocal || !value.deadlineLocal || value.deadlineLocal > value.startAfterLocal,
+    { path: ["deadlineLocal"], message: "La fecha límite debe ser posterior a “Empezar desde”." },
+  );
 type FormValues = z.infer<typeof formSchema>;
 
 const kindLabels = {
@@ -78,12 +87,17 @@ function toUtc(value: string, timeZone: string) {
 export function ActivityFormScreen({
   id,
   draft,
+  date,
 }: {
   id?: string;
   draft?: { title?: string; description?: string; estimatedMinutes?: number };
+  date?: string;
 }) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
+  const profile = useQuery({
+    queryKey: ["profile"],
+    queryFn: getProfile,
+    retry: false,
+  });
   const activity = useQuery({
     queryKey: ["activity", id],
     queryFn: () => getActivity(id ?? ""),
@@ -92,32 +106,32 @@ export function ActivityFormScreen({
   });
 
   return (
-    <ScreenLayout keyboardShouldPersistTaps="handled">
-      <Button icon="arrow-left" onPress={() => navigation.goBack()} accessibilityLabel="Volver">
-        Volver
-      </Button>
-      <Text variant="headlineMedium">{id ? "Actividad" : "Nueva actividad"}</Text>
+    <ScreenLayout
+      keyboardShouldPersistTaps="handled"
+      header={{ title: id ? "Actividad" : "Nueva actividad" }}
+    >
       {(profile.isPending || (id && activity.isPending)) && (
         <ActivityIndicator accessibilityLabel="Cargando actividad" />
       )}
       {profile.isError && (
         <View style={styles.message}>
-          <Text accessibilityRole="alert">{profile.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(profile.error)}</Text>
           <Button onPress={() => void profile.refetch()}>Reintentar perfil</Button>
         </View>
       )}
       {id && activity.isError && (
         <View style={styles.message}>
-          <Text accessibilityRole="alert">{activity.error.message}</Text>
+          <Text accessibilityRole="alert">{userMessage(activity.error)}</Text>
           <Button onPress={() => void activity.refetch()}>Reintentar actividad</Button>
         </View>
       )}
       {profile.data && (!id || activity.data) && (
         <ActivityForm
-          key={`${activity.data?.id ?? "new"}-${activity.data?.version ?? 0}-${JSON.stringify(draft)}`}
+          key={`${activity.data?.id ?? "new"}-${activity.data?.version ?? 0}-${JSON.stringify(draft)}-${date}`}
           activity={activity.data}
           profile={profile.data}
           draft={draft}
+          date={date}
         />
       )}
     </ScreenLayout>
@@ -128,17 +142,18 @@ function ActivityForm({
   activity,
   profile,
   draft,
+  date,
 }: {
   activity?: Activity;
   profile: Profile;
   draft?: { title?: string; description?: string; estimatedMinutes?: number };
+  date?: string;
 }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
   const [newId] = useState(() => uuidv4());
-  const [menu, setMenu] = useState<"kind" | "priority" | "subject" | null>(null);
   const subjects = useInfiniteQuery({
     queryKey: ["subjects", false],
     queryFn: ({ pageParam }) => listSubjects(false, pageParam),
@@ -166,7 +181,9 @@ function ActivityForm({
         : "",
       deadlineLocal: activity?.deadlineAt
         ? utcToLocalDateTime(activity.deadlineAt, profile.timeZone).replace("T", " ")
-        : "",
+        : date
+          ? `${date} 23:59`
+          : "",
       estimatedMinutes:
         activity?.estimatedMinutes?.toString() ?? draft?.estimatedMinutes?.toString() ?? "",
     },
@@ -186,7 +203,11 @@ function ActivityForm({
         deadlineAt: toUtc(values.deadlineLocal, profile.timeZone),
         estimatedMinutes: values.estimatedMinutes ? Number(values.estimatedMinutes) : null,
       };
-      if (activity) return updateActivity(activity.id, { ...fields, version: activity.version });
+      if (activity)
+        return updateActivity(activity.id, {
+          ...fields,
+          version: activity.version,
+        });
       return createActivity(activityCreateSchema.parse({ ...fields, id: newId }));
     },
     onSuccess: (updated) => {
@@ -197,189 +218,142 @@ function ActivityForm({
     },
   });
 
+  const option = <T extends string>(labels: Record<T, string>) =>
+    (Object.entries(labels) as [T, string][]).map(([value, label]) => ({ value, label }));
+
   return (
-    <View style={styles.fields}>
-      <Controller
-        control={control}
-        name="title"
-        render={({ field }) => (
-          <TextInput
-            label="Título"
-            mode="outlined"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.title}
-            accessibilityLabel="Título de la actividad"
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.title}>
-        {errors.title?.message}
-      </HelperText>
-      <Controller
-        control={control}
-        name="description"
-        render={({ field }) => (
-          <TextInput
-            label="Descripción (opcional)"
-            mode="outlined"
-            multiline
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.description}
-            accessibilityLabel="Descripción de la actividad"
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.description}>
-        {errors.description?.message}
-      </HelperText>
-      <Menu
-        visible={menu === "kind"}
-        onDismiss={() => setMenu(null)}
-        anchor={
-          <Button mode="outlined" onPress={() => setMenu("kind")}>
-            Tipo: {kindLabels[selectedKind]}
-          </Button>
-        }
-      >
-        {Object.entries(kindLabels).map(([value, label]) => (
-          <Menu.Item
-            key={value}
-            title={label}
-            onPress={() => {
-              setValue("kind", value as FormValues["kind"]);
-              setMenu(null);
-            }}
-          />
-        ))}
-      </Menu>
-      <Menu
-        visible={menu === "priority"}
-        onDismiss={() => setMenu(null)}
-        anchor={
-          <Button mode="outlined" onPress={() => setMenu("priority")}>
-            Prioridad: {priorityLabels[selectedPriority]}
-          </Button>
-        }
-      >
-        {Object.entries(priorityLabels).map(([value, label]) => (
-          <Menu.Item
-            key={value}
-            title={label}
-            onPress={() => {
-              setValue("priority", value as FormValues["priority"]);
-              setMenu(null);
-            }}
-          />
-        ))}
-      </Menu>
-      <Menu
-        visible={menu === "subject"}
-        onDismiss={() => setMenu(null)}
-        anchor={
-          <Button
-            mode="outlined"
-            onPress={() => setMenu("subject")}
-            accessibilityLabel="Elegir materia"
-          >
-            Materia: {subjectItems.find((item) => item.id === selectedSubject)?.name ?? "Ninguna"}
-          </Button>
-        }
-      >
-        <Menu.Item
-          title="Ninguna"
-          onPress={() => {
-            setValue("subjectId", "");
-            setMenu(null);
-          }}
+    <View style={styles.form}>
+      <FormSection title="Detalles">
+        <Controller
+          control={control}
+          name="title"
+          render={({ field }) => (
+            <TextInput
+              label="Título"
+              mode="outlined"
+              value={field.value}
+              onChangeText={field.onChange}
+              onBlur={field.onBlur}
+              error={!!errors.title}
+              accessibilityLabel="Título de la actividad"
+            />
+          )}
         />
-        {subjectItems.map((item) => (
-          <Menu.Item
-            key={item.id}
-            title={item.name}
-            onPress={() => {
-              setValue("subjectId", item.id);
-              setMenu(null);
-            }}
-          />
-        ))}
-        {subjects.hasNextPage && (
-          <Menu.Item title="Cargar más materias" onPress={() => void subjects.fetchNextPage()} />
+        {errors.title && <HelperText type="error">{errors.title.message}</HelperText>}
+        <Controller
+          control={control}
+          name="description"
+          render={({ field }) => (
+            <TextInput
+              label="Descripción (opcional)"
+              mode="outlined"
+              multiline
+              value={field.value}
+              onChangeText={field.onChange}
+              onBlur={field.onBlur}
+              error={!!errors.description}
+              accessibilityLabel="Descripción de la actividad"
+            />
+          )}
+        />
+        {errors.description && <HelperText type="error">{errors.description.message}</HelperText>}
+      </FormSection>
+
+      <FormSection title="Clasificación">
+        <SelectField
+          label="Tipo"
+          value={selectedKind}
+          options={option(kindLabels)}
+          onChange={(value) => setValue("kind", value)}
+        />
+        <SelectField
+          label="Materia"
+          value={selectedSubject}
+          options={[
+            { value: "", label: "Ninguna" },
+            ...subjectItems.map((item) => ({ value: item.id, label: item.name })),
+          ]}
+          onChange={(value) => setValue("subjectId", value)}
+          footer={
+            subjects.hasNextPage && (
+              <Menu.Item
+                title="Cargar más materias"
+                onPress={() => void subjects.fetchNextPage()}
+              />
+            )
+          }
+        />
+        {subjects.isError && (
+          <View style={styles.message}>
+            <Text accessibilityRole="alert">{userMessage(subjects.error)}</Text>
+            <Button onPress={() => void subjects.refetch()}>Reintentar materias</Button>
+          </View>
         )}
-      </Menu>
-      {subjects.isError && (
-        <View style={styles.message}>
-          <Text accessibilityRole="alert">{subjects.error.message}</Text>
-          <Button onPress={() => void subjects.refetch()}>Reintentar materias</Button>
-        </View>
-      )}
-      <Text variant="bodySmall">Fechas en {profile.timeZone}. Formato: AAAA-MM-DD HH:mm.</Text>
-      <Controller
-        control={control}
-        name="startAfterLocal"
-        render={({ field }) => (
-          <TextInput
-            label="Inicio mínimo (opcional)"
-            mode="outlined"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.startAfterLocal}
-            placeholder="2026-09-23 08:00"
-            accessibilityLabel="Inicio mínimo local"
+        <LabeledField label="Prioridad">
+          <Tabs
+            value={selectedPriority}
+            onValueChange={(value) => setValue("priority", value)}
+            buttons={option(priorityLabels)}
           />
+        </LabeledField>
+      </FormSection>
+
+      <FormSection title="Fechas" hint={`Horas de ${profile.timeZone}.`}>
+        <Controller
+          control={control}
+          name="deadlineLocal"
+          render={({ field }) => (
+            <DateTimeField
+              label="Fecha límite"
+              optional
+              value={field.value}
+              onChange={field.onChange}
+              error={!!errors.deadlineLocal}
+            />
+          )}
+        />
+        {errors.deadlineLocal && (
+          <HelperText type="error">{errors.deadlineLocal.message}</HelperText>
         )}
-      />
-      <HelperText type="error" visible={!!errors.startAfterLocal}>
-        {errors.startAfterLocal?.message}
-      </HelperText>
-      <Controller
-        control={control}
-        name="deadlineLocal"
-        render={({ field }) => (
-          <TextInput
-            label="Fecha límite (opcional)"
-            mode="outlined"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.deadlineLocal}
-            placeholder="2026-09-25 23:59"
-            accessibilityLabel="Fecha límite local"
-          />
+        <Controller
+          control={control}
+          name="startAfterLocal"
+          render={({ field }) => (
+            <DateTimeField
+              label="Empezar desde"
+              optional
+              defaultTime="08:00"
+              value={field.value}
+              onChange={field.onChange}
+              error={!!errors.startAfterLocal}
+            />
+          )}
+        />
+        {errors.startAfterLocal && (
+          <HelperText type="error">{errors.startAfterLocal.message}</HelperText>
         )}
-      />
-      <HelperText type="error" visible={!!errors.deadlineLocal}>
-        {errors.deadlineLocal?.message}
-      </HelperText>
-      <Controller
-        control={control}
-        name="estimatedMinutes"
-        render={({ field }) => (
-          <TextInput
-            label="Duración estimada en minutos (opcional)"
-            mode="outlined"
-            keyboardType="number-pad"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.estimatedMinutes}
-            accessibilityLabel="Duración estimada en minutos"
-          />
+        <Controller
+          control={control}
+          name="estimatedMinutes"
+          render={({ field }) => (
+            <DurationField
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={!!errors.estimatedMinutes}
+            />
+          )}
+        />
+        {errors.estimatedMinutes && (
+          <HelperText type="error">{errors.estimatedMinutes.message}</HelperText>
         )}
-      />
-      <HelperText type="error" visible={!!errors.estimatedMinutes}>
-        {errors.estimatedMinutes?.message}
-      </HelperText>
+      </FormSection>
+
       {offline && (
         <Text style={{ color: theme.colors.error }}>
           Sin conexión. La actividad quedará pendiente en este dispositivo.
         </Text>
       )}
-      {save.isError && <Text accessibilityRole="alert">{save.error.message}</Text>}
       <Button
         mode="contained"
         loading={save.isPending}
@@ -398,6 +372,6 @@ function ActivityForm({
 }
 
 const styles = StyleSheet.create({
-  fields: { gap: layout.fieldGap },
+  form: { gap: layout.sectionGap },
   message: { gap: layout.itemGap },
 });

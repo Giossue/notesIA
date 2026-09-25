@@ -4,11 +4,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { View } from "react-native";
-import { Button, HelperText, Text, TextInput } from "react-native-paper";
+import { HelperText } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import { createSubtask, updateSubtask } from "@/core/api/subtasks";
 import { sharedStyles } from "@/core/theme/layout";
+import { Button, TextInput } from "@/shared/paper";
 
 const formSchema = z.object({
   title: z.string().trim().min(1, "Escribe un título.").max(240),
@@ -62,7 +63,9 @@ export function SubtaskEditor({
         : createSubtask(activityId, { ...fields, id: requestId });
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["subtasks", activityId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["subtasks", activityId],
+      });
       setRequestId(uuidv4());
       if (subtask) onDone?.();
       else reset({ title: "", estimatedMinutes: "" });
@@ -108,7 +111,6 @@ export function SubtaskEditor({
       <HelperText type="error" visible={!!errors.estimatedMinutes}>
         {errors.estimatedMinutes?.message}
       </HelperText>
-      {save.isError && <Text accessibilityRole="alert">{save.error.message}</Text>}
       <Button
         mode="contained"
         icon={subtask ? "content-save" : "plus"}

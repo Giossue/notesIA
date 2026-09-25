@@ -25,5 +25,37 @@
     "parser": {
       "tailwindDirectives": true
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "apps/mobile/**",
+        "!apps/mobile/src/shared/paper.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "react-native-paper": {
+                    "importNames": [
+                      "Button",
+                      "Card",
+                      "Dialog",
+                      "Menu",
+                      "SegmentedButtons",
+                      "TextInput"
+                    ],
+                    "message": "Usa Button, Card, Dialog, Menu y TextInput de @/shared/paper, y Tabs de @/shared/Tabs en lugar de SegmentedButtons, para mantener el estilo global."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

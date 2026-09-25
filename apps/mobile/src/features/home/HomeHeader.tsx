@@ -1,89 +1,25 @@
 import { StyleSheet, View } from "react-native";
-import { Avatar, Divider, Icon, Text, TouchableRipple, useTheme } from "react-native-paper";
-import { layout } from "@/core/theme/layout";
-import { iconTint } from "@/core/theme/theme";
+import { Text, useTheme } from "react-native-paper";
 
-export function HomeHeader({
-  name,
-  greeting,
-  onOpenProfile,
-  onOpenNotifications,
-}: {
-  name: string;
-  greeting: string;
-  onOpenProfile: () => void;
-  onOpenNotifications: () => void;
-}) {
+/** Saludo de Inicio; herramientas y ajustes viven en Perfil. */
+export function HomeHeader({ name, dateLabel }: { name: string; dateLabel: string }) {
   const theme = useTheme();
-  const iconColor = iconTint[theme.dark ? "dark" : "light"];
-  const initials = name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toLocaleUpperCase("es-EC") ?? "")
-    .join("");
 
   return (
-    <View style={styles.header}>
-      <View style={styles.row}>
-        <TouchableRipple
-          borderless
-          onPress={onOpenProfile}
-          accessibilityRole="button"
-          accessibilityLabel="Abrir perfil"
-          style={styles.profileButton}
-        >
-          <View style={styles.profileContent}>
-            <Avatar.Text
-              size={40}
-              label={initials || "E"}
-              color={iconColor}
-              style={{ backgroundColor: theme.colors.primaryContainer }}
-              labelStyle={styles.initials}
-            />
-            <Text variant="titleMedium" numberOfLines={1} style={styles.copy}>
-              <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                {greeting},{" "}
-              </Text>
-              <Text variant="titleMedium" style={styles.name}>
-                {name}
-              </Text>
-            </Text>
-          </View>
-        </TouchableRipple>
-        <TouchableRipple
-          borderless
-          style={styles.notificationIcon}
-          onPress={onOpenNotifications}
-          accessibilityRole="button"
-          accessibilityLabel="Abrir notificaciones"
-        >
-          <Icon source="bell-outline" size={layout.iconSize} color={iconColor} />
-        </TouchableRipple>
-      </View>
-      <Divider style={{ backgroundColor: theme.colors.outlineVariant }} />
+    <View style={styles.copy}>
+      <Text variant="headlineSmall" numberOfLines={1} style={styles.name}>
+        Hola, {name}
+      </Text>
+      {!!dateLabel && (
+        <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+          {dateLabel}
+        </Text>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { gap: 12 },
-  row: { flexDirection: "row", alignItems: "center", gap: 12 },
-  profileButton: {
-    flex: 1,
-    borderRadius: layout.profileRadius,
-    minHeight: layout.minTouch,
-    overflow: "hidden",
-  },
-  profileContent: { flexDirection: "row", alignItems: "center", gap: 12 },
-  copy: { flex: 1 },
-  initials: { fontWeight: "600" },
-  name: { fontWeight: "600" },
-  notificationIcon: {
-    width: layout.minTouch,
-    height: layout.minTouch,
-    borderRadius: layout.minTouch / 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  copy: { gap: 2, minHeight: 48, justifyContent: "center" },
+  name: { fontWeight: "700" },
 });

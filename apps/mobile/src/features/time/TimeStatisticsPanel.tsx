@@ -4,18 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Button,
-  Card,
-  HelperText,
-  Text,
-  TextInput,
-  useTheme,
-} from "react-native-paper";
+import { ActivityIndicator, HelperText, Text, useTheme } from "react-native-paper";
 import { getTimeStatistics } from "@/core/api/time-entries";
 import { layout } from "@/core/theme/layout";
 import { type ExclusiveDateRange, exclusiveDateRangeSchema } from "@/shared/date-range";
+import { userMessage } from "@/shared/errors";
+import { DateField } from "@/shared/fields";
+import { Button, Card } from "@/shared/paper";
 
 export function TimeStatisticsPanel() {
   const theme = useTheme();
@@ -44,20 +39,15 @@ export function TimeStatisticsPanel() {
             control={control}
             name={name}
             render={({ field }) => (
-              <TextInput
-                mode="outlined"
+              <DateField
                 label={name === "from" ? "Desde" : "Hasta"}
-                placeholder="2026-10-01"
                 value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
+                onChange={field.onChange}
                 error={!!errors[name]}
               />
             )}
           />
-          <HelperText type="error" visible={!!errors[name]}>
-            {errors[name]?.message}
-          </HelperText>
+          {errors[name] && <HelperText type="error">{errors[name]?.message}</HelperText>}
         </View>
       ))}
       <Text variant="bodySmall">“Hasta” es el primer día fuera del cálculo.</Text>
@@ -68,7 +58,7 @@ export function TimeStatisticsPanel() {
         <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para consultar.</Text>
       )}
       {statistics.isFetching && <ActivityIndicator accessibilityLabel="Calculando estadísticas" />}
-      {statistics.isError && <Text accessibilityRole="alert">{statistics.error.message}</Text>}
+      {statistics.isError && <Text accessibilityRole="alert">{userMessage(statistics.error)}</Text>}
       {statistics.data && (
         <Card mode="contained">
           <Card.Content style={styles.group}>

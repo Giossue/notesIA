@@ -18,7 +18,9 @@ export function listCalendarEvents(
     cursor?: string;
   } = {},
 ) {
-  const query = new URLSearchParams({ archived: String(filter.archived ?? false) });
+  const query = new URLSearchParams({
+    archived: String(filter.archived ?? false),
+  });
   if (filter.on) query.set("on", filter.on);
   if (filter.from) query.set("from", filter.from);
   if (filter.through) query.set("through", filter.through);
@@ -53,6 +55,9 @@ export function setCalendarEventArchived(
   return requestJson(
     `/calendar-events/${encodeURIComponent(id)}/${archived ? "archive" : "restore"}`,
     calendarEventSchema,
-    { method: "POST", body: calendarEventVersionSchema.parse({ version, mutationId }) },
+    {
+      method: "POST",
+      body: calendarEventVersionSchema.parse({ version, mutationId }),
+    },
   );
 }

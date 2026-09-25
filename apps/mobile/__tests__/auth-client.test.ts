@@ -88,7 +88,9 @@ test("registers a pending account without creating a session", async () => {
     }),
   });
 
-  await expect(signUp("Ana", "ana@example.test", "a-secure-password")).resolves.toEqual({
+  await expect(
+    signUp("Ana", "ana@example.test", "a-secure-password", "avatar-coffee-cup"),
+  ).resolves.toEqual({
     email: "ana@example.test",
   });
   expect(mockCookie).toBeNull();
