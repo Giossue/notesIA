@@ -16,14 +16,15 @@ CI valida por sí solo el entorno de producción.
 | 5. Ejecución | Temporizador único, tiempo manual sin solapamiento, progreso, estadísticas semanales y riesgo actual. | Ningún pendiente de código backend identificado en esta revisión. |
 | 6. Offline y avisos | Idempotencia, versiones, outbox, avisos internos, horarios silenciosos, dispositivos push cifrados y adaptador FCM con pruebas simuladas. | Cola offline y conflictos visibles pertenecen al cliente móvil; entrega push real requiere proyecto y credenciales FCM. |
 | 7. IA | Gateway, cinco casos, tres adaptadores, consentimiento, fallback manual, cuota compartida, proveedor alterno por caso con transición auditada y conciliación de reservas inciertas. | Evaluar modelos, costos y políticas reales antes de habilitar una ruta. No hay conexiones configuradas. |
-| 8. Admin | API de roles, cuentas, documentos, proveedores, rutas, pruebas sintéticas, auditoría y salud, protegida con TOTP, reautenticación y rate limit. | Designar y provisionar la primera cuenta administradora; el panel visual no forma parte del backend. |
+| 8. Admin | API de roles, cuentas, documentos, proveedores, rutas, pruebas sintéticas, auditoría y salud, protegida con TOTP, reautenticación y rate limit. La primera cuenta administradora local quedó provisionada, verificada y con inicio/cierre de sesión comprobado. | Enrolar TOTP y crear después una sesión nueva; repetir el bootstrap en el entorno objetivo. El panel visual no forma parte del backend. |
 | 9. Hardening | El pase actual completó 119 pruebas backend, 5 del núcleo móvil y 19 de interfaz con PostgreSQL local. La API valida host, puerto y periodo de gracia, exige un bind explícito en producción y cierra listener, monitor y ambos pools ante `SIGTERM`/`SIGINT`; una instancia aislada confirmó readiness y salida limpia. La API usa `traceparent` W3C y los spans JSON correlacionan API, PostgreSQL, worker, IA, FCM y SMTP sin contenido privado. El endpoint de salud calcula señales de worker ausente, colas muertas, backlog, proveedor IA indisponible, error sostenido y costo conocido sobre un límite aprobado, y puede entregarlas a un webhook HTTPS firmado. La carga local más reciente dio p95 de 16,8 ms en lista, 45,0 ms en creación y 84,3 ms en preview. | Falta conectar la salida de trazas, aprobar el límite de costo y probar un receptor real, además de validar rendimiento, backup y entrega externa en el entorno objetivo. |
 
 ## Estado observado en la base local
 
-`notesia_dev` es PostgreSQL persistente y tiene 44 migraciones. En esta revisión contenía una
-cuenta verificada mediante el flujo externo real y otra pendiente, ningún documento de privacidad
-publicado, ninguna cuenta con rol `admin`, ningún proveedor y ninguna ruta de IA. SMTP quedó
+`notesia_dev` es PostgreSQL persistente y tiene 44 migraciones. En esta revisión contenía dos
+cuentas verificadas —una mediante el flujo externo real y otra mediante el bootstrap administrativo
+local— y una pendiente, ningún documento de privacidad publicado, una cuenta con rol `admin`,
+ningún proveedor y ninguna ruta de IA. SMTP quedó
 configurado solo en el `.env` local; FCM, cifrado de IA y la política de eliminación siguen sin
 configurarse. Tampoco están configurados el webhook operativo ni el límite de costo IA. Como el
 `.env` local conserva `ALLOW_SIGNUP=true`, la API exige mantener SMTP disponible para aceptar
@@ -49,8 +50,9 @@ desactivada hasta aprobar y configurar `OPS_ALERT_AI_COST_LIMIT_USD_15M`.
 1. Repetir en el entorno objetivo la entrega, el reenvío y el retorno móvil ya
    comprobados con un remitente SMTP real en desarrollo. El destino de verificación
    está fijado al deep link de la app y no crea sesión automáticamente.
-2. Entregar textos aprobados y versiones iniciales para términos, privacidad y
-   uso de IA. Publicarlos mediante una cuenta administradora designada.
+2. Enrolar TOTP para la cuenta administradora local y entregar textos aprobados y
+   versiones iniciales para términos, privacidad y uso de IA. Publicarlos mediante
+   una sesión creada después de activar el segundo factor.
 3. Aprobar días de gracia y retención de auditoría, además del tratamiento de
    datos borrados en backups. La eliminación permanece deshabilitada sin esto.
 4. Configurar FCM y proveedores de IA mediante el gestor de secretos del entorno
