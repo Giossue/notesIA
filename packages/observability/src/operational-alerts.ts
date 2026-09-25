@@ -23,10 +23,12 @@ type Options = {
 
 function normalizedAlerts(alerts: readonly HealthAlert[]) {
   const unique = new Map<string, HealthAlert>();
-  for (const alert of alerts) unique.set(`${alert.code}:${alert.queue ?? ""}`, { ...alert });
+  const target = (alert: HealthAlert) =>
+    "queue" in alert ? (alert.queue ?? "") : "provider" in alert ? alert.provider : "";
+  for (const alert of alerts) unique.set(`${alert.code}:${target(alert)}`, { ...alert });
   return [...unique.values()].sort((left, right) => {
     const byCode = left.code.localeCompare(right.code);
-    return byCode || (left.queue ?? "").localeCompare(right.queue ?? "");
+    return byCode || target(left).localeCompare(target(right));
   });
 }
 

@@ -5059,34 +5059,114 @@ components:
             - lastSeenAt
             - seenRecently
           additionalProperties: false
+        ai:
+          type: object
+          properties:
+            windowMinutes:
+              type: number
+              const: 15
+            knownCostUsd:
+              type: string
+              pattern: ^\d+\.\d{9}$
+            uncostedRequests:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            providers:
+              type: array
+              items:
+                type: object
+                properties:
+                  provider:
+                    type: string
+                    enum:
+                      - openai
+                      - anthropic
+                      - deepseek
+                  requests:
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+                  successes:
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+                  unavailable:
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+                  errors:
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+                required:
+                  - provider
+                  - requests
+                  - successes
+                  - unavailable
+                  - errors
+                additionalProperties: false
+          required:
+            - windowMinutes
+            - knownCostUsd
+            - uncostedRequests
+            - providers
+          additionalProperties: false
         alerts:
           type: array
           items:
-            type: object
-            properties:
-              code:
-                type: string
-                enum:
-                  - WORKER_UNAVAILABLE
-                  - QUEUE_BACKLOG
-                  - QUEUE_DEAD
-              queue:
-                anyOf:
-                  - type: string
+            anyOf:
+              - type: object
+                properties:
+                  code:
+                    type: string
                     enum:
-                      - outbox
-                      - push
-                      - recoveryMail
-                  - type: "null"
-            required:
-              - code
-              - queue
-            additionalProperties: false
+                      - WORKER_UNAVAILABLE
+                      - QUEUE_BACKLOG
+                      - QUEUE_DEAD
+                  queue:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - outbox
+                          - push
+                          - recoveryMail
+                      - type: "null"
+                required:
+                  - code
+                  - queue
+                additionalProperties: false
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    enum:
+                      - AI_PROVIDER_UNAVAILABLE
+                      - AI_ERROR_RATE_HIGH
+                  provider:
+                    type: string
+                    enum:
+                      - openai
+                      - anthropic
+                      - deepseek
+                required:
+                  - code
+                  - provider
+                additionalProperties: false
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    const: AI_COST_HIGH
+                required:
+                  - code
+                additionalProperties: false
       required:
         - database
         - checkedAt
         - queues
         - worker
+        - ai
         - alerts
       additionalProperties: false
     AdminUserPage:

@@ -1,6 +1,9 @@
 export {
+  type AiOperationalHealth,
+  type AiProviderHealth,
   evaluateHealthAlerts,
   type HealthAlert,
+  type HealthAlertPolicy,
   type OperationalHealth,
   type QueueHealth,
 } from "./health-alerts";

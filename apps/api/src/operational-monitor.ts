@@ -32,7 +32,9 @@ export function createOperationalMonitor(dependencies: Dependencies) {
     const started = performance.now();
     let activeAlerts = 0;
     try {
-      const alerts = evaluateHealthAlerts(await dependencies.readHealth());
+      const alerts = evaluateHealthAlerts(await dependencies.readHealth(), new Date(), {
+        aiCostLimitUsd15m: dependencies.config.aiCostLimitUsd15m,
+      });
       activeAlerts = alerts.length;
       const outcome = await reporter.report(alerts);
       observe({

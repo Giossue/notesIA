@@ -23,7 +23,7 @@ import {
   type Problem,
 } from "@notesia/contracts";
 import type { AdminDocument, AdminRateLimiter, AdminRepository, AiRepository } from "@notesia/db";
-import { evaluateHealthAlerts } from "@notesia/observability";
+import { evaluateHealthAlerts, type HealthAlertPolicy } from "@notesia/observability";
 import type { Hono } from "hono";
 import { z } from "zod";
 import { type AiFetch, generateWithProvider } from "../ai/adapters";
@@ -42,6 +42,7 @@ type Dependencies = {
   aiKeyCipher?: AiKeyCipher | null;
   aiFetch?: AiFetch;
   allowedOrigin: string;
+  alertPolicy?: HealthAlertPolicy;
 };
 
 function error(
@@ -131,14 +132,13 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
   app.get("/v1/admin/system-health", async (c) => {
     const access = await authorize(c.req.raw.headers, c.req.method, dependencies);
     if (access.response) return access.response;
-    const { worker, ...queues } = await dependencies.admin.systemHealth();
-    const alerts = evaluateHealthAlerts({ worker, queues });
+    const health = await dependencies.admin.systemHealth();
+    const alerts = evaluateHealthAlerts(health, new Date(), dependencies.alertPolicy);
     return c.json(
       adminSystemHealthSchema.parse({
         database: "ready",
         checkedAt: new Date().toISOString(),
-        queues,
-        worker,
+        ...health,
         alerts,
       }),
       200,

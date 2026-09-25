@@ -437,6 +437,12 @@ test("only an administrator can publish documents and each action is audited", a
       recoveryMail: { pending: 1, ready: 1, inFlight: 0, dead: 0 },
     },
     worker: { lastSeenAt: null, seenRecently: false },
+    ai: {
+      windowMinutes: 15,
+      knownCostUsd: expect.stringMatching(/^\d+\.\d{9}$/),
+      uncostedRequests: expect.any(Number),
+      providers: expect.any(Array),
+    },
   });
   expect(healthText).not.toContain(actorId as string);
   expect(healthText).not.toContain("synthetic");

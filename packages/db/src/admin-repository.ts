@@ -46,10 +46,23 @@ type QueueCounts = {
   dead: string;
   oldestReadyAt: Date | null;
 };
+type AiProviderHealthRow = {
+  provider: "openai" | "anthropic" | "deepseek";
+  requests: string;
+  successes: string;
+  unavailable: string;
+  errors: string;
+};
+type AiCostHealthRow = { knownCostUsd: string; uncostedRequests: string };
 function safeCount(value: string | undefined) {
   const number = Number(value);
-  if (!Number.isSafeInteger(number) || number < 0) throw new Error("Queue count is out of range");
+  if (!Number.isSafeInteger(number) || number < 0)
+    throw new Error("Operational count is out of range");
   return number;
+}
+function safeUsd(value: string | undefined) {
+  if (!value || !/^\d+\.\d{9}$/.test(value)) throw new Error("AI cost is out of range");
+  return value;
 }
 function toQueueCounts(row: QueueCounts | undefined) {
   return {
@@ -161,7 +174,7 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
       }
     },
     async systemHealth() {
-      const [outbox, push, recoveryMail, heartbeat] = await Promise.all([
+      const [outbox, push, recoveryMail, heartbeat, aiProviders, aiCost] = await Promise.all([
         pool.query<QueueCounts>(
           `SELECT count(*) FILTER (WHERE estado = 'pending')::text AS pending,
              count(*) FILTER (WHERE estado = 'pending' AND disponible_en <= now())::text AS ready,
@@ -194,14 +207,48 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
              visto_en >= now() - interval '2 minutes' AS "seenRecently"
            FROM dominio.latido_worker WHERE id = true`,
         ),
+        pool.query<AiProviderHealthRow>(
+          `SELECT proveedor AS provider,
+             count(*) FILTER (WHERE estado <> 'reserved')::text AS requests,
+             count(*) FILTER (WHERE estado = 'success')::text AS successes,
+             count(*) FILTER (WHERE estado IN ('error','timeout'))::text AS unavailable,
+             count(*) FILTER (WHERE estado IN ('error','timeout','invalid','unknown'))::text AS errors
+           FROM dominio.uso_ia
+           WHERE registrado_en >= now() - interval '15 minutes'
+           GROUP BY proveedor
+           HAVING count(*) FILTER (WHERE estado <> 'reserved') > 0
+           ORDER BY proveedor`,
+        ),
+        pool.query<AiCostHealthRow>(
+          `SELECT coalesce(sum(costo_usd) FILTER (WHERE estado <> 'reserved'), 0)
+               ::numeric(24,9)::text AS "knownCostUsd",
+             count(*) FILTER (WHERE estado <> 'reserved' AND costo_usd IS NULL)::text
+               AS "uncostedRequests"
+           FROM dominio.uso_ia
+           WHERE registrado_en >= now() - interval '15 minutes'`,
+        ),
       ]);
       return {
-        outbox: toQueueCounts(outbox.rows[0]),
-        push: toQueueCounts(push.rows[0]),
-        recoveryMail: toQueueCounts(recoveryMail.rows[0]),
+        queues: {
+          outbox: toQueueCounts(outbox.rows[0]),
+          push: toQueueCounts(push.rows[0]),
+          recoveryMail: toQueueCounts(recoveryMail.rows[0]),
+        },
         worker: {
           lastSeenAt: heartbeat.rows[0]?.lastSeenAt?.toISOString() ?? null,
           seenRecently: heartbeat.rows[0]?.seenRecently ?? false,
+        },
+        ai: {
+          windowMinutes: 15 as const,
+          knownCostUsd: safeUsd(aiCost.rows[0]?.knownCostUsd),
+          uncostedRequests: safeCount(aiCost.rows[0]?.uncostedRequests),
+          providers: aiProviders.rows.map((row) => ({
+            provider: row.provider,
+            requests: safeCount(row.requests),
+            successes: safeCount(row.successes),
+            unavailable: safeCount(row.unavailable),
+            errors: safeCount(row.errors),
+          })),
         },
       };
     },

@@ -8,6 +8,7 @@ const config = {
   source: "notesia-test",
   checkIntervalMs: 30000,
   repeatIntervalMs: 60000,
+  aiCostLimitUsd15m: null,
 };
 
 const emptyQueue = () => ({
@@ -26,6 +27,7 @@ test("operational monitor evaluates health and reports only the resulting signal
       recoveryMail: emptyQueue(),
     },
     worker: { lastSeenAt: null, seenRecently: false },
+    ai: { windowMinutes: 15, knownCostUsd: "0.000000000", uncostedRequests: 0, providers: [] },
   };
   const reported: unknown[] = [];
   const observations: OperationalMonitorObservation[] = [];

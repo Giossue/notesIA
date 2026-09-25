@@ -234,7 +234,13 @@ fragmento en la URL. Por defecto la API consulta PostgreSQL cada 30 segundos y
 repite una condición activa cada 15 minutos; ambos intervalos se pueden acotar con
 las variables mostradas en `.env.example`. No se envían usuarios, payloads, SQL,
 URLs internas ni excepciones: solo el origen del despliegue, estado, fecha y los
-códigos de alerta con su cola.
+códigos de alerta con su cola o proveedor. Además del latido y las colas, la API
+agrega los resultados de IA de los 15 minutos anteriores. Señala un proveedor
+indisponible desde cinco fallos de transporte sin éxitos y una tasa de error
+sostenida desde diez resultados con al menos 50 % de errores. La alerta de costo
+conocido solo se activa al definir el límite aprobado en
+`OPS_ALERT_AI_COST_LIMIT_USD_15M`; las solicitudes sin costo calculado se informan
+por separado y no se estiman.
 
 El cuerpo exacto se firma con HMAC-SHA256 en `X-NotesIA-Signature` y cada entrega
 incluye `Idempotency-Key`. El receptor debe verificar la firma antes de interpretar

@@ -7,6 +7,8 @@ const secret = Buffer.alloc(32, 7);
 const active: HealthAlert[] = [
   { code: "QUEUE_DEAD", queue: "recoveryMail" },
   { code: "WORKER_UNAVAILABLE", queue: null },
+  { code: "AI_PROVIDER_UNAVAILABLE", provider: "openai" },
+  { code: "AI_COST_HIGH" },
 ];
 
 test("operational alert reporter signs state changes, limits repeats and reports resolution", async () => {
@@ -40,6 +42,8 @@ test("operational alert reporter signs state changes, limits repeats and reports
     observedAt: "2026-09-24T12:00:00.000Z",
     status: "firing",
     alerts: [
+      { code: "AI_COST_HIGH" },
+      { code: "AI_PROVIDER_UNAVAILABLE", provider: "openai" },
       { code: "QUEUE_DEAD", queue: "recoveryMail" },
       { code: "WORKER_UNAVAILABLE", queue: null },
     ],

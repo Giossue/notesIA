@@ -28,6 +28,7 @@ import type {
 import {
   createTraceContext,
   formatTraceparent,
+  type HealthAlertPolicy,
   type HttpObservation,
   httpArea,
   parseTraceparent,
@@ -147,6 +148,7 @@ type AdminDependencies = {
   aiKeyCipher?: AiKeyCipher | null;
   aiFetch?: AiFetch;
   allowedOrigin: string;
+  alertPolicy?: HealthAlertPolicy;
 };
 type AiDependencies = {
   getSession(headers: Headers): Promise<Session | null>;

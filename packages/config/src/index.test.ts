@@ -51,6 +51,7 @@ test("operational alerts require a signed HTTPS destination and bounded interval
     source: "notesia-production",
     checkIntervalMs: 30000,
     repeatIntervalMs: 900000,
+    aiCostLimitUsd15m: null,
   });
   expect(readOperationalAlertConfig(valid)?.secret.equals(Buffer.from(secret, "base64"))).toBe(
     true,
@@ -83,4 +84,11 @@ test("operational alerts require a signed HTTPS destination and bounded interval
       OPS_ALERT_REPEAT_INTERVAL_SECONDS: "60",
     }),
   ).toThrow();
+  expect(
+    readOperationalAlertConfig({ ...valid, OPS_ALERT_AI_COST_LIMIT_USD_15M: "12.5" }),
+  ).toMatchObject({ aiCostLimitUsd15m: "12.500000000" });
+  for (const limit of ["0", "-1", "1e3", "1000000", "1.0000000000"])
+    expect(() =>
+      readOperationalAlertConfig({ ...valid, OPS_ALERT_AI_COST_LIMIT_USD_15M: limit }),
+    ).toThrow();
 });

@@ -64,10 +64,14 @@ administrador, con respuesta `429` y `Retry-After` al superar el límite.
   visto durante los dos minutos previos. Cada cola incluye la fecha del mensaje
   listo más antiguo. `alerts` señala un worker sin latido reciente, mensajes
   muertos y backlog de al menos 100 mensajes listos o uno listo durante más de
-  cinco minutos. No contiene usuarios ni payloads; un latido reciente no prueba
-  que todos los envíos hayan terminado. Estas señales se consultan desde admin y,
-  al configurar el webhook operativo de la API, se envían como una instantánea
-  firmada cuando cambian y periódicamente mientras siguen activas.
+  cinco minutos. En una ventana fija de 15 minutos también agrega intentos,
+  éxitos, indisponibilidad y errores por proveedor, costo conocido y solicitudes
+  sin costo. Señala cinco fallos de transporte sin éxitos, una tasa de error de
+  al menos 50 % desde diez resultados y, si el operador configura el límite, costo
+  conocido anormal. No contiene usuarios, modelos ni payloads; un latido reciente
+  no prueba que todos los envíos hayan terminado. Estas señales se consultan desde
+  admin y, al configurar el webhook operativo de la API, se envían como una
+  instantánea firmada cuando cambian y periódicamente mientras siguen activas.
 
 La ruta solo opera cuando proveedor y caso están habilitados. Cada llamada reserva
 una reserva conservadora que incluye bytes UTF-8 del mensaje, esquema y prompt,

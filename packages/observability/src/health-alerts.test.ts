@@ -17,6 +17,7 @@ test("health alerts flag stalled and dead queues without payloads or identities"
       recoveryMail: { ...empty(), dead: 1 },
     },
     worker: { lastSeenAt: null, seenRecently: false },
+    ai: { windowMinutes: 15, knownCostUsd: "0.000000000", uncostedRequests: 0, providers: [] },
   };
   expect(evaluateHealthAlerts(health, new Date("2026-09-24T12:00:00.000Z"))).toEqual([
     { code: "WORKER_UNAVAILABLE", queue: null },
@@ -29,4 +30,33 @@ test("health alerts flag stalled and dead queues without payloads or identities"
   health.queues.push = empty();
   health.queues.recoveryMail = empty();
   expect(evaluateHealthAlerts(health, new Date("2026-09-24T12:00:00.000Z"))).toEqual([]);
+});
+
+test("health alerts distinguish unavailable providers, sustained errors and configured cost", () => {
+  const health: OperationalHealth = {
+    queues: { outbox: empty(), push: empty(), recoveryMail: empty() },
+    worker: { lastSeenAt: "2026-09-24T12:00:00.000Z", seenRecently: true },
+    ai: {
+      windowMinutes: 15,
+      knownCostUsd: "2.500000000",
+      uncostedRequests: 3,
+      providers: [
+        { provider: "openai", requests: 5, successes: 0, unavailable: 5, errors: 5 },
+        { provider: "anthropic", requests: 10, successes: 4, unavailable: 2, errors: 6 },
+        { provider: "deepseek", requests: 10, successes: 10, unavailable: 0, errors: 0 },
+      ],
+    },
+  };
+  expect(
+    evaluateHealthAlerts(health, new Date("2026-09-24T12:00:00.000Z"), {
+      aiCostLimitUsd15m: "2.000000000",
+    }),
+  ).toEqual([
+    { code: "AI_PROVIDER_UNAVAILABLE", provider: "openai" },
+    { code: "AI_ERROR_RATE_HIGH", provider: "anthropic" },
+    { code: "AI_COST_HIGH" },
+  ]);
+  expect(evaluateHealthAlerts(health, new Date("2026-09-24T12:00:00.000Z"))).not.toContainEqual({
+    code: "AI_COST_HIGH",
+  });
 });

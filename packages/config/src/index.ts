@@ -98,6 +98,7 @@ export type OperationalAlertConfig = {
   source: string;
   checkIntervalMs: number;
   repeatIntervalMs: number;
+  aiCostLimitUsd15m: string | null;
 };
 
 function integerSeconds(
@@ -113,6 +114,17 @@ function integerSeconds(
   return value;
 }
 
+function optionalUsdLimit(raw: string | undefined) {
+  if (raw === undefined) return null;
+  const match = /^(0|[1-9]\d{0,5})(?:\.(\d{1,9}))?$/.exec(raw);
+  if (!match) throw new Error("OPS_ALERT_AI_COST_LIMIT_USD_15M must be a positive USD decimal");
+  const whole = match[1] as string;
+  const fraction = (match[2] ?? "").padEnd(9, "0");
+  if (BigInt(whole) === 0n && BigInt(fraction) === 0n)
+    throw new Error("OPS_ALERT_AI_COST_LIMIT_USD_15M must be greater than zero");
+  return `${whole}.${fraction}`;
+}
+
 export function readOperationalAlertConfig(env: NodeJS.ProcessEnv): OperationalAlertConfig | null {
   const names = [
     "OPS_ALERT_WEBHOOK_URL",
@@ -120,6 +132,7 @@ export function readOperationalAlertConfig(env: NodeJS.ProcessEnv): OperationalA
     "OPS_ALERT_SOURCE",
     "OPS_ALERT_CHECK_INTERVAL_SECONDS",
     "OPS_ALERT_REPEAT_INTERVAL_SECONDS",
+    "OPS_ALERT_AI_COST_LIMIT_USD_15M",
   ] as const;
   if (!names.some((name) => env[name])) return null;
   const webhookUrl = env.OPS_ALERT_WEBHOOK_URL;
@@ -170,5 +183,6 @@ export function readOperationalAlertConfig(env: NodeJS.ProcessEnv): OperationalA
     source,
     checkIntervalMs: checkIntervalSeconds * 1000,
     repeatIntervalMs: repeatIntervalSeconds * 1000,
+    aiCostLimitUsd15m: optionalUsdLimit(env.OPS_ALERT_AI_COST_LIMIT_USD_15M),
   };
 }

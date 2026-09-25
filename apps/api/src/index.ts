@@ -145,6 +145,7 @@ const app = createApp(
     allowedOrigin: new URL(
       process.env.BETTER_AUTH_URL ?? `http://127.0.0.1:${process.env.PORT ?? 3000}`,
     ).origin,
+    alertPolicy: { aiCostLimitUsd15m: operationalAlertConfig?.aiCostLimitUsd15m ?? null },
   },
   {
     getSession: (headers) => auth.api.getSession({ headers }),
@@ -202,10 +203,7 @@ Bun.serve({
 const operationalMonitor = operationalAlertConfig
   ? createOperationalMonitor({
       config: operationalAlertConfig,
-      readHealth: async () => {
-        const { worker, ...queues } = await adminRepository.systemHealth();
-        return { worker, queues };
-      },
+      readHealth: () => adminRepository.systemHealth(),
     })
   : null;
 operationalMonitor?.start();

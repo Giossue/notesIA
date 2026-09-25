@@ -79,10 +79,13 @@ también acepta y devuelve `traceparent` W3C. Los spans de nombres cerrados
 correlacionan API, consultas PostgreSQL, outbox, recuperación, push y proveedores;
 las colas guardan solo los identificadores opacos necesarios para continuar la
 traza entre procesos. No incluyen SQL, parámetros, cuerpos ni respuestas externas.
-La API
-también puede sondear las señales agregadas de worker y colas y entregarlas a un
-webhook HTTPS con firma HMAC, idempotencia, resolución y repetición acotada; no hay
-un receptor real configurado. El gateway de IA tiene cinco casos acotados, tres
+La API también puede sondear las señales agregadas de worker, colas y resultados
+de IA de los 15 minutos anteriores. Detecta indisponibilidad de proveedor, tasa
+de error sostenida y costo conocido por encima de un límite aprobado. El costo
+desconocido se informa por separado y no activa un valor inventado. Las alertas se
+entregan a un webhook HTTPS con firma HMAC, idempotencia, resolución y repetición
+acotada; no hay un receptor real ni límite de costo configurados. El gateway de IA
+tiene cinco casos acotados, tres
 adaptadores probados con respuestas simuladas,
 consentimiento vigente, presupuesto y fallback manual; ningún proveedor ni modelo
 real está configurado. La reserva de cuota incluye mensaje, esquema, prompt y

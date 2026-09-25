@@ -195,6 +195,13 @@ const adminQueueHealthSchema = z.object({
   dead: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
   oldestReadyAt: z.iso.datetime().nullable(),
 });
+const adminAiProviderHealthSchema = z.object({
+  provider: aiProviderSchema,
+  requests: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  successes: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  unavailable: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  errors: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+});
 export const adminSystemHealthSchema = z.object({
   database: z.literal("ready"),
   checkedAt: z.iso.datetime(),
@@ -207,11 +214,24 @@ export const adminSystemHealthSchema = z.object({
     lastSeenAt: z.iso.datetime().nullable(),
     seenRecently: z.boolean(),
   }),
+  ai: z.object({
+    windowMinutes: z.literal(15),
+    knownCostUsd: z.string().regex(/^\d+\.\d{9}$/),
+    uncostedRequests: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+    providers: z.array(adminAiProviderHealthSchema),
+  }),
   alerts: z.array(
-    z.object({
-      code: z.enum(["WORKER_UNAVAILABLE", "QUEUE_BACKLOG", "QUEUE_DEAD"]),
-      queue: z.enum(["outbox", "push", "recoveryMail"]).nullable(),
-    }),
+    z.union([
+      z.object({
+        code: z.enum(["WORKER_UNAVAILABLE", "QUEUE_BACKLOG", "QUEUE_DEAD"]),
+        queue: z.enum(["outbox", "push", "recoveryMail"]).nullable(),
+      }),
+      z.object({
+        code: z.enum(["AI_PROVIDER_UNAVAILABLE", "AI_ERROR_RATE_HIGH"]),
+        provider: aiProviderSchema,
+      }),
+      z.object({ code: z.literal("AI_COST_HIGH") }),
+    ]),
   ),
 });
 export type AdminSystemHealth = z.infer<typeof adminSystemHealthSchema>;
