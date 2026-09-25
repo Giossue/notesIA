@@ -10,6 +10,30 @@ export type SmtpConfig = {
 export type AuthMailConfig = { resetUrl: string | null; smtp: SmtpConfig };
 export type RecoveryConfig = { resetUrl: string; smtp: SmtpConfig };
 
+export type ApiRuntimeConfig = {
+  hostname: string;
+  port: number;
+  shutdownGraceMs: number;
+};
+
+export function readApiRuntimeConfig(env: NodeJS.ProcessEnv): ApiRuntimeConfig {
+  if (env.NODE_ENV === "production" && !env.API_HOST)
+    throw new Error("API_HOST must be set explicitly in production");
+  const hostname = env.API_HOST ?? "127.0.0.1";
+  if (hostname.length > 253 || !/^[a-zA-Z0-9.:-]+$/.test(hostname))
+    throw new Error("API_HOST must be a hostname or IP address");
+  const port = Number(env.PORT ?? 3000);
+  if (!Number.isInteger(port) || port < 1 || port > 65535)
+    throw new Error("PORT must be a valid TCP port");
+  return {
+    hostname,
+    port,
+    shutdownGraceMs:
+      integerSeconds(env.API_SHUTDOWN_GRACE_SECONDS, 10, "API_SHUTDOWN_GRACE_SECONDS", 1, 60) *
+      1000,
+  };
+}
+
 export function readAuthMailConfig(env: NodeJS.ProcessEnv): AuthMailConfig | null {
   const names = [
     "PASSWORD_RESET_URL",

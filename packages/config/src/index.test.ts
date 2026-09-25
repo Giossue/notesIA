@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+  readApiRuntimeConfig,
   readAuthMailConfig,
   readDeletionPolicy,
   readOperationalAlertConfig,
@@ -11,6 +12,31 @@ const valid = {
   SMTP_HOST: "smtp.example.test",
   SMTP_FROM: "access@example.test",
 };
+
+test("API runtime defaults to loopback and requires an explicit production bind address", () => {
+  expect(readApiRuntimeConfig({})).toEqual({
+    hostname: "127.0.0.1",
+    port: 3000,
+    shutdownGraceMs: 10000,
+  });
+  expect(() => readApiRuntimeConfig({ NODE_ENV: "production" })).toThrow(
+    "API_HOST must be set explicitly in production",
+  );
+  expect(
+    readApiRuntimeConfig({
+      NODE_ENV: "production",
+      API_HOST: "0.0.0.0",
+      PORT: "8080",
+      API_SHUTDOWN_GRACE_SECONDS: "20",
+    }),
+  ).toEqual({ hostname: "0.0.0.0", port: 8080, shutdownGraceMs: 20000 });
+  for (const port of ["0", "65536", "3.5", "invalid"])
+    expect(() => readApiRuntimeConfig({ PORT: port })).toThrow("PORT must be a valid TCP port");
+  expect(() => readApiRuntimeConfig({ API_HOST: "http://localhost" })).toThrow(
+    "API_HOST must be a hostname or IP address",
+  );
+  expect(() => readApiRuntimeConfig({ API_SHUTDOWN_GRACE_SECONDS: "0" })).toThrow();
+});
 
 test("SMTP alone enables account mail while recovery also requires a reset URL", () => {
   expect(readRecoveryConfig({})).toBeNull();

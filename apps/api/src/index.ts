@@ -1,4 +1,8 @@
-import { readDeletionPolicy, readOperationalAlertConfig } from "@notesia/config";
+import {
+  readApiRuntimeConfig,
+  readDeletionPolicy,
+  readOperationalAlertConfig,
+} from "@notesia/config";
 import {
   createAcademicPeriodRepository,
   createAccountDeletionRepository,
@@ -32,8 +36,9 @@ import {
   writeTraceObservation,
 } from "@notesia/observability";
 import { Pool } from "pg";
+import { createApiShutdown } from "./api-lifecycle";
 import { createApp } from "./app";
-import { auth, handler as authHandler, getSession } from "./auth/auth";
+import { auth, handler as authHandler, pool as authPool, getSession } from "./auth/auth";
 import { createAiGateway } from "./modules/ai/gateway";
 import { createAiKeyCipher } from "./modules/ai/key-cipher";
 import { createOperationalMonitor } from "./operational-monitor";
@@ -42,6 +47,7 @@ const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error("DATABASE_URL is required");
 }
+const runtime = readApiRuntimeConfig(process.env);
 
 configureTraceObserver(writeTraceObservation);
 const domainPool = createTracedPool(new Pool({ connectionString: databaseUrl, max: 10 }));
@@ -194,9 +200,9 @@ const app = createApp(
   writeTraceObservation,
 );
 
-Bun.serve({
-  hostname: "127.0.0.1",
-  port: Number(process.env.PORT ?? 3000),
+const server = Bun.serve({
+  hostname: runtime.hostname,
+  port: runtime.port,
   fetch: app.fetch,
 });
 
@@ -207,3 +213,18 @@ const operationalMonitor = operationalAlertConfig
     })
   : null;
 operationalMonitor?.start();
+
+const shutdown = createApiShutdown({
+  server,
+  monitor: operationalMonitor,
+  pools: [domainPool, authPool],
+  graceMs: runtime.shutdownGraceMs,
+});
+const handleShutdown = () => {
+  void shutdown().catch(() => {
+    process.exitCode = 1;
+    console.error("API graceful shutdown failed");
+  });
+};
+process.once("SIGTERM", handleShutdown);
+process.once("SIGINT", handleShutdown);

@@ -27,6 +27,14 @@ predeterminado de registro es cerrado. `ALLOW_SIGNUP=true` requiere además
 `SMTP_HOST` y `SMTP_FROM`, porque cada alta debe verificar el correo antes de
 crear una sesión. `BETTER_AUTH_SECRET` es local y privado.
 
+La API escucha solo en `127.0.0.1:3000` por defecto. En producción exige declarar
+`API_HOST` explícitamente; un contenedor servido por un proxy normalmente usa
+`API_HOST=0.0.0.0`. `PORT` acepta un puerto TCP válido y
+`API_SHUTDOWN_GRACE_SECONDS` controla, entre 1 y 60 segundos, cuánto espera el
+servidor a las conexiones activas antes de cerrarlas. Ante `SIGTERM` o `SIGINT`,
+la API detiene el monitor operativo, deja de aceptar conexiones y cierra sus dos
+pools de PostgreSQL.
+
 Los scripts de migración y restauración aceptan directamente solo PostgreSQL en
 loopback, puerto 5432 y la base esperada. GitHub Actions usa un contenedor de servicio,
 cuya dirección vista por PostgreSQL no es loopback. En ese entorno el workflow marca
