@@ -57,6 +57,8 @@ Confirmar siempre:
 - OWASP ASVS: https://owasp.org/www-project-application-security-verification-standard/
 - WCAG: https://www.w3.org/WAI/standards-guidelines/wcag/
 - OpenTelemetry: https://opentelemetry.io/docs/
+- W3C Trace Context: https://www.w3.org/TR/trace-context/
+- Compatibilidad Node.js de Bun: https://bun.com/docs/runtime/nodejs-compat
 
 ## Regla
 

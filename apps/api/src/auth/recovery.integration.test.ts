@@ -1,5 +1,6 @@
 import { afterAll, expect, test } from "bun:test";
 import { createRecoveryMailRepository } from "@notesia/db";
+import { currentTraceContext } from "@notesia/observability";
 import { createApp } from "../app";
 import { createAuth } from "./create-auth";
 
@@ -57,19 +58,37 @@ test("recovery queues encrypted mail, hides account existence, consumes token an
   expect(known.status).toBe(200);
   expect(await known.json()).toEqual(await unknown.json());
 
-  const stored = await created.pool.query<{ encrypted: Buffer }>(
-    `SELECT contenido_cifrado AS encrypted FROM autenticacion.correos_recuperacion m
+  const queuedTrace = known.headers.get("traceparent");
+  expect(queuedTrace).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);
+  const [, queuedTraceId, queuedSpanId] = queuedTrace?.split("-") ?? [];
+  if (!queuedTraceId || !queuedSpanId) throw new Error("Missing recovery trace context");
+  const stored = await created.pool.query<{
+    encrypted: Buffer;
+    traceId: string;
+    sourceSpanId: string;
+  }>(
+    `SELECT contenido_cifrado AS encrypted, traza_id AS "traceId",
+       span_origen_id AS "sourceSpanId" FROM autenticacion.correos_recuperacion m
      JOIN autenticacion.usuarios u ON u.id = m.usuario_id WHERE u.correo = $1`,
     [email],
   );
   expect(stored.rows).toHaveLength(1);
+  expect(stored.rows[0]?.traceId).toBe(queuedTraceId);
+  expect(stored.rows[0]?.sourceSpanId).toMatch(/^[0-9a-f]{16}$/);
+  expect(stored.rows[0]?.sourceSpanId).not.toBe(queuedSpanId);
   let deliveredEmail = "";
   let deliveredUrl = "";
+  let deliveryTrace: ReturnType<typeof currentTraceContext> = null;
   const delivered = await recovery.processOne(async (to, url) => {
     deliveredEmail = to;
     deliveredUrl = url;
+    deliveryTrace = currentTraceContext();
   });
   expect(delivered.kind).toBe("delivered");
+  expect(deliveryTrace).toMatchObject({
+    traceId: stored.rows[0]?.traceId,
+    parentSpanId: stored.rows[0]?.sourceSpanId,
+  });
   expect(deliveredEmail).toBe(email);
   const token = new URL(deliveredUrl).searchParams.get("token");
   expect(token).toBeTruthy();

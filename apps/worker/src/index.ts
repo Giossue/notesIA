@@ -8,10 +8,15 @@ import {
   createPushDeliveryRepository,
   createPushTokenCipher,
   createRecoveryMailRepository,
+  createTracedPool,
   createWorkerHealthRepository,
   purgeExpiredSecureStorage,
 } from "@notesia/db";
-import { writeWorkerObservation } from "@notesia/observability";
+import {
+  configureTraceObserver,
+  writeTraceObservation,
+  writeWorkerObservation,
+} from "@notesia/observability";
 import { Pool } from "pg";
 import { createFcmSender } from "./fcm";
 import { createRecoverySmtpSender } from "./recovery-smtp";
@@ -19,7 +24,8 @@ import { createRiskReassessment } from "./risk-reassessment";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
-const pool = new Pool({ connectionString: databaseUrl, max: 2 });
+configureTraceObserver(writeTraceObservation);
+const pool = createTracedPool(new Pool({ connectionString: databaseUrl, max: 2 }));
 const outbox = createOutboxRepository(pool);
 const scheduler = createNotificationSchedulerRepository(pool);
 const riskReassessment = createRiskReassessment(pool);

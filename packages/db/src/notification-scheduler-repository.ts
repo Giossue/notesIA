@@ -1,3 +1,4 @@
+import { currentTracePropagation, withTraceSpan } from "@notesia/observability";
 import type { Pool, PoolClient } from "pg";
 
 type Candidate = {
@@ -52,9 +53,13 @@ async function insertNotice(
   row: Candidate,
   now: Date,
 ) {
-  const eligibleSource =
-    type === "deadline_reminder"
-      ? `SELECT a.usuario_id FROM dominio.actividades a
+  return withTraceSpan(
+    { name: "db.push.enqueue", component: "database", target: "postgresql" },
+    async () => {
+      const trace = currentTracePropagation();
+      const eligibleSource =
+        type === "deadline_reminder"
+          ? `SELECT a.usuario_id FROM dominio.actividades a
          JOIN dominio.preferencias_avisos notice ON notice.usuario_id = a.usuario_id
          WHERE a.usuario_id = $2 AND a.id = $5 AND a.fecha_limite = $7
            AND a.fecha_limite > $8::timestamptz
@@ -63,8 +68,8 @@ async function insertNotice(
            AND a.estado NOT IN ('completed','cancelled')
            AND a.eliminado_en IS NULL AND a.archivado_en IS NULL
          FOR SHARE OF a`
-      : type === "block_reminder"
-        ? `SELECT b.usuario_id FROM dominio.bloques_plan b
+          : type === "block_reminder"
+            ? `SELECT b.usuario_id FROM dominio.bloques_plan b
            JOIN dominio.planes p ON p.usuario_id = b.usuario_id AND p.id = b.plan_id
            JOIN dominio.actividades a ON a.usuario_id = b.usuario_id AND a.id = b.actividad_id
            JOIN dominio.preferencias_avisos notice ON notice.usuario_id = b.usuario_id
@@ -76,9 +81,9 @@ async function insertNotice(
              AND a.estado NOT IN ('completed','cancelled')
              AND a.eliminado_en IS NULL AND a.archivado_en IS NULL
            FOR SHARE OF a, b, p`
-        : "SELECT $2::uuid AS usuario_id";
-  const inserted = await connection.query<{ created: number }>(
-    `WITH enabled AS (
+            : "SELECT $2::uuid AS usuario_id";
+      const inserted = await connection.query<{ created: number }>(
+        `WITH enabled AS (
        SELECT prefs.usuario_id FROM dominio.preferencias_usuario prefs
        JOIN dominio.perfiles_usuario profile ON profile.usuario_id = prefs.usuario_id
        ${localClockJoin(8)}
@@ -95,8 +100,8 @@ async function insertNotice(
        RETURNING id, usuario_id
      ), queued AS (
        INSERT INTO dominio.envios_push
-         (id, usuario_id, dispositivo_id, notificacion_id)
-       SELECT gen_random_uuid(), d.usuario_id, d.id, created.id
+         (id, usuario_id, dispositivo_id, notificacion_id, traza_id, span_origen_id)
+       SELECT gen_random_uuid(), d.usuario_id, d.id, created.id, $9, $10
        FROM created JOIN dominio.dispositivos_push d
          ON d.usuario_id = created.usuario_id
        JOIN dominio.preferencias_usuario prefs ON prefs.usuario_id = d.usuario_id
@@ -105,18 +110,22 @@ async function insertNotice(
        RETURNING id
      ) SELECT (SELECT count(*)::integer FROM created) AS created,
        (SELECT count(*)::integer FROM queued) AS queued`,
-    [
-      crypto.randomUUID(),
-      row.userId,
-      type,
-      row.planId,
-      row.activityId,
-      row.blockId,
-      row.referenceAt,
-      now,
-    ],
+        [
+          crypto.randomUUID(),
+          row.userId,
+          type,
+          row.planId,
+          row.activityId,
+          row.blockId,
+          row.referenceAt,
+          now,
+          trace?.traceId ?? null,
+          trace?.spanId ?? null,
+        ],
+      );
+      return inserted.rows[0]?.created ?? 0;
+    },
   );
-  return inserted.rows[0]?.created ?? 0;
 }
 
 export function createNotificationSchedulerRepository(pool: Pool) {

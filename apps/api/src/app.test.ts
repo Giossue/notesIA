@@ -46,9 +46,16 @@ describe("readiness", () => {
   test("correlates success and missing-route responses with bounded HTTP observations", async () => {
     const observations: Array<{
       requestId: string;
+      traceId: string;
       area: string;
       status: number;
       durationMs: number;
+    }> = [];
+    const traces: Array<{
+      traceId: string;
+      spanId: string;
+      parentSpanId: string | null;
+      name: string;
     }> = [];
     const app = createApp(
       async () => {},
@@ -72,12 +79,16 @@ describe("readiness", () => {
       undefined,
       undefined,
       (event) => observations.push(event),
+      (event) => traces.push(event),
     );
     const healthy = await app.request("/v1/health");
     const missing = await app.request("/v1/user@example.test?token=private-value");
     const missingBody = await missing.json();
     expect(healthy.status).toBe(200);
     expect(healthy.headers.get("x-request-id")).toMatch(/^[0-9a-f-]{36}$/);
+    expect(healthy.headers.get("traceparent")).toBe(
+      `00-${observations[0]?.traceId}-${traces[0]?.spanId}-01`,
+    );
     expect(missing.status).toBe(404);
     expect(missing.headers.get("x-request-id")).toBe(missingBody.requestId);
     expect(observations).toMatchObject([
@@ -85,8 +96,30 @@ describe("readiness", () => {
       { area: "unknown", status: 404, requestId: missingBody.requestId },
     ]);
     expect(observations.every((event) => event.durationMs >= 0)).toBe(true);
+    expect(traces).toMatchObject([
+      { traceId: observations[0]?.traceId, parentSpanId: null, name: "api.request" },
+      { traceId: observations[1]?.traceId, parentSpanId: null, name: "api.request" },
+    ]);
     expect(JSON.stringify(observations)).not.toContain("private-value");
     expect(JSON.stringify(observations)).not.toContain("user@example.test");
+  });
+
+  test("continues a valid W3C traceparent and replaces invalid context", async () => {
+    const incoming = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+    const app = createApp(async () => {});
+    const continued = await app.request("/v1/health", { headers: { traceparent: incoming } });
+    const continuedHeader = continued.headers.get("traceparent");
+    expect(continuedHeader).toMatch(/^00-4bf92f3577b34da6a3ce929d0e0e4736-[0-9a-f]{16}-01$/);
+    expect(continuedHeader).not.toBe(incoming);
+
+    const invalid = await app.request("/v1/health", {
+      headers: {
+        traceparent: "00-00000000000000000000000000000000-0000000000000000-01",
+      },
+    });
+    expect(invalid.headers.get("traceparent")).toMatch(
+      /^00-(?!00000000000000000000000000000000)[0-9a-f]{32}-[0-9a-f]{16}-01$/,
+    );
   });
 
   test("correlates unhandled server errors without revealing their cause", async () => {

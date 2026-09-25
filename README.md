@@ -67,6 +67,7 @@ student-planner-ai-context/
 │   ├── TEST_STRATEGY.md
 │   ├── OFFLINE_SYNC.md
 │   ├── AI_GATEWAY.md
+│   ├── OBSERVABILITY.md
 │   ├── OFFICIAL_SOURCES.md
 │   └── decisions/
 ├── rules/

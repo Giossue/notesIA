@@ -10,6 +10,24 @@ export {
   type OperationalAlertPayload,
   type OperationalAlertReporter,
 } from "./operational-alerts";
+export {
+  configureTraceObserver,
+  createTraceContext,
+  currentTraceContext,
+  currentTracePropagation,
+  formatTraceparent,
+  parseTraceparent,
+  runWithTraceContext,
+  type TraceComponent,
+  type TraceContext,
+  type TraceObservation,
+  type TracePropagation,
+  type TraceSpanName,
+  type TraceTarget,
+  tracePropagation,
+  withTraceSpan,
+  writeTraceObservation,
+} from "./tracing";
 
 const areas = new Set([
   "auth",
@@ -36,6 +54,7 @@ const methods = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIO
 
 export type HttpObservation = {
   requestId: string;
+  traceId: string;
   method: string;
   area: string;
   status: number;
@@ -56,6 +75,7 @@ export function writeHttpObservation(
       type: "http",
       at: new Date().toISOString(),
       requestId: event.requestId,
+      traceId: event.traceId,
       method: methods.has(event.method) ? event.method : "OTHER",
       area: areas.has(event.area) ? event.area : "unknown",
       status: event.status,

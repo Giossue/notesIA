@@ -1,4 +1,4 @@
-import { createRecoveryMailRepository, createSecureStorage } from "@notesia/db";
+import { createRecoveryMailRepository, createSecureStorage, createTracedPool } from "@notesia/db";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { twoFactor } from "better-auth/plugins";
@@ -16,7 +16,7 @@ type AuthOptions = {
 };
 
 export function createAuth(options: AuthOptions) {
-  const pool = new Pool({ connectionString: options.databaseUrl, max: 5 });
+  const pool = createTracedPool(new Pool({ connectionString: options.databaseUrl, max: 5 }));
   const recoveryUrl = options.recovery ? new URL(options.recovery.resetUrl) : null;
   if (
     recoveryUrl &&

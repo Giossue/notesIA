@@ -1,4 +1,5 @@
 import type { AiFallbackReason, AiRepository, AiRouteConfig } from "@notesia/db";
+import { withTraceSpan } from "@notesia/observability";
 import { type AiFetch, generateWithProvider } from "./adapters";
 import { type AiUseCase, aiCases, outputAgreesWithInput, redactInput } from "./cases";
 import type { AiKeyCipher } from "./key-cipher";
@@ -83,19 +84,23 @@ export function createAiGateway(
         let usageReported = false;
         let status: "success" | "error" | "invalid" | "timeout" = "error";
         try {
-          const result = await generateWithProvider(
-            {
-              provider: selected.provider,
-              modelId: selected.modelId,
-              apiKey: cipher.decrypt(selected.provider, selected.encryptedKey),
-              timeoutMs: selected.timeoutMs,
-              maxOutputTokens: selected.maxOutputTokens,
-            },
-            useCase,
-            instruction,
-            spec.jsonSchema,
-            payload,
-            fetcher,
+          const result = await withTraceSpan(
+            { name: "provider.ai", component: "provider", target: selected.provider },
+            () =>
+              generateWithProvider(
+                {
+                  provider: selected.provider,
+                  modelId: selected.modelId,
+                  apiKey: cipher.decrypt(selected.provider, selected.encryptedKey),
+                  timeoutMs: selected.timeoutMs,
+                  maxOutputTokens: selected.maxOutputTokens,
+                },
+                useCase,
+                instruction,
+                spec.jsonSchema,
+                payload,
+                fetcher,
+              ),
           );
           inputTokens = result.inputTokens;
           outputTokens = result.outputTokens;

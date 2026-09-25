@@ -24,9 +24,13 @@ import {
   createSubjectRepository,
   createSubtaskRepository,
   createTimeEntryRepository,
+  createTracedPool,
 } from "@notesia/db";
-import { writeHttpObservation } from "@notesia/observability";
-import { SQL } from "bun";
+import {
+  configureTraceObserver,
+  writeHttpObservation,
+  writeTraceObservation,
+} from "@notesia/observability";
 import { Pool } from "pg";
 import { createApp } from "./app";
 import { auth } from "./auth/auth";
@@ -39,8 +43,8 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL is required");
 }
 
-const database = new SQL(databaseUrl);
-const domainPool = new Pool({ connectionString: databaseUrl, max: 10 });
+configureTraceObserver(writeTraceObservation);
+const domainPool = createTracedPool(new Pool({ connectionString: databaseUrl, max: 10 }));
 const requestTransactions = createRequestTransactionPool(domainPool);
 const repositoryPool = requestTransactions.pool;
 const aiRepository = createAiRepository(repositoryPool);
@@ -58,7 +62,7 @@ const adminRepository = createAdminRepository(
 );
 const app = createApp(
   async () => {
-    await database`SELECT 1`;
+    await domainPool.query("SELECT 1");
   },
   auth.handler,
   {
@@ -186,6 +190,7 @@ const app = createApp(
     profiles: createProfileRepository(repositoryPool),
   },
   writeHttpObservation,
+  writeTraceObservation,
 );
 
 Bun.serve({

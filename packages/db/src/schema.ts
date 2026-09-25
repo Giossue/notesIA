@@ -347,6 +347,8 @@ export const outboxEvents = domainSchema.table("bandeja_salida", {
   availableAt: timestamp("disponible_en", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
   processedAt: timestamp("procesado_en", { withTimezone: true }),
+  traceId: char("traza_id", { length: 32 }),
+  sourceSpanId: char("span_origen_id", { length: 16 }),
 });
 
 export const notifications = domainSchema.table("notificaciones", {

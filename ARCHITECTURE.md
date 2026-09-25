@@ -312,10 +312,12 @@ apps/admin/src/
 
 - logs JSON estructurados;
 - request/trace ID;
+- `traceparent` W3C y contexto asíncrono entre API, PostgreSQL y worker;
+- continuidad persistida mínima en outbox, correo y push;
 - métricas de latencia, error, outbox, push, IA y costo;
 - OpenTelemetry o equivalente;
 - crash reporting móvil con redacción;
-- no capturar cuerpos privados.
+- no capturar SQL, parámetros, cuerpos privados ni respuesta cruda de proveedores.
 
 ## Despliegue conceptual
 

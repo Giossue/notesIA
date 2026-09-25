@@ -1,3 +1,4 @@
+import { currentTracePropagation, withTraceSpan } from "@notesia/observability";
 import type { Pool, PoolClient } from "pg";
 
 export async function queuePushForNotification(
@@ -5,16 +6,23 @@ export async function queuePushForNotification(
   userId: string,
   notificationId: string,
 ) {
-  await client.query(
-    `INSERT INTO dominio.envios_push (id, usuario_id, dispositivo_id, notificacion_id)
-     SELECT gen_random_uuid(), d.usuario_id, d.id, $2
-     FROM dominio.dispositivos_push d
-     JOIN dominio.preferencias_usuario prefs ON prefs.usuario_id = d.usuario_id
-     WHERE d.usuario_id = $1 AND prefs.notificaciones_habilitadas
-       AND prefs.push_habilitado
-       AND d.actualizado_en >= now() - interval '30 days'
-     ON CONFLICT (notificacion_id, dispositivo_id) DO NOTHING`,
-    [userId, notificationId],
+  await withTraceSpan(
+    { name: "db.push.enqueue", component: "database", target: "postgresql" },
+    async () => {
+      const trace = currentTracePropagation();
+      await client.query(
+        `INSERT INTO dominio.envios_push
+           (id, usuario_id, dispositivo_id, notificacion_id, traza_id, span_origen_id)
+         SELECT gen_random_uuid(), d.usuario_id, d.id, $2, $3, $4
+         FROM dominio.dispositivos_push d
+         JOIN dominio.preferencias_usuario prefs ON prefs.usuario_id = d.usuario_id
+         WHERE d.usuario_id = $1 AND prefs.notificaciones_habilitadas
+           AND prefs.push_habilitado
+           AND d.actualizado_en >= now() - interval '30 days'
+         ON CONFLICT (notificacion_id, dispositivo_id) DO NOTHING`,
+        [userId, notificationId, trace?.traceId ?? null, trace?.spanId ?? null],
+      );
+    },
   );
 }
 

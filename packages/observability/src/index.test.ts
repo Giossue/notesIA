@@ -11,6 +11,7 @@ test("HTTP observations keep a fixed set of fields and classify paths without pr
   writeHttpObservation(
     {
       requestId: "request-1",
+      traceId: "4bf92f3577b34da6a3ce929d0e0e4736",
       method: "POST",
       area: httpArea("/v1/activities/private-id"),
       status: 409,
@@ -23,6 +24,7 @@ test("HTTP observations keep a fixed set of fields and classify paths without pr
   expect(event).toMatchObject({
     type: "http",
     requestId: "request-1",
+    traceId: "4bf92f3577b34da6a3ce929d0e0e4736",
     method: "POST",
     area: "activities",
     status: 409,
@@ -35,6 +37,7 @@ test("HTTP observations keep a fixed set of fields and classify paths without pr
   writeHttpObservation(
     {
       requestId: "request-2",
+      traceId: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       method: "private-method",
       area: "private-area",
       status: 400,

@@ -143,6 +143,11 @@ FCM si el canal o los avisos generales se desactivaron. Cambiar solo avisos no
 invalida el plan activo. El programador vuelve a comprobar los avisos generales
 al insertar cada aviso, incluso si se desactivaron durante su búsqueda. El rollback
 manual se niega si alguna cuenta desactivó push.
+`0043` añade continuidad de trazas a outbox, correos de recuperación y envíos
+push mediante dos identificadores opacos validados. Las columnas son anulables
+para conservar trabajos existentes. La API responde un `traceparent` W3C y API y
+worker emiten spans JSON de nombres cerrados sin SQL, parámetros ni contenido
+privado. La operación y el rollback están descritos en `docs/OBSERVABILITY.md`.
 El worker purga por lotes las sesiones y los contadores caducados del almacén
 seguro, además de las claves de idempotencia vencidas. Una prueba de integración
 verifica que conserva las filas aún vigentes.

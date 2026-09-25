@@ -81,6 +81,7 @@ export { createRequestTransactionPool } from "./request-transaction";
 export { createSubjectRepository, type SubjectRepository } from "./subject-repository";
 export { createSubtaskRepository, type SubtaskRepository } from "./subtask-repository";
 export { createTimeEntryRepository, type TimeEntryRepository } from "./time-entry-repository";
+export { createTracedPool } from "./traced-pool";
 export {
   createWorkerHealthRepository,
   type WorkerHealthRepository,

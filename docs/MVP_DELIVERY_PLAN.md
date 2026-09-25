@@ -35,7 +35,7 @@ los flujos críticos se prueban en Android.
 
 ## Avance backend local (2026-09-24)
 
-Las migraciones `0009` a `0042` añadieron disponibilidad, planes, tiempo real,
+Las migraciones `0009` a `0043` añadieron disponibilidad, planes, tiempo real,
 progreso, preferencias, periodos académicos, idempotencia de reintentos y un outbox
 para avisos internos al aplicar un plan, documentos versionados, consentimientos y
 correos cifrados para recuperación de acceso, rol administrativo, publicación
@@ -75,6 +75,11 @@ bundles del backend para evitar que valores sensibles configurados se incluyan
 literalmente. La API correlaciona `X-Request-Id` con Problem Details y emite
 latencia y estado HTTP en JSON sin rutas ni contenido privado; el worker emite
 contadores de trabajo y errores de ciclo sin el texto de la excepción. La API
+también acepta y devuelve `traceparent` W3C. Los spans de nombres cerrados
+correlacionan API, consultas PostgreSQL, outbox, recuperación, push y proveedores;
+las colas guardan solo los identificadores opacos necesarios para continuar la
+traza entre procesos. No incluyen SQL, parámetros, cuerpos ni respuestas externas.
+La API
 también puede sondear las señales agregadas de worker y colas y entregarlas a un
 webhook HTTPS con firma HMAC, idempotencia, resolución y repetición acotada; no hay
 un receptor real configurado. El gateway de IA tiene cinco casos acotados, tres

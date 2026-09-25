@@ -17,6 +17,7 @@ import {
   createPushTokenCipher,
   createTimeEntryRepository,
 } from "@notesia/db";
+import { currentTraceContext } from "@notesia/observability";
 import { createApp } from "../../app";
 import { createAuth } from "../../auth/create-auth";
 import { createAiGateway } from "../ai/gateway";
@@ -542,6 +543,10 @@ test("preview, edit, apply and history require owner and fresh source revision",
   });
   expect(apply.status).toBe(200);
   expect(await apply.json()).toMatchObject({ status: "active", version: 3 });
+  const applyTrace = apply.headers.get("traceparent");
+  expect(applyTrace).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);
+  const [, applyTraceId, applySpanId] = applyTrace?.split("-") ?? [];
+  if (!applyTraceId || !applySpanId) throw new Error("Missing apply trace context");
   const replayedApply = await app.request(`/v1/plans/${input.id}/apply`, {
     method: "POST",
     headers: headers(cookieA),
@@ -549,11 +554,15 @@ test("preview, edit, apply and history require owner and fresh source revision",
   });
   expect(replayedApply.status).toBe(200);
   expect(await replayedApply.json()).toMatchObject({ status: "active", version: 3 });
-  const outboxRows = await pool.query<{ count: string }>(
-    "SELECT count(*)::text AS count FROM dominio.bandeja_salida WHERE plan_id = $1 AND tipo_evento = 'plan.applied'",
+  const outboxRows = await pool.query<{ traceId: string; sourceSpanId: string }>(
+    `SELECT traza_id AS "traceId", span_origen_id AS "sourceSpanId"
+     FROM dominio.bandeja_salida WHERE plan_id = $1 AND tipo_evento = 'plan.applied'`,
     [input.id],
   );
-  expect(outboxRows.rows[0]?.count).toBe("1");
+  expect(outboxRows.rows).toHaveLength(1);
+  expect(outboxRows.rows[0]).toMatchObject({ traceId: applyTraceId });
+  expect(outboxRows.rows[0]?.sourceSpanId).toMatch(/^[0-9a-f]{16}$/);
+  expect(outboxRows.rows[0]?.sourceSpanId).not.toBe(applySpanId);
   expect((await app.request("/v1/plans/active", { headers: { cookie: cookieB } })).status).toBe(
     404,
   );
@@ -657,14 +666,35 @@ test("preview, edit, apply and history require owner and fresh source revision",
 
   expect(await outbox.processOne()).toEqual({ kind: "delivered" });
   expect(await outbox.processOne()).toEqual({ kind: "delivered" });
-  const pendingPush = await pool.query<{ count: string }>(
-    `SELECT count(*)::text AS count FROM dominio.envios_push WHERE dispositivo_id = $1`,
+  const pendingPush = await pool.query<{
+    traceId: string;
+    sourceSpanId: string;
+    outboxTraceId: string;
+    outboxSourceSpanId: string;
+  }>(
+    `SELECT push.traza_id AS "traceId", push.span_origen_id AS "sourceSpanId",
+       outbox.traza_id AS "outboxTraceId", outbox.span_origen_id AS "outboxSourceSpanId"
+     FROM dominio.envios_push push
+     JOIN dominio.notificaciones notification ON notification.id = push.notificacion_id
+     JOIN dominio.bandeja_salida outbox ON outbox.id = notification.evento_salida_id
+     WHERE push.dispositivo_id = $1`,
     [deviceId],
   );
-  expect(Number(pendingPush.rows[0]?.count)).toBe(2);
+  expect(pendingPush.rows).toHaveLength(2);
+  expect(
+    pendingPush.rows.every(
+      (row) =>
+        row.traceId === row.outboxTraceId &&
+        row.sourceSpanId !== row.outboxSourceSpanId &&
+        /^[0-9a-f]{16}$/.test(row.sourceSpanId),
+    ),
+  ).toBe(true);
   const sentPush: string[] = [];
+  const pushContexts: Array<{ traceId: string; parentSpanId: string | null }> = [];
   const sendPush = async (token: string) => {
     sentPush.push(token);
+    const context = currentTraceContext();
+    if (context) pushContexts.push(context);
     return "sent" as const;
   };
   expect(await pushDeliveries.processOne(sendPush, new Date("2026-09-24T15:00:00.000Z"))).toEqual({
@@ -674,6 +704,12 @@ test("preview, edit, apply and history require owner and fresh source revision",
     kind: "sent",
   });
   expect(sentPush).toEqual([pushToken, pushToken]);
+  expect(new Set(pushContexts.map((context) => context.traceId))).toEqual(
+    new Set(pendingPush.rows.map((row) => row.traceId)),
+  );
+  expect(new Set(pushContexts.map((context) => context.parentSpanId))).toEqual(
+    new Set(pendingPush.rows.map((row) => row.sourceSpanId)),
+  );
   const notices = await app.request("/v1/notifications", { headers: { cookie: cookieA } });
   expect(notices.status).toBe(200);
   const noticePage = (await notices.json()) as {

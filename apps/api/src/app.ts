@@ -25,7 +25,15 @@ import type {
   SubtaskRepository,
   TimeEntryRepository,
 } from "@notesia/db";
-import { type HttpObservation, httpArea } from "@notesia/observability";
+import {
+  createTraceContext,
+  formatTraceparent,
+  type HttpObservation,
+  httpArea,
+  parseTraceparent,
+  runWithTraceContext,
+  type TraceObservation,
+} from "@notesia/observability";
 import { Hono } from "hono";
 import { z } from "zod";
 import { supportedAuthRoutes } from "./auth/supported-routes";
@@ -183,6 +191,7 @@ export function createApp(
   accountDeletionDependencies?: AccountDeletionDependencies,
   activitySeriesDependencies?: ActivitySeriesDependencies,
   observeHttp?: (event: HttpObservation) => void,
+  observeTrace?: (event: TraceObservation) => void,
 ) {
   const app = new Hono();
   const requestIds = new WeakMap<Request, string>();
@@ -221,34 +230,51 @@ export function createApp(
   app.use("/v1/*", async (c, next) => {
     const started = performance.now();
     const generatedId = crypto.randomUUID();
+    const trace = createTraceContext(parseTraceparent(c.req.header("traceparent")));
     requestIds.set(c.req.raw, generatedId);
     let requestId: string = generatedId;
     let status = 500;
-    try {
-      await next();
-      status = c.res.status;
-      if (c.res.headers.get("content-type")?.startsWith("application/problem+json")) {
-        const body = (await c.res
-          .clone()
-          .json()
-          .catch(() => null)) as { requestId?: unknown } | null;
-        if (typeof body?.requestId === "string" && body.requestId.length <= 128)
-          requestId = body.requestId;
-      }
-      c.header("X-Request-Id", requestId);
-    } finally {
+    return runWithTraceContext(trace, async () => {
       try {
-        observeHttp?.({
-          requestId,
-          method: c.req.method.toUpperCase(),
-          area: httpArea(c.req.path),
-          status,
-          durationMs: Math.max(0, Math.round(performance.now() - started)),
-        });
-      } catch {
-        console.warn("HTTP observation failed");
+        await next();
+        status = c.res.status;
+        if (c.res.headers.get("content-type")?.startsWith("application/problem+json")) {
+          const body = (await c.res
+            .clone()
+            .json()
+            .catch(() => null)) as { requestId?: unknown } | null;
+          if (typeof body?.requestId === "string" && body.requestId.length <= 128)
+            requestId = body.requestId;
+        }
+        c.header("X-Request-Id", requestId);
+        c.header("traceparent", formatTraceparent(trace));
+      } finally {
+        const durationMs = Math.max(0, Math.round(performance.now() - started));
+        try {
+          observeHttp?.({
+            requestId,
+            traceId: trace.traceId,
+            method: c.req.method.toUpperCase(),
+            area: httpArea(c.req.path),
+            status,
+            durationMs,
+          });
+        } catch {
+          console.warn("HTTP observation failed");
+        }
+        try {
+          observeTrace?.({
+            ...trace,
+            name: "api.request",
+            component: "api",
+            outcome: status >= 500 ? "error" : "ok",
+            durationMs,
+          });
+        } catch {
+          console.warn("Trace observation failed");
+        }
       }
-    }
+    });
   });
 
   app.use("/v1/*", async (c, next) => {
