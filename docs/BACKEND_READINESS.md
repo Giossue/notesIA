@@ -8,7 +8,7 @@ CI valida por sí solo el entorno de producción.
 
 | Etapa | Evidencia actual | Pendiente para cierre real |
 |---|---|---|
-| 0. Fundaciones | 44 migraciones aplicadas a `notesia_dev`, migración desde cero y restauración cifrada aislada; Problem Details y contratos OpenAPI. El workflow `Backend` pasó completo en GitHub Actions para `03a6e9c`. | Ningún pendiente de fundación backend identificado en esta revisión. |
+| 0. Fundaciones | 44 migraciones aplicadas a `notesia_dev`, migración desde cero y restauración cifrada aislada; Problem Details y contratos OpenAPI. El workflow `Backend` pasó completo en GitHub Actions para `4d42417`. | Ningún pendiente de fundación backend identificado en esta revisión. |
 | 1. Auth y privacidad | El registro crea una cuenta pendiente sin sesión; el enlace cifrado vence en una hora y toda la app queda bloqueada hasta verificar el correo. También están implementados sesión cifrada y revocable, recuperación, perfil, preferencias, documentos/consentimientos versionados, exportación y eliminación condicionada por política, con pruebas negativas y de acceso cruzado. | Textos legales aprobados; plazos de eliminación, auditoría y backups; remitente SMTP real y prueba de entrega externa. |
 | 2. Organización | Periodos, materias, actividades, subtareas, recurrencia, eventos y consultas de agenda por rango con PostgreSQL y pruebas de aislamiento. | Prueba de flujo en dispositivo para las pantallas móviles; fuera del backend. |
 | 3. Disponibilidad | Reglas, excepciones, conflictos y capacidad por zona horaria; pruebas con cambios de horario. | Ningún pendiente de código backend identificado en esta revisión. |
@@ -36,7 +36,7 @@ integraciones con PostgreSQL local, sin fallos. También pasaron tipos, lint,
 contrato OpenAPI, builds,
 auditoría de dependencias y escaneo de secretos en bundles. GitHub Actions repitió
 con éxito esos gates, además de la migración desde cero y la restauración cifrada,
-en el commit `03a6e9c`. Estas comprobaciones no validan la red, carga ni servicios
+en el commit `4d42417`. Estas comprobaciones no validan la red, carga ni servicios
 externos del entorno de producción.
 
 La entrega de alertas operativas queda desactivada mientras no se configuren URL,
