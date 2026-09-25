@@ -100,7 +100,11 @@ export async function purgeExpiredSecureStorage(pool: Pool, limit = 500) {
   return result.rowCount ?? 0;
 }
 
-export function createSecureStorage(pool: Pool, secret: string): SecondaryStorage {
+export function createSecureStorage(
+  pool: Pool,
+  secret: string,
+  options: { requireVerifiedEmail?: boolean } = {},
+): SecondaryStorage {
   const encryptionKey = storageKey(secret, "encryption");
 
   function keyHash(key: string): Buffer {
@@ -131,12 +135,17 @@ export function createSecureStorage(pool: Pool, secret: string): SecondaryStorag
       const value = decrypt(payload, hash);
       const session = sessionPayload(value);
       if (session) {
-        const user = await pool.query<{ active: boolean; version: number }>(
-          `SELECT suspendido_en IS NULL AS active, estado_version AS version
+        const user = await pool.query<{ active: boolean; emailVerified: boolean; version: number }>(
+          `SELECT suspendido_en IS NULL AS active, estado_version AS version,
+             correo_verificado AS "emailVerified"
            FROM autenticacion.usuarios WHERE id = $1`,
           [session.userId],
         );
-        if (!user.rows[0]?.active || !versionMatches(session.version, user.rows[0].version)) {
+        if (
+          !user.rows[0]?.active ||
+          (options.requireVerifiedEmail && !user.rows[0].emailVerified) ||
+          !versionMatches(session.version, user.rows[0].version)
+        ) {
           await pool.query("DELETE FROM autenticacion.almacen_seguro WHERE clave_hash = $1", [
             hash,
           ]);
@@ -158,13 +167,15 @@ export function createSecureStorage(pool: Pool, secret: string): SecondaryStorag
       const hash = keyHash(key);
       const session = sessionPayload(value);
       if (session) {
-        const user = await pool.query<{ active: boolean; version: number }>(
-          `SELECT suspendido_en IS NULL AS active, estado_version AS version
+        const user = await pool.query<{ active: boolean; emailVerified: boolean; version: number }>(
+          `SELECT suspendido_en IS NULL AS active, estado_version AS version,
+             correo_verificado AS "emailVerified"
            FROM autenticacion.usuarios WHERE id = $1`,
           [session.userId],
         );
         const current = user.rows[0];
-        if (!current?.active) throw new Error("Session account is unavailable");
+        if (!current?.active || (options.requireVerifiedEmail && !current.emailVerified))
+          throw new Error("Session account is unavailable");
         const previous = await pool.query<{ payload: Buffer | null }>(
           "SELECT contenido AS payload FROM autenticacion.almacen_seguro WHERE clave_hash = $1",
           [hash],

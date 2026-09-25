@@ -4,7 +4,7 @@
 
 | ID | Nivel | Requisito |
 |---|---|---|
-| RF-AUTH-01 | MVP | Registrar cuenta con correo y contraseña. |
+| RF-AUTH-01 | MVP | Registrar cuenta con correo y contraseña; verificar el correo antes de crear una sesión o usar la app. |
 | RF-AUTH-02 | MVP | Iniciar y cerrar sesión revocable. |
 | RF-AUTH-03 | MVP | Recuperar acceso con token temporal de un solo uso. |
 | RF-AUTH-04 | MVP | Editar nombre visible, idioma y zona horaria. |

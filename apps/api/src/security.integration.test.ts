@@ -171,6 +171,8 @@ beforeAll(async () => {
       BETTER_AUTH_URL: baseUrl,
       ALLOW_SIGNUP: "true",
       NODE_ENV: "test",
+      SMTP_HOST: "smtp.example.test",
+      SMTP_FROM: "access@example.test",
       PUSH_ENCRYPTION_KEY: Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString(
         "base64",
       ),
@@ -206,9 +208,21 @@ beforeAll(async () => {
       }),
       signal: AbortSignal.timeout(5000),
     });
-    const sessionCookie = registration.headers.get("set-cookie")?.split(";")[0] ?? "";
-    if (registration.status !== 200 || !sessionCookie)
+    if (registration.status !== 200)
       throw new Error(`Synthetic account registration returned HTTP ${registration.status}`);
+    await pool.query(
+      "UPDATE autenticacion.usuarios SET correo_verificado = true WHERE correo = $1",
+      [accountEmail],
+    );
+    const signIn = await fetch(`${baseUrl}/v1/auth/sign-in/email`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: baseUrl },
+      body: JSON.stringify({ email: accountEmail, password: "SecurityIntegration2026!" }),
+      signal: AbortSignal.timeout(5000),
+    });
+    const sessionCookie = signIn.headers.get("set-cookie")?.split(";")[0] ?? "";
+    if (signIn.status !== 200 || !sessionCookie)
+      throw new Error(`Synthetic account sign-in returned HTTP ${signIn.status}`);
     return sessionCookie;
   };
   cookie = await register(email);

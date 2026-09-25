@@ -14,6 +14,7 @@ type Definition = {
   response?: string;
   request?: string;
   statuses?: number[];
+  emptyStatuses?: number[];
   description?: string;
 };
 
@@ -99,6 +100,14 @@ const customSchemas: Record<string, z.ZodType> = {
   ]),
   authCredentials: z.object({ email: z.email(), password: z.string() }),
   authRegistration: z.object({ name: z.string(), email: z.email(), password: z.string().min(12) }),
+  authRegistered: z
+    .object({
+      token: z.null(),
+      user: z
+        .object({ id: z.uuid(), email: z.email(), emailVerified: z.literal(false) })
+        .passthrough(),
+    })
+    .passthrough(),
   authSession: z
     .object({
       user: z.object({ id: z.uuid(), email: z.email() }).passthrough(),
@@ -118,6 +127,9 @@ const customSchemas: Record<string, z.ZodType> = {
   authSignedOut: z.object({ success: z.boolean() }).passthrough(),
   authRecoveryRequest: z.object({ email: z.email() }),
   authRecoveryRequested: z.object({ status: z.boolean(), message: z.string() }),
+  authVerificationRequest: z.object({ email: z.email() }),
+  authVerificationRequested: z.object({ status: z.literal(true) }),
+  authVerificationDone: z.object({ status: z.literal(true), user: z.null() }),
   authResetRequest: z.object({ token: z.string(), newPassword: z.string().min(12) }),
   authResetDone: z.object({ status: z.boolean() }),
   authTotpEnrollment: z.object({ password: z.string(), method: z.literal("totp") }),
@@ -357,9 +369,10 @@ const delegatedEntries: Definition[] = [
   {
     method: "POST",
     path: "/v1/auth/sign-up/email",
-    response: "authSignedIn",
+    response: "authRegistered",
     request: "authRegistration",
-    description: "Registro por email. Disponible solo cuando el servidor habilita registros.",
+    description:
+      "Crea una cuenta pendiente y envía su verificación. No crea una sesión; el correo debe verificarse antes de usar la aplicación.",
   },
   {
     method: "POST",
@@ -370,6 +383,23 @@ const delegatedEntries: Definition[] = [
       "Con TOTP activo devuelve twoFactorRedirect y una cookie de desafío; después se verifica el código.",
   },
   { method: "POST", path: "/v1/auth/sign-out", response: "authSignedOut" },
+  {
+    method: "POST",
+    path: "/v1/auth/send-verification-email",
+    response: "authVerificationRequested",
+    request: "authVerificationRequest",
+    description:
+      "Reenvía la verificación con una respuesta indistinguible para cuentas inexistentes, pendientes o ya verificadas.",
+  },
+  {
+    method: "GET",
+    path: "/v1/auth/verify-email",
+    response: "authVerificationDone",
+    statuses: [200, 302],
+    emptyStatuses: [302],
+    description:
+      "Verifica el token. Los enlaces emitidos por el servidor redirigen a notesia://email-verified y no crean una sesión.",
+  },
   {
     method: "POST",
     path: "/v1/auth/request-password-reset",
@@ -528,6 +558,22 @@ const queries: Record<string, object[]> = {
       schema: { type: "string", enum: ["es", "en"], default: "es" },
     },
   ],
+  "/auth/verify-email": [
+    {
+      in: "query",
+      name: "token",
+      required: true,
+      description: "Token de verificación de un solo uso.",
+      schema: { type: "string", minLength: 1 },
+    },
+    {
+      in: "query",
+      name: "callbackURL",
+      required: false,
+      description: "Retorno fijo a la aplicación móvil.",
+      schema: { type: "string", const: "notesia://email-verified" },
+    },
+  ],
   "/admin/ai/usage": rangeQuery(),
   "/admin/users": [cursorQuery()],
   "/admin/roles": [cursorQuery()],
@@ -611,7 +657,7 @@ for (const item of [...entries, ...delegatedEntries]) {
       String(status),
       {
         description: status === 204 ? "Sin contenido" : "Respuesta correcta",
-        ...(item.response && status !== 204
+        ...(item.response && status !== 204 && !item.emptyStatuses?.includes(status)
           ? { content: { "application/json": { schema: schemaRef(item.response) } } }
           : {}),
       },
@@ -638,6 +684,8 @@ for (const item of [...entries, ...delegatedEntries]) {
       "/v1/auth/get-session",
       "/v1/auth/sign-up/email",
       "/v1/auth/sign-in/email",
+      "/v1/auth/send-verification-email",
+      "/v1/auth/verify-email",
       "/v1/auth/request-password-reset",
       "/v1/auth/reset-password",
     ].includes(item.path)
@@ -743,6 +791,8 @@ if (process.argv.includes("--check")) {
   const existing = await Bun.file(output).text();
   if (existing !== rendered)
     throw new Error("contracts/openapi.yaml is stale; run bun run contracts:generate");
+} else if (process.argv.includes("--stdout")) {
+  process.stdout.write(rendered);
 } else {
   writeFileSync(output, rendered);
   console.log(

@@ -4,6 +4,34 @@ import { clearSessionCookie, getSessionCookie, setSessionCookie } from "./sessio
 
 const userSchema = z.object({ id: z.string(), name: z.string(), email: z.email() });
 const sessionSchema = z.object({ user: userSchema });
+const registrationSchema = z.object({
+  token: z.null(),
+  user: z.object({ email: z.email(), emailVerified: z.literal(false) }).passthrough(),
+});
+
+export class AuthenticationError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+  ) {
+    super(message);
+    this.name = "AuthenticationError";
+  }
+}
+
+export function isEmailVerificationRequired(error: unknown) {
+  return error instanceof AuthenticationError && error.code === "EMAIL_NOT_VERIFIED";
+}
+
+export function emailVerificationCallbackResult(url: string) {
+  const [withoutFragment] = url.split("#");
+  const [base, query = ""] = (withoutFragment ?? "").split("?");
+  if (base?.replace(/\/$/, "") !== "notesia://email-verified") return null;
+  const error = new URLSearchParams(query).get("error");
+  return error
+    ? ({ kind: "error" as const, code: error } as const)
+    : ({ kind: "verified" } as const);
+}
 
 export function sessionCookieFromHeader(header: string | null): string | null {
   if (!header) return null;
@@ -32,7 +60,20 @@ async function authRequest(
   } catch {
     throw new Error("No se pudo contactar al servidor local.");
   }
-  if (!response.ok) throw new Error("La autenticación no pudo completarse.");
+  if (!response.ok) {
+    const body = (await response
+      .clone()
+      .json()
+      .catch(() => null)) as { code?: unknown } | null;
+    const code = typeof body?.code === "string" ? body.code : "AUTH_ERROR";
+    const message =
+      code === "EMAIL_NOT_VERIFIED"
+        ? "Verifica tu correo antes de iniciar sesión."
+        : response.status === 429
+          ? "Demasiados intentos. Inténtalo más tarde."
+          : "La autenticación no pudo completarse.";
+    throw new AuthenticationError(message, code);
+  }
   const newCookie = sessionCookieFromHeader(response.headers.get("set-cookie"));
   if (newCookie) await setSessionCookie(newCookie);
   return response;
@@ -57,8 +98,20 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signUp(name: string, email: string, password: string) {
-  await authRequest("/sign-up/email", { method: "POST", body: { name, email, password } });
-  if (!(await getSessionCookie())) throw new Error("No se pudo guardar la sesión de forma segura.");
+  const response = await authRequest("/sign-up/email", {
+    method: "POST",
+    body: { name, email, password },
+  });
+  const parsed = registrationSchema.safeParse(await response.json());
+  if (!parsed.success || (await getSessionCookie())) {
+    await clearSessionCookie();
+    throw new Error("El servidor devolvió un registro inesperado.");
+  }
+  return { email: parsed.data.user.email };
+}
+
+export async function resendVerificationEmail(email: string) {
+  await authRequest("/send-verification-email", { method: "POST", body: { email } });
 }
 
 export async function signOut() {

@@ -410,7 +410,11 @@ export function createApp(
     app.all("/v1/auth/*", async (c) => {
       if (!authOperationSet.has(`${c.req.method.toUpperCase()} ${c.req.path}`)) return c.notFound();
       const response = await authHandler(c.req.raw);
-      if (response.ok) return response;
+      if (
+        response.ok ||
+        (c.req.path === "/v1/auth/verify-email" && response.status >= 300 && response.status < 400)
+      )
+        return response;
 
       let original: { code?: unknown } | null = null;
       try {

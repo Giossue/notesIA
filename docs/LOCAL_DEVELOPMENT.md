@@ -22,8 +22,10 @@ se conecta directamente a la base.
 
 La creación de la base y del rol fue manual para este equipo. En otro equipo, crear una
 base dedicada y un rol con permiso de conexión; después completar `.env` con esos datos.
-Para desarrollo local, `.env` contiene `NODE_ENV=development` y `ALLOW_SIGNUP=true`;
-el valor predeterminado de registro es cerrado. `BETTER_AUTH_SECRET` es local y privado.
+Para desarrollo local, `.env` contiene `NODE_ENV=development`; el valor
+predeterminado de registro es cerrado. `ALLOW_SIGNUP=true` requiere además
+`SMTP_HOST` y `SMTP_FROM`, porque cada alta debe verificar el correo antes de
+crear una sesión. `BETTER_AUTH_SECRET` es local y privado.
 
 Los scripts de migración y restauración aceptan directamente solo PostgreSQL en
 loopback, puerto 5432 y la base esperada. GitHub Actions usa un contenedor de servicio,
@@ -148,6 +150,10 @@ push mediante dos identificadores opacos validados. Las columnas son anulables
 para conservar trabajos existentes. La API responde un `traceparent` W3C y API y
 worker emiten spans JSON de nombres cerrados sin SQL, parámetros ni contenido
 privado. La operación y el rollback están descritos en `docs/OBSERVABILITY.md`.
+`0044` crea la cola cifrada de correos de verificación con expiración, reintentos
+acotados y continuidad de traza. El rol de la app no puede borrar sus filas; el
+worker elimina el enlace cifrado al entregar, vencer o agotar reintentos. Su
+rollback manual se niega mientras exista cualquier registro.
 El worker purga por lotes las sesiones y los contadores caducados del almacén
 seguro, además de las claves de idempotencia vencidas. Una prueba de integración
 verifica que conserva las filas aún vigentes.
@@ -203,9 +209,9 @@ cd apps/mobile/android && JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew :app:
 ```
 
 `contracts/openapi.yaml` se genera con `bun run contracts:generate` a partir de
-las 99 rutas explícitas de Hono y los esquemas Zod. También describe las once
-operaciones de autenticación permitidas, incluidas verificación y renovación de
-códigos de respaldo y rotación de TOTP. `contracts:check` compara el archivo con
+las 99 rutas explícitas de Hono y los esquemas Zod. También describe las trece
+operaciones de autenticación permitidas, incluidas verificación de correo,
+renovación de códigos de respaldo y rotación de TOTP. `contracts:check` compara el archivo con
 el código y falla si una ruta Hono o el filtro de Better Auth cambian sin actualizar su
 contrato. Las restricciones cruzadas y respuestas de autenticación se validan
 además mediante las pruebas de integración. Otras rutas de Better Auth, como
@@ -405,3 +411,24 @@ Sin esa configuración, la recuperación permanece deshabilitada. No registrar e
 enlace ni el token; el outbox lo guarda cifrado y borra su contenido tras entregar
 o agotar los reintentos. Si el worker cae después de entregar un correo, puede
 reenviarlo al recuperar el trabajo, pero el token mantiene un único uso.
+
+## Registro y verificación de correo
+
+Con `ALLOW_SIGNUP=true`, la API exige `SMTP_HOST` y `SMTP_FROM` tanto en API como
+en worker. El registro crea la cuenta con `correo_verificado=false`, responde sin
+token ni cookie y encola un enlace cifrado que vence en una hora. Hasta verificar,
+el inicio de sesión responde `EMAIL_NOT_VERIFIED`, las rutas privadas responden
+`401` y cualquier sesión creada antes de aplicar esta política deja de autorizar.
+
+El enlace apunta a `GET /v1/auth/verify-email` y usa el retorno fijo
+`notesia://email-verified`, declarado en los proyectos nativos Android e iOS. La
+verificación no crea sesión: la persona vuelve a la pantalla de acceso e inicia
+sesión con su contraseña. `POST /v1/auth/send-verification-email` permite reenviar;
+su respuesta no distingue entre una dirección inexistente, pendiente o ya
+verificada. No registrar correo, URL ni token. El worker borra el contenido cifrado
+después de entregar, vencer o agotar cinco intentos.
+
+`PASSWORD_RESET_URL` sigue siendo opcional y habilita además la recuperación de
+contraseña con el mismo transporte SMTP. Sin SMTP, la API solo puede arrancar con
+el registro cerrado. Para una prueba real queda configurar un remitente y revisar
+la entrega, reputación y enlaces en el entorno objetivo.

@@ -5,6 +5,8 @@ export const supportedAuthRoutes = [
   { method: "POST", path: "/v1/auth/sign-up/email" },
   { method: "POST", path: "/v1/auth/sign-in/email" },
   { method: "POST", path: "/v1/auth/sign-out" },
+  { method: "POST", path: "/v1/auth/send-verification-email" },
+  { method: "GET", path: "/v1/auth/verify-email" },
   { method: "POST", path: "/v1/auth/request-password-reset" },
   { method: "POST", path: "/v1/auth/reset-password" },
   { method: "POST", path: "/v1/auth/two-factor/enable" },

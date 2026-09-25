@@ -71,6 +71,7 @@ beforeAll(async () => {
     secret: authSecret,
     baseURL: "http://127.0.0.1:3000",
     allowSignUp: true,
+    allowUnverifiedEmailForTests: true,
     rateLimitEnabled: false,
   });
   authPool = created.pool;
@@ -435,6 +436,7 @@ test("only an administrator can publish documents and each action is audited", a
       outbox: { pending: 0, ready: 0, inFlight: 0, dead: 0 },
       push: { pending: 0, ready: 0, inFlight: 0, dead: 0 },
       recoveryMail: { pending: 1, ready: 1, inFlight: 0, dead: 0 },
+      verificationMail: { pending: 0, ready: 0, inFlight: 0, dead: 0 },
     },
     worker: { lastSeenAt: null, seenRecently: false },
     ai: {

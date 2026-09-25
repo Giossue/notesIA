@@ -25,6 +25,7 @@ test("operational monitor evaluates health and reports only the resulting signal
       outbox: emptyQueue(),
       push: emptyQueue(),
       recoveryMail: emptyQueue(),
+      verificationMail: emptyQueue(),
     },
     worker: { lastSeenAt: null, seenRecently: false },
     ai: { windowMinutes: 15, knownCostUsd: "0.000000000", uncostedRequests: 0, providers: [] },

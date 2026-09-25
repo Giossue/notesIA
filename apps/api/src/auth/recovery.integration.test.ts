@@ -21,6 +21,7 @@ const created = createAuth({
   secret,
   baseURL: "http://127.0.0.1:3000",
   allowSignUp: true,
+  allowUnverifiedEmailForTests: true,
   recovery: { resetUrl: "https://notesia.example.test/reset-password" },
 });
 const app = createApp(async () => {}, created.auth.handler);
@@ -193,6 +194,7 @@ test("an expired recovery token cannot reset the password", async () => {
     secret: shortSecret,
     baseURL: "http://127.0.0.1:3000",
     allowSignUp: true,
+    allowUnverifiedEmailForTests: true,
     recovery: { resetUrl: "https://notesia.example.test/reset-password", tokenTtlSeconds: 1 },
   });
   try {

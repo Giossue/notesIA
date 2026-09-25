@@ -14,8 +14,9 @@ dominio a un proveedor de telemetría.
   devuelve el `traceparent` normalizado del span de la API.
 - `AsyncLocalStorage` mantiene el contexto entre promesas concurrentes. Cada
   consulta ejecutada dentro de una traza crea un span hijo `db.query`.
-- La migración `0043_contexto_trazas.sql` guarda solo `traza_id` y
-  `span_origen_id` en outbox, correo de recuperación y envíos push. Así el worker
+- Las migraciones `0043_contexto_trazas.sql` y `0044_correos_verificacion.sql`
+  guardan solo `traza_id` y `span_origen_id` en outbox, correos de recuperación y
+  verificación, y envíos push. Así el worker
   continúa el contexto después de que la transacción y el proceso originales
   terminaron. Una fila histórica sin esos valores inicia una traza nueva.
 - Las llamadas de IA, FCM y SMTP crean un span local de proveedor. El contexto
@@ -28,8 +29,9 @@ api.request -> db.query -> worker.outbox -> db.query
             -> worker.push-delivery -> provider.fcm
 ```
 
-La recuperación sigue el mismo patrón mediante `worker.recovery-mail` y
-`provider.smtp`. Una llamada de IA enlaza `api.request` con `provider.ai`.
+La recuperación y la verificación siguen el mismo patrón mediante
+`worker.recovery-mail`, `worker.verification-mail` y `provider.smtp`. Una llamada
+de IA enlaza `api.request` con `provider.ai`.
 
 ## Formato y privacidad
 
@@ -85,14 +87,15 @@ métricas agregadas completas quedan disponibles en la ruta administrativa.
 ## Verificación y rollback
 
 Las pruebas cubren formato W3C, contextos concurrentes, campos permitidos,
-continuidad API→outbox→push y API→correo, además de la ausencia de SQL y valores
+continuidad API→outbox→push y API→correos de recuperación y verificación, además
+de la ausencia de SQL y valores
 privados en los eventos. Una integración con PostgreSQL comprueba la ventana, los
 conteos por proveedor, el costo conocido y la exclusión de modelos e
 identificadores. Las reglas de alerta y el cuerpo firmado se prueban sin servicios
 externos. El rollback manual de `0043` elimina solo metadatos operativos. Se debe
 desplegar primero el código anterior y después ejecutar
-`packages/db/rollback/0043_contexto_trazas.sql`. Las nuevas señales usan columnas
-existentes y no requieren migración ni rollback de datos.
+`packages/db/rollback/0043_contexto_trazas.sql`. La cola de verificación forma
+parte de la salud operativa desde `0044`; su rollback se niega mientras haya filas.
 
 Fuentes técnicas: [W3C Trace Context](https://www.w3.org/TR/trace-context/) y
 [compatibilidad Node.js de Bun](https://bun.com/docs/runtime/nodejs-compat).

@@ -23,6 +23,8 @@ jobs:
       DATABASE_URL: postgres://notesia_app:ci-only@127.0.0.1:5432/notesia_dev
       BETTER_AUTH_SECRET: backend-ci-only-secret-with-at-least-32-characters
       ALLOW_SIGNUP: "true"
+      SMTP_HOST: smtp.example.test
+      SMTP_FROM: access@example.test
       NODE_ENV: test
       NOTESIA_CI_DATABASE_MARKER: notesia-ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:

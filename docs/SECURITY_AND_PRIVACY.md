@@ -3,7 +3,9 @@
 ## Autenticación
 
 - Argon2id mediante biblioteca mantenida.
-- Verificación de correo para acciones sensibles.
+- Verificación obligatoria del correo antes de crear una sesión y acceder a la app.
+- El registro y el reenvío no revelan si una cuenta ya existe o está verificada.
+- El enlace vence en una hora, usa retorno móvil fijo y nunca inicia sesión automáticamente.
 - Recuperación con token de un solo uso, hash y expiración corta.
 - Sesiones revocables y rotación.
 - MFA para administradores antes de producción.

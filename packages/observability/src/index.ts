@@ -92,6 +92,7 @@ export type WorkerObservation =
   | {
       outcome: "processed";
       durationMs: number;
+      verification: number;
       recovery: number;
       outbox: number;
       risk: number;
@@ -113,6 +114,7 @@ export function writeWorkerObservation(
       durationMs: event.durationMs,
       ...(event.outcome === "processed"
         ? {
+            verification: event.verification,
             recovery: event.recovery,
             outbox: event.outbox,
             risk: event.risk,

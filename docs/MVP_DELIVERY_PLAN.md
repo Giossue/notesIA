@@ -24,7 +24,7 @@ los flujos críticos se prueban en Android.
 | Hito | Resultado comprobable | Cierre mínimo |
 |---|---|---|
 | 0. Fundaciones | Esquema Drizzle, migraciones, errores API uniformes y CI. | Base limpia y base con migraciones; API y móvil construyen. |
-| 1. Cuenta y privacidad | Registro, inicio/cierre, sesión segura, perfil y consentimientos versionados. | Sesión revocable; acceso sin sesión denegado; documentos aprobados antes de admitir usuarios reales. |
+| 1. Cuenta y privacidad | Registro con verificación obligatoria, inicio/cierre, sesión segura, perfil y consentimientos versionados. | Sesión revocable; cuenta pendiente sin acceso; documentos aprobados antes de admitir usuarios reales. |
 | 2. Organización manual | Materias, actividades, subtareas, eventos y agenda diaria/semanal. | Crear y editar desde Android; datos persistidos y aislados por usuario. |
 | 3. Disponibilidad | Ventanas semanales, excepciones y conflictos. | Capacidad visible y solapamientos detectados. |
 | 4. Planificación y riesgo | Motor determinístico, preview editable, aplicar explícitamente e historial. | Invariantes y concurrencia probadas; el usuario ve trabajo sin ubicar. |
@@ -35,10 +35,10 @@ los flujos críticos se prueban en Android.
 
 ## Avance backend local (2026-09-24)
 
-Las migraciones `0009` a `0043` añadieron disponibilidad, planes, tiempo real,
+Las migraciones `0009` a `0044` añadieron disponibilidad, planes, tiempo real,
 progreso, preferencias, periodos académicos, idempotencia de reintentos y un outbox
 para avisos internos al aplicar un plan, documentos versionados, consentimientos y
-correos cifrados para recuperación de acceso, rol administrativo, publicación
+correos cifrados para recuperación y verificación de acceso, rol administrativo, publicación
 auditada de documentos, TOTP y configuración cifrada de IA. La migración `0039`
 ordena de forma persistente los consentimientos y da prioridad a revocaciones
 anteriores cuando hay marcas de tiempo iguales. La migración `0040` impide que dos
@@ -102,7 +102,7 @@ las respuestas manuales por caso y motivo, incluidas las que no llamaron a un pr
 El worker identifica reservas de IA abandonadas como resultado incierto, sin
 devolver sus tokens al presupuesto cuando la llamada pudo haberse facturado.
 También expone el estado de PostgreSQL y los contadores de trabajos pendientes,
-listos, en curso y fallidos de outbox, push y recuperación. El worker escribe un
+listos, en curso y fallidos de outbox, push, recuperación y verificación. El worker escribe un
 latido por ciclo; la API expone cuándo se vio por última vez y si fue reciente.
 Las cuentas se listan con cursor y pueden suspenderse o reactivarse con versión,
 contraseña y auditoría. Suspender revoca sesiones; un nuevo inicio queda bloqueado
@@ -162,7 +162,7 @@ la preferencia general al insertar un aviso, incluso si cambió durante la búsq
 La entrega de `plan.applied` también bloquea la preferencia al insertar, para que
 apagar avisos durante el procesamiento no deje una notificación posterior.
 El archivo OpenAPI se genera desde las 99 operaciones Hono explícitas y sus
-validadores Zod; incluye las once operaciones de autenticación permitidas por la
+validadores Zod; incluye las trece operaciones de autenticación permitidas por la
 API. CI comprueba que ninguna ruta Hono nueva ni cambio en el filtro de Better
 Auth quede sin descripción y que el archivo esté actualizado. Las rutas
 delegadas no permitidas devuelven `404`; las respuestas HTTP especiales se
@@ -176,9 +176,10 @@ experiencia móvil de esos flujos.
 
 ## Próxima entrega
 
-1. Configurar un remitente SMTP real y la pantalla HTTPS de restablecimiento; el
-   token, expiración y revocación de sesiones ya tienen prueba de integración.
-   Falta la prueba de sesión vencida y restauración en Android.
+1. Configurar un remitente SMTP real y la pantalla HTTPS de restablecimiento. El
+   alta ya queda pendiente, envía un enlace cifrado, vuelve a la app por deep link
+   y bloquea toda sesión hasta verificar; falta comprobar la entrega en un buzón
+   y la restauración de sesión en Android.
 2. Aprobar los textos definitivos de términos y privacidad antes de registrar
    usuarios reales. La ruta de publicación ya exige TOTP y una sesión nueva. Falta
    provisionar el rol inicial y la interfaz administrativa. Las pruebas usan una base local

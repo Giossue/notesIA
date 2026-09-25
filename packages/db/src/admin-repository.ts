@@ -174,41 +174,51 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
       }
     },
     async systemHealth() {
-      const [outbox, push, recoveryMail, heartbeat, aiProviders, aiCost] = await Promise.all([
-        pool.query<QueueCounts>(
-          `SELECT count(*) FILTER (WHERE estado = 'pending')::text AS pending,
+      const [outbox, push, recoveryMail, verificationMail, heartbeat, aiProviders, aiCost] =
+        await Promise.all([
+          pool.query<QueueCounts>(
+            `SELECT count(*) FILTER (WHERE estado = 'pending')::text AS pending,
              count(*) FILTER (WHERE estado = 'pending' AND disponible_en <= now())::text AS ready,
              '0'::text AS "inFlight",
              count(*) FILTER (WHERE estado = 'dead')::text AS dead,
              min(disponible_en) FILTER (WHERE estado = 'pending' AND disponible_en <= now())
                AS "oldestReadyAt"
            FROM dominio.bandeja_salida`,
-        ),
-        pool.query<QueueCounts>(
-          `SELECT count(*) FILTER (WHERE estado = 'pending')::text AS pending,
+          ),
+          pool.query<QueueCounts>(
+            `SELECT count(*) FILTER (WHERE estado = 'pending')::text AS pending,
              count(*) FILTER (WHERE estado = 'pending' AND disponible_en <= now())::text AS ready,
              count(*) FILTER (WHERE estado = 'sending')::text AS "inFlight",
              count(*) FILTER (WHERE estado = 'dead')::text AS dead,
              min(disponible_en) FILTER (WHERE estado = 'pending' AND disponible_en <= now())
                AS "oldestReadyAt"
            FROM dominio.envios_push`,
-        ),
-        pool.query<QueueCounts>(
-          `SELECT count(*) FILTER (WHERE estado = 'pending')::text AS pending,
+          ),
+          pool.query<QueueCounts>(
+            `SELECT count(*) FILTER (WHERE estado = 'pending')::text AS pending,
              count(*) FILTER (WHERE estado = 'pending' AND disponible_en <= now())::text AS ready,
              count(*) FILTER (WHERE estado = 'sending')::text AS "inFlight",
              count(*) FILTER (WHERE estado = 'dead')::text AS dead,
              min(disponible_en) FILTER (WHERE estado = 'pending' AND disponible_en <= now())
                AS "oldestReadyAt"
            FROM autenticacion.correos_recuperacion`,
-        ),
-        pool.query<{ lastSeenAt: Date; seenRecently: boolean }>(
-          `SELECT visto_en AS "lastSeenAt",
+          ),
+          pool.query<QueueCounts>(
+            `SELECT count(*) FILTER (WHERE estado = 'pending')::text AS pending,
+             count(*) FILTER (WHERE estado = 'pending' AND disponible_en <= now())::text AS ready,
+             count(*) FILTER (WHERE estado = 'sending')::text AS "inFlight",
+             count(*) FILTER (WHERE estado = 'dead')::text AS dead,
+             min(disponible_en) FILTER (WHERE estado = 'pending' AND disponible_en <= now())
+               AS "oldestReadyAt"
+           FROM autenticacion.correos_verificacion`,
+          ),
+          pool.query<{ lastSeenAt: Date; seenRecently: boolean }>(
+            `SELECT visto_en AS "lastSeenAt",
              visto_en >= now() - interval '2 minutes' AS "seenRecently"
            FROM dominio.latido_worker WHERE id = true`,
-        ),
-        pool.query<AiProviderHealthRow>(
-          `SELECT proveedor AS provider,
+          ),
+          pool.query<AiProviderHealthRow>(
+            `SELECT proveedor AS provider,
              count(*) FILTER (WHERE estado <> 'reserved')::text AS requests,
              count(*) FILTER (WHERE estado = 'success')::text AS successes,
              count(*) FILTER (WHERE estado IN ('error','timeout'))::text AS unavailable,
@@ -218,21 +228,22 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
            GROUP BY proveedor
            HAVING count(*) FILTER (WHERE estado <> 'reserved') > 0
            ORDER BY proveedor`,
-        ),
-        pool.query<AiCostHealthRow>(
-          `SELECT coalesce(sum(costo_usd) FILTER (WHERE estado <> 'reserved'), 0)
+          ),
+          pool.query<AiCostHealthRow>(
+            `SELECT coalesce(sum(costo_usd) FILTER (WHERE estado <> 'reserved'), 0)
                ::numeric(24,9)::text AS "knownCostUsd",
              count(*) FILTER (WHERE estado <> 'reserved' AND costo_usd IS NULL)::text
                AS "uncostedRequests"
            FROM dominio.uso_ia
            WHERE registrado_en >= now() - interval '15 minutes'`,
-        ),
-      ]);
+          ),
+        ]);
       return {
         queues: {
           outbox: toQueueCounts(outbox.rows[0]),
           push: toQueueCounts(push.rows[0]),
           recoveryMail: toQueueCounts(recoveryMail.rows[0]),
+          verificationMail: toQueueCounts(verificationMail.rows[0]),
         },
         worker: {
           lastSeenAt: heartbeat.rows[0]?.lastSeenAt?.toISOString() ?? null,

@@ -1,47 +1,8 @@
-import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:crypto";
 import { currentTracePropagation, tracePropagation, withTraceSpan } from "@notesia/observability";
 import type { Pool } from "pg";
+import { createAuthMailCipher } from "./auth-mail-crypto";
 
-const NONCE_BYTES = 12;
-const TAG_BYTES = 16;
 const MAX_ATTEMPTS = 5;
-
-function keyFromSecret(secret: string) {
-  return Buffer.from(
-    hkdfSync(
-      "sha256",
-      Buffer.from(secret),
-      Buffer.from("notesia-recovery-mail-v1"),
-      Buffer.from("encryption"),
-      32,
-    ),
-  );
-}
-
-function associatedData(id: string, userId: string) {
-  return Buffer.from(`${id}:${userId}`);
-}
-
-function encrypt(key: Buffer, id: string, userId: string, value: string) {
-  const nonce = randomBytes(NONCE_BYTES);
-  const cipher = createCipheriv("aes-256-gcm", key, nonce);
-  cipher.setAAD(associatedData(id, userId));
-  const ciphertext = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
-  return Buffer.concat([nonce, cipher.getAuthTag(), ciphertext]);
-}
-
-function decrypt(key: Buffer, id: string, userId: string, payload: Buffer) {
-  if (payload.length < NONCE_BYTES + TAG_BYTES) throw new Error("Invalid recovery payload");
-  const nonce = payload.subarray(0, NONCE_BYTES);
-  const tag = payload.subarray(NONCE_BYTES, NONCE_BYTES + TAG_BYTES);
-  const decipher = createDecipheriv("aes-256-gcm", key, nonce);
-  decipher.setAAD(associatedData(id, userId));
-  decipher.setAuthTag(tag);
-  return Buffer.concat([
-    decipher.update(payload.subarray(NONCE_BYTES + TAG_BYTES)),
-    decipher.final(),
-  ]).toString("utf8");
-}
 
 type ClaimedMail = {
   id: string;
@@ -55,11 +16,11 @@ type ClaimedMail = {
 };
 
 export function createRecoveryMailRepository(pool: Pool, secret: string) {
-  const key = keyFromSecret(secret);
+  const cipher = createAuthMailCipher(secret, "notesia-recovery-mail-v1");
   return {
     async enqueue(userId: string, resetUrl: string, ttlSeconds: number) {
       const id = crypto.randomUUID();
-      const payload = encrypt(key, id, userId, resetUrl);
+      const payload = cipher.encrypt(id, userId, resetUrl);
       await withTraceSpan(
         { name: "db.recovery-mail.enqueue", component: "database", target: "postgresql" },
         async () => {
@@ -113,7 +74,7 @@ export function createRecoveryMailRepository(pool: Pool, secret: string) {
             return { kind: "expired" as const };
           }
           try {
-            await deliver(mail.email, decrypt(key, mail.id, mail.userId, mail.payload));
+            await deliver(mail.email, cipher.decrypt(mail.id, mail.userId, mail.payload));
             await pool.query(
               `UPDATE autenticacion.correos_recuperacion
                SET estado = 'done', contenido_cifrado = NULL, procesado_en = now()

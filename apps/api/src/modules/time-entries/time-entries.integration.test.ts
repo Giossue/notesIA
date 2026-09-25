@@ -25,6 +25,7 @@ const { auth, pool } = createAuth({
   secret: crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", ""),
   baseURL: "http://127.0.0.1:3000",
   allowSignUp: true,
+  allowUnverifiedEmailForTests: true,
 });
 const getSession = (headers: Headers) => auth.api.getSession({ headers });
 const profiles = createProfileRepository(pool);

@@ -81,6 +81,7 @@ beforeAll(async () => {
     secret: crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", ""),
     baseURL: "http://127.0.0.1:3000",
     allowSignUp: true,
+    allowUnverifiedEmailForTests: true,
     rateLimitEnabled: false,
   });
   runtime = auth.pool;

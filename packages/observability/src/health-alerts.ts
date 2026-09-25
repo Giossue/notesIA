@@ -26,6 +26,7 @@ export type OperationalHealth = {
     outbox: QueueHealth;
     push: QueueHealth;
     recoveryMail: QueueHealth;
+    verificationMail: QueueHealth;
   };
   worker: { lastSeenAt: string | null; seenRecently: boolean };
   ai: AiOperationalHealth;
@@ -34,7 +35,7 @@ export type OperationalHealth = {
 export type HealthAlert =
   | {
       code: "WORKER_UNAVAILABLE" | "QUEUE_BACKLOG" | "QUEUE_DEAD";
-      queue: "outbox" | "push" | "recoveryMail" | null;
+      queue: "outbox" | "push" | "recoveryMail" | "verificationMail" | null;
     }
   | {
       code: "AI_PROVIDER_UNAVAILABLE" | "AI_ERROR_RATE_HIGH";
@@ -63,7 +64,7 @@ export function evaluateHealthAlerts(
 ): HealthAlert[] {
   const alerts: HealthAlert[] = [];
   if (!health.worker.seenRecently) alerts.push({ code: "WORKER_UNAVAILABLE", queue: null });
-  for (const queue of ["outbox", "push", "recoveryMail"] as const) {
+  for (const queue of ["outbox", "push", "recoveryMail", "verificationMail"] as const) {
     const state = health.queues[queue];
     if (state.dead > 0) alerts.push({ code: "QUEUE_DEAD", queue });
     const oldestReady = state.oldestReadyAt ? Date.parse(state.oldestReadyAt) : NaN;

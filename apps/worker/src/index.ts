@@ -1,4 +1,4 @@
-import { readDeletionPolicy, readRecoveryConfig } from "@notesia/config";
+import { readAuthMailConfig, readDeletionPolicy } from "@notesia/config";
 import {
   createAccountDeletionRepository,
   createAiRepository,
@@ -9,6 +9,7 @@ import {
   createPushTokenCipher,
   createRecoveryMailRepository,
   createTracedPool,
+  createVerificationMailRepository,
   createWorkerHealthRepository,
   purgeExpiredSecureStorage,
 } from "@notesia/db";
@@ -18,8 +19,8 @@ import {
   writeWorkerObservation,
 } from "@notesia/observability";
 import { Pool } from "pg";
+import { createAuthSmtpSender } from "./auth-smtp";
 import { createFcmSender } from "./fcm";
-import { createRecoverySmtpSender } from "./recovery-smtp";
 import { createRiskReassessment } from "./risk-reassessment";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -38,12 +39,15 @@ const fcmSender = process.env.FCM_PROJECT_ID
 if (fcmSender && !pushCipher)
   throw new Error("PUSH_ENCRYPTION_KEY is required when FCM_PROJECT_ID is set");
 const push = pushCipher && fcmSender ? createPushDeliveryRepository(pool, pushCipher) : null;
-const recoveryConfig = readRecoveryConfig(process.env);
-const recoverySender = recoveryConfig ? createRecoverySmtpSender(recoveryConfig.smtp) : null;
-if (recoverySender && !process.env.BETTER_AUTH_SECRET)
-  throw new Error("BETTER_AUTH_SECRET is required for recovery mail");
-const recovery = recoverySender
+const mailConfig = readAuthMailConfig(process.env);
+const mailSender = mailConfig ? createAuthSmtpSender(mailConfig.smtp) : null;
+if (mailSender && !process.env.BETTER_AUTH_SECRET)
+  throw new Error("BETTER_AUTH_SECRET is required for authentication mail");
+const recovery = mailSender
   ? createRecoveryMailRepository(pool, process.env.BETTER_AUTH_SECRET as string)
+  : null;
+const verification = mailSender
+  ? createVerificationMailRepository(pool, process.env.BETTER_AUTH_SECRET as string)
   : null;
 const deletionPolicy = readDeletionPolicy(process.env);
 if (deletionPolicy && !process.env.BETTER_AUTH_SECRET)
@@ -72,9 +76,13 @@ while (running) {
   const started = performance.now();
   try {
     await workerHealth.beat();
+    const verificationResult =
+      verification && mailSender
+        ? await verification.processOne(mailSender.verification)
+        : { kind: "empty" as const };
     const recoveryResult =
-      recovery && recoverySender
-        ? await recovery.processOne(recoverySender)
+      recovery && mailSender
+        ? await recovery.processOne(mailSender.recovery)
         : { kind: "empty" as const };
     const result = await outbox.processOne();
     const riskResult = await riskReassessment.processOne();
@@ -100,6 +108,7 @@ while (running) {
     const idle =
       result.kind === "empty" &&
       riskResult.kind === "empty" &&
+      verificationResult.kind === "empty" &&
       recoveryResult.kind === "empty" &&
       scheduled === 0 &&
       pushResult.kind === "empty" &&
@@ -111,6 +120,7 @@ while (running) {
       writeWorkerObservation({
         outcome: "processed",
         durationMs: Math.max(0, Math.round(performance.now() - started)),
+        verification: Number(verificationResult.kind !== "empty"),
         recovery: Number(recoveryResult.kind !== "empty"),
         outbox: Number(result.kind !== "empty"),
         risk: Number(riskResult.kind !== "empty"),

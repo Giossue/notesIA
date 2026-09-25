@@ -1377,6 +1377,30 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /auth/send-verification-email:
+    post:
+      operationId: postAuthSendVerificationEmail
+      description: Reenvía la verificación con una respuesta indistinguible para cuentas inexistentes, pendientes o ya verificadas.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthVerificationRequestInput"
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthVerificationRequested"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /auth/sign-in/email:
     post:
       operationId: postAuthSignInEmail
@@ -1420,7 +1444,7 @@ paths:
   /auth/sign-up/email:
     post:
       operationId: postAuthSignUpEmail
-      description: Registro por email. Disponible solo cuando el servidor habilita registros.
+      description: Crea una cuenta pendiente y envía su verificación. No crea una sesión; el correo debe verificarse antes de usar la aplicación.
       security: []
       requestBody:
         required: true
@@ -1434,7 +1458,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthSignedIn"
+                $ref: "#/components/schemas/AuthRegistered"
         default:
           description: Error
           content:
@@ -1550,6 +1574,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthTotpVerified"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /auth/verify-email:
+    get:
+      operationId: getAuthVerifyEmail
+      description: Verifica el token. Los enlaces emitidos por el servidor redirigen a notesia://email-verified y no crean una sesión.
+      security: []
+      parameters:
+        - in: query
+          name: token
+          required: true
+          description: Token de verificación de un solo uso.
+          schema:
+            type: string
+            minLength: 1
+        - in: query
+          name: callbackURL
+          required: false
+          description: Retorno fijo a la aplicación móvil.
+          schema:
+            type: string
+            const: notesia://email-verified
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthVerificationDone"
+        "302":
+          description: Respuesta correcta
         default:
           description: Error
           content:
@@ -5039,10 +5098,43 @@ components:
                 - dead
                 - oldestReadyAt
               additionalProperties: false
+            verificationMail:
+              type: object
+              properties:
+                pending:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+                ready:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+                inFlight:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+                dead:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+                oldestReadyAt:
+                  anyOf:
+                    - type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                    - type: "null"
+              required:
+                - pending
+                - ready
+                - inFlight
+                - dead
+                - oldestReadyAt
+              additionalProperties: false
           required:
             - outbox
             - push
             - recoveryMail
+            - verificationMail
           additionalProperties: false
         worker:
           type: object
@@ -5131,6 +5223,7 @@ components:
                           - outbox
                           - push
                           - recoveryMail
+                          - verificationMail
                       - type: "null"
                 required:
                   - code
@@ -5841,6 +5934,34 @@ components:
           pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
       required:
         - email
+    AuthRegistered:
+      type: object
+      properties:
+        token:
+          type: "null"
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            email:
+              type: string
+              format: email
+              pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+            emailVerified:
+              type: boolean
+              const: false
+          required:
+            - id
+            - email
+            - emailVerified
+          additionalProperties: {}
+      required:
+        - token
+        - user
+      additionalProperties: {}
     AuthRegistrationInput:
       type: object
       properties:
@@ -6030,6 +6151,36 @@ components:
       required:
         - status
       additionalProperties: {}
+    AuthVerificationDone:
+      type: object
+      properties:
+        status:
+          type: boolean
+          const: true
+        user:
+          type: "null"
+      required:
+        - status
+        - user
+      additionalProperties: false
+    AuthVerificationRequested:
+      type: object
+      properties:
+        status:
+          type: boolean
+          const: true
+      required:
+        - status
+      additionalProperties: false
+    AuthVerificationRequestInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+      required:
+        - email
     AvailabilityCapacity:
       type: object
       properties:

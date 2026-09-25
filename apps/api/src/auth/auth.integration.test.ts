@@ -22,6 +22,7 @@ const { auth, pool } = createAuth({
   secret: authSecret,
   baseURL: "http://127.0.0.1:3000",
   allowSignUp: true,
+  allowUnverifiedEmailForTests: true,
 });
 const app = createApp(async () => {}, auth.handler, {
   getSession: (headers) => auth.api.getSession({ headers }),

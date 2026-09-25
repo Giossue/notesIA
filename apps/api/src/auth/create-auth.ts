@@ -1,4 +1,9 @@
-import { createRecoveryMailRepository, createSecureStorage, createTracedPool } from "@notesia/db";
+import {
+  createRecoveryMailRepository,
+  createSecureStorage,
+  createTracedPool,
+  createVerificationMailRepository,
+} from "@notesia/db";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { twoFactor } from "better-auth/plugins";
@@ -13,10 +18,13 @@ type AuthOptions = {
   allowSignUp?: boolean;
   rateLimitEnabled?: boolean;
   recovery?: { resetUrl: string; tokenTtlSeconds?: number };
+  verificationMail?: { tokenTtlSeconds?: number };
+  allowUnverifiedEmailForTests?: boolean;
 };
 
+const VERIFICATION_CALLBACK_URL = "notesia://email-verified";
+
 export function createAuth(options: AuthOptions) {
-  const pool = createTracedPool(new Pool({ connectionString: options.databaseUrl, max: 5 }));
   const recoveryUrl = options.recovery ? new URL(options.recovery.resetUrl) : null;
   if (
     recoveryUrl &&
@@ -30,7 +38,21 @@ export function createAuth(options: AuthOptions) {
   const tokenTtlSeconds = options.recovery?.tokenTtlSeconds ?? 900;
   if (!Number.isInteger(tokenTtlSeconds) || tokenTtlSeconds < 1 || tokenTtlSeconds > 3600)
     throw new Error("Invalid recovery token lifetime");
+  const verificationTtlSeconds = options.verificationMail?.tokenTtlSeconds ?? 3600;
+  if (
+    !Number.isInteger(verificationTtlSeconds) ||
+    verificationTtlSeconds < 1 ||
+    verificationTtlSeconds > 86400
+  )
+    throw new Error("Invalid email verification token lifetime");
+  const requireEmailVerification = options.allowUnverifiedEmailForTests !== true;
+  if (options.allowSignUp && requireEmailVerification && !options.verificationMail)
+    throw new Error("SMTP configuration is required when account registration is enabled");
+  const pool = createTracedPool(new Pool({ connectionString: options.databaseUrl, max: 5 }));
   const recoveryMail = options.recovery ? createRecoveryMailRepository(pool, options.secret) : null;
+  const verificationMail = options.verificationMail
+    ? createVerificationMailRepository(pool, options.secret)
+    : null;
   const auth = betterAuth({
     appName: "NotesIA",
     baseURL: options.baseURL,
@@ -81,13 +103,34 @@ export function createAuth(options: AuthOptions) {
         updatedAt: "actualizado_en",
       },
     },
-    secondaryStorage: createSecureStorage(pool, options.secret),
+    secondaryStorage: createSecureStorage(pool, options.secret, {
+      requireVerifiedEmail: requireEmailVerification,
+    }),
+    emailVerification: verificationMail
+      ? {
+          expiresIn: verificationTtlSeconds,
+          sendOnSignUp: true,
+          sendOnSignIn: false,
+          autoSignInAfterVerification: false,
+          sendVerificationEmail: async ({ user, token }) => {
+            const url = new URL("/v1/auth/verify-email", options.baseURL);
+            url.searchParams.set("token", token);
+            url.searchParams.set("callbackURL", VERIFICATION_CALLBACK_URL);
+            await verificationMail.enqueue(user.id, url.toString(), verificationTtlSeconds);
+          },
+        }
+      : undefined,
     databaseHooks: {
       session: {
         create: {
           before: async (session) => {
-            const account = await pool.query<{ active: boolean; version: number }>(
+            const account = await pool.query<{
+              active: boolean;
+              emailVerified: boolean;
+              version: number;
+            }>(
               `SELECT suspendido_en IS NULL AS active, estado_version AS version
+                 , correo_verificado AS "emailVerified"
                FROM autenticacion.usuarios WHERE id = $1`,
               [session.userId],
             );
@@ -95,6 +138,11 @@ export function createAuth(options: AuthOptions) {
               throw APIError.from("FORBIDDEN", {
                 code: "ACCOUNT_SUSPENDED",
                 message: "Esta cuenta está suspendida.",
+              });
+            if (requireEmailVerification && !account.rows[0].emailVerified)
+              throw APIError.from("FORBIDDEN", {
+                code: "EMAIL_NOT_VERIFIED",
+                message: "Verifica tu correo antes de iniciar sesión.",
               });
             return { data: { ...session, notesiaAccountVersion: account.rows[0].version } };
           },
@@ -108,6 +156,8 @@ export function createAuth(options: AuthOptions) {
     emailAndPassword: {
       enabled: true,
       disableSignUp: !options.allowSignUp,
+      requireEmailVerification,
+      autoSignIn: !requireEmailVerification,
       minPasswordLength: 12,
       resetPasswordTokenExpiresIn: tokenTtlSeconds,
       revokeSessionsOnPasswordReset: true,
@@ -121,7 +171,7 @@ export function createAuth(options: AuthOptions) {
         : undefined,
       password: { hash: hashPassword, verify: verifyPassword },
     },
-    trustedOrigins: ["notesia://"],
+    trustedOrigins: ["notesia://", VERIFICATION_CALLBACK_URL],
     plugins: [
       twoFactor({
         issuer: "NotesIA",
@@ -145,5 +195,37 @@ export function createAuth(options: AuthOptions) {
     ],
   });
 
-  return { auth, pool };
+  const getSession = async (headers: Headers) => {
+    const session = await auth.api.getSession({ headers });
+    return !requireEmailVerification || session?.user.emailVerified ? session : null;
+  };
+  const handler = async (request: Request) => {
+    const requestUrl = new URL(request.url);
+    const callbackUrl = requestUrl.searchParams.get("callbackURL");
+    if (
+      requestUrl.pathname === "/v1/auth/verify-email" &&
+      callbackUrl !== null &&
+      callbackUrl !== VERIFICATION_CALLBACK_URL
+    )
+      return Response.json(
+        { code: "INVALID_CALLBACK_URL", message: "El retorno de verificación no es válido." },
+        { status: 400 },
+      );
+    const response = await auth.handler(request);
+    if (!requireEmailVerification || !response.ok || requestUrl.pathname !== "/v1/auth/get-session")
+      return response;
+    const body = (await response
+      .clone()
+      .json()
+      .catch(() => null)) as {
+      user?: { emailVerified?: boolean };
+    } | null;
+    if (!body?.user || body.user.emailVerified) return response;
+    const headers = new Headers(response.headers);
+    headers.delete("Content-Length");
+    headers.set("Content-Type", "application/json");
+    return new Response("null", { status: 200, headers });
+  };
+
+  return { auth, pool, getSession, handler };
 }

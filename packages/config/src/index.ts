@@ -1,17 +1,16 @@
-export type RecoveryConfig = {
-  resetUrl: string;
-  smtp: {
-    host: string;
-    from: string;
-    port: number;
-    secure: boolean;
-    user?: string;
-    password?: string;
-    tlsServername?: string;
-  };
+export type SmtpConfig = {
+  host: string;
+  from: string;
+  port: number;
+  secure: boolean;
+  user?: string;
+  password?: string;
+  tlsServername?: string;
 };
+export type AuthMailConfig = { resetUrl: string | null; smtp: SmtpConfig };
+export type RecoveryConfig = { resetUrl: string; smtp: SmtpConfig };
 
-export function readRecoveryConfig(env: NodeJS.ProcessEnv): RecoveryConfig | null {
+export function readAuthMailConfig(env: NodeJS.ProcessEnv): AuthMailConfig | null {
   const names = [
     "PASSWORD_RESET_URL",
     "SMTP_HOST",
@@ -26,19 +25,21 @@ export function readRecoveryConfig(env: NodeJS.ProcessEnv): RecoveryConfig | nul
   const resetUrl = env.PASSWORD_RESET_URL;
   const host = env.SMTP_HOST;
   const from = env.SMTP_FROM;
-  if (!resetUrl || !host || !from)
-    throw new Error("PASSWORD_RESET_URL, SMTP_HOST and SMTP_FROM must be set together");
+  if (!host || !from) throw new Error("SMTP_HOST and SMTP_FROM must be set together");
   if (!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(from))
     throw new Error("SMTP_FROM must be a plain email address");
-  const parsedUrl = new URL(resetUrl);
-  if (
-    parsedUrl.protocol !== "https:" ||
-    parsedUrl.username ||
-    parsedUrl.password ||
-    parsedUrl.hash ||
-    parsedUrl.searchParams.has("token")
-  )
-    throw new Error("PASSWORD_RESET_URL must be HTTPS without credentials, hash or token");
+  let parsedUrl: URL | null = null;
+  if (resetUrl) {
+    parsedUrl = new URL(resetUrl);
+    if (
+      parsedUrl.protocol !== "https:" ||
+      parsedUrl.username ||
+      parsedUrl.password ||
+      parsedUrl.hash ||
+      parsedUrl.searchParams.has("token")
+    )
+      throw new Error("PASSWORD_RESET_URL must be HTTPS without credentials, hash or token");
+  }
   if (Boolean(env.SMTP_USER) !== Boolean(env.SMTP_PASSWORD))
     throw new Error("SMTP_USER and SMTP_PASSWORD must be set together");
   if (env.SMTP_SECURE && !["true", "false"].includes(env.SMTP_SECURE))
@@ -49,7 +50,7 @@ export function readRecoveryConfig(env: NodeJS.ProcessEnv): RecoveryConfig | nul
   if (port === 465 && env.SMTP_SECURE === "false")
     throw new Error("SMTP_SECURE=false is incompatible with port 465");
   return {
-    resetUrl: parsedUrl.toString(),
+    resetUrl: parsedUrl?.toString() ?? null,
     smtp: {
       host,
       from,
@@ -60,6 +61,11 @@ export function readRecoveryConfig(env: NodeJS.ProcessEnv): RecoveryConfig | nul
       tlsServername: env.SMTP_TLS_SERVERNAME,
     },
   };
+}
+
+export function readRecoveryConfig(env: NodeJS.ProcessEnv): RecoveryConfig | null {
+  const config = readAuthMailConfig(env);
+  return config?.resetUrl ? { resetUrl: config.resetUrl, smtp: config.smtp } : null;
 }
 
 export type DeletionPolicy = {

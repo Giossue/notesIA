@@ -83,6 +83,10 @@ export { createSubtaskRepository, type SubtaskRepository } from "./subtask-repos
 export { createTimeEntryRepository, type TimeEntryRepository } from "./time-entry-repository";
 export { createTracedPool } from "./traced-pool";
 export {
+  createVerificationMailRepository,
+  type VerificationMailRepository,
+} from "./verification-mail-repository";
+export {
   createWorkerHealthRepository,
   type WorkerHealthRepository,
 } from "./worker-health-repository";

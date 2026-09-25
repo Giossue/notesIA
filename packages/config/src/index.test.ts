@@ -1,5 +1,10 @@
 import { expect, test } from "bun:test";
-import { readDeletionPolicy, readOperationalAlertConfig, readRecoveryConfig } from "./index";
+import {
+  readAuthMailConfig,
+  readDeletionPolicy,
+  readOperationalAlertConfig,
+  readRecoveryConfig,
+} from "./index";
 
 const valid = {
   PASSWORD_RESET_URL: "https://app.example.test/reset-password",
@@ -7,7 +12,7 @@ const valid = {
   SMTP_FROM: "access@example.test",
 };
 
-test("recovery stays disabled until complete SMTP and reset URL configuration exists", () => {
+test("SMTP alone enables account mail while recovery also requires a reset URL", () => {
   expect(readRecoveryConfig({})).toBeNull();
   expect(() => readRecoveryConfig({ SMTP_HOST: valid.SMTP_HOST })).toThrow();
   expect(() => readRecoveryConfig({ ...valid, SMTP_PASSWORD: "secret" })).toThrow();
@@ -22,6 +27,10 @@ test("recovery stays disabled until complete SMTP and reset URL configuration ex
   expect(readRecoveryConfig({ ...valid, SMTP_PORT: "465" })).toMatchObject({
     smtp: { port: 465, secure: true },
   });
+  expect(
+    readAuthMailConfig({ SMTP_HOST: valid.SMTP_HOST, SMTP_FROM: valid.SMTP_FROM }),
+  ).toMatchObject({ resetUrl: null, smtp: { host: valid.SMTP_HOST, from: valid.SMTP_FROM } });
+  expect(readRecoveryConfig({ SMTP_HOST: valid.SMTP_HOST, SMTP_FROM: valid.SMTP_FROM })).toBeNull();
 });
 
 test("account deletion remains disabled until the full retention policy is configured", () => {

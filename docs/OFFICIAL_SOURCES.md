@@ -31,6 +31,7 @@ Verificar la versión instalada antes de implementar. Este índice no sustituye 
 - Drizzle: https://orm.drizzle.team/docs/overview
 - PostgreSQL: https://www.postgresql.org/docs/
 - Better Auth: https://www.better-auth.com/docs
+- Better Auth, verificación de correo: https://www.better-auth.com/docs/concepts/email#email-verification
 - OpenAPI 3.1: https://spec.openapis.org/oas/v3.1.0
 
 ## IA

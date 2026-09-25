@@ -15,6 +15,7 @@ test("health alerts flag stalled and dead queues without payloads or identities"
       outbox: { ...empty(), pending: 1, ready: 1, oldestReadyAt: "2026-09-24T11:54:00.000Z" },
       push: { ...empty(), pending: 100, ready: 100, oldestReadyAt: "2026-09-24T11:59:00.000Z" },
       recoveryMail: { ...empty(), dead: 1 },
+      verificationMail: empty(),
     },
     worker: { lastSeenAt: null, seenRecently: false },
     ai: { windowMinutes: 15, knownCostUsd: "0.000000000", uncostedRequests: 0, providers: [] },
@@ -29,12 +30,18 @@ test("health alerts flag stalled and dead queues without payloads or identities"
   health.queues.outbox = { ...empty(), pending: 1 };
   health.queues.push = empty();
   health.queues.recoveryMail = empty();
+  health.queues.verificationMail = empty();
   expect(evaluateHealthAlerts(health, new Date("2026-09-24T12:00:00.000Z"))).toEqual([]);
 });
 
 test("health alerts distinguish unavailable providers, sustained errors and configured cost", () => {
   const health: OperationalHealth = {
-    queues: { outbox: empty(), push: empty(), recoveryMail: empty() },
+    queues: {
+      outbox: empty(),
+      push: empty(),
+      recoveryMail: empty(),
+      verificationMail: empty(),
+    },
     worker: { lastSeenAt: "2026-09-24T12:00:00.000Z", seenRecently: true },
     ai: {
       windowMinutes: 15,

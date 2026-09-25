@@ -33,7 +33,7 @@ import {
 } from "@notesia/observability";
 import { Pool } from "pg";
 import { createApp } from "./app";
-import { auth } from "./auth/auth";
+import { auth, handler as authHandler, getSession } from "./auth/auth";
 import { createAiGateway } from "./modules/ai/gateway";
 import { createAiKeyCipher } from "./modules/ai/key-cipher";
 import { createOperationalMonitor } from "./operational-monitor";
@@ -64,39 +64,39 @@ const app = createApp(
   async () => {
     await domainPool.query("SELECT 1");
   },
-  auth.handler,
+  authHandler,
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     profiles: createProfileRepository(repositoryPool),
     preferences: createPreferenceRepository(repositoryPool),
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     subjects: createSubjectRepository(repositoryPool),
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     activities: createActivityRepository(repositoryPool),
     profiles: createProfileRepository(repositoryPool),
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     activities: createActivityRepository(repositoryPool),
     subtasks: createSubtaskRepository(repositoryPool),
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     events: createCalendarEventRepository(repositoryPool),
     profiles: createProfileRepository(repositoryPool),
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     availability: createAvailabilityRepository(repositoryPool),
     events: createCalendarEventRepository(repositoryPool),
     profiles: createProfileRepository(repositoryPool),
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     plans: createPlanRepository(repositoryPool),
     preferences: createPreferenceRepository(repositoryPool),
     timeEntries: createTimeEntryRepository(repositoryPool),
@@ -106,31 +106,31 @@ const app = createApp(
     profiles: createProfileRepository(repositoryPool),
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     timeEntries: createTimeEntryRepository(repositoryPool),
     activities: createActivityRepository(repositoryPool),
     profiles: createProfileRepository(repositoryPool),
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     periods: createAcademicPeriodRepository(repositoryPool),
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     idempotency: createIdempotencyRepository(repositoryPool),
     withTransaction: requestTransactions.withTransaction,
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     notifications: createNotificationRepository(repositoryPool),
     preferences: createNotificationPreferenceRepository(repositoryPool),
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     privacy: createPrivacyRepository(repositoryPool),
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     admin: adminRepository,
     rateLimiter: createAdminRateLimiter(repositoryPool, process.env.BETTER_AUTH_SECRET as string),
     verifyPassword: async (headers, password) => {
@@ -148,12 +148,12 @@ const app = createApp(
     alertPolicy: { aiCostLimitUsd15m: operationalAlertConfig?.aiCostLimitUsd15m ?? null },
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     gateway: createAiGateway(aiRepository, aiKeyCipher),
     context: createAiContextRepository(repositoryPool),
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     verifyPassword: async (headers, password) => {
       try {
         return (await auth.api.verifyPassword({ headers, body: { password } })).status;
@@ -164,12 +164,12 @@ const app = createApp(
     exports: createAccountExportRepository(repositoryPool),
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     devices: createPushDeviceRepository(repositoryPool),
     cipher: pushCipher,
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     verifyPassword: async (headers, password) => {
       try {
         return (await auth.api.verifyPassword({ headers, body: { password } })).status;
@@ -186,7 +186,7 @@ const app = createApp(
       : null,
   },
   {
-    getSession: (headers) => auth.api.getSession({ headers }),
+    getSession,
     series: createActivitySeriesRepository(repositoryPool),
     profiles: createProfileRepository(repositoryPool),
   },

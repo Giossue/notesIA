@@ -1,13 +1,19 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Linking, ScrollView, StyleSheet, View } from "react-native";
 import { Button, HelperText, Surface, Text, TextInput, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
-import { signIn, signUp } from "@/core/auth/auth-client";
+import {
+  emailVerificationCallbackResult,
+  isEmailVerificationRequired,
+  resendVerificationEmail,
+  signIn,
+  signUp,
+} from "@/core/auth/auth-client";
 import { clearPrivateCache } from "@/core/auth/query-cache";
 import { layout, sharedStyles } from "@/core/theme/layout";
 
@@ -27,7 +33,30 @@ type SignUpValues = z.infer<typeof signUpSchema>;
 export function AuthScreen() {
   const theme = useTheme();
   const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const offline = useNetInfo().isConnected === false;
+
+  useEffect(() => {
+    const handleUrl = (url: string) => {
+      const result = emailVerificationCallbackResult(url);
+      if (!result) return;
+      if (result.kind === "verified") {
+        setVerificationEmail(null);
+        setMode("signIn");
+        setNotice("Correo verificado. Ya puedes iniciar sesión.");
+      } else {
+        setNotice("El enlace no es válido o ya venció. Solicita uno nuevo.");
+      }
+    };
+    void Linking.getInitialURL()
+      .then((url) => {
+        if (url) handleUrl(url);
+      })
+      .catch(() => {});
+    const subscription = Linking.addEventListener("url", ({ url }) => handleUrl(url));
+    return () => subscription.remove();
+  }, []);
 
   return (
     <SafeAreaView style={[styles.page, { backgroundColor: theme.colors.background }]}>
@@ -39,23 +68,70 @@ export function AuthScreen() {
           </Text>
         </View>
         <Surface style={styles.form} elevation={1}>
-          <Text variant="titleLarge">{mode === "signIn" ? "Iniciar sesión" : "Crear cuenta"}</Text>
+          <Text variant="titleLarge">
+            {verificationEmail
+              ? "Verifica tu correo"
+              : mode === "signIn"
+                ? "Iniciar sesión"
+                : "Crear cuenta"}
+          </Text>
+          {notice && <Text accessibilityRole="alert">{notice}</Text>}
           {offline && (
             <Text style={{ color: theme.colors.error }}>
               Sin conexión. Revisa tu red e inténtalo de nuevo.
             </Text>
           )}
-          {mode === "signIn" ? <SignInForm offline={offline} /> : <SignUpForm offline={offline} />}
-          <Button mode="text" onPress={() => setMode(mode === "signIn" ? "signUp" : "signIn")}>
-            {mode === "signIn" ? "Crear una cuenta" : "Ya tengo cuenta"}
-          </Button>
+          {verificationEmail ? (
+            <EmailVerificationPanel
+              email={verificationEmail}
+              offline={offline}
+              onContinue={() => {
+                setVerificationEmail(null);
+                setMode("signIn");
+                setNotice(null);
+              }}
+            />
+          ) : mode === "signIn" ? (
+            <SignInForm
+              offline={offline}
+              onVerificationRequired={(email) => {
+                setVerificationEmail(email);
+                setNotice(null);
+              }}
+            />
+          ) : (
+            <SignUpForm
+              offline={offline}
+              onVerificationRequired={(email) => {
+                setVerificationEmail(email);
+                setNotice(null);
+              }}
+            />
+          )}
+          {!verificationEmail && (
+            <Button
+              mode="text"
+              onPress={() => {
+                setMode(mode === "signIn" ? "signUp" : "signIn");
+                setNotice(null);
+              }}
+            >
+              {mode === "signIn" ? "Crear una cuenta" : "Ya tengo cuenta"}
+            </Button>
+          )}
         </Surface>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function SignInForm({ offline }: { offline: boolean }) {
+function SignInForm({
+  offline,
+  onVerificationRequired,
+}: {
+  offline: boolean;
+  onVerificationRequired(email: string): void;
+}) {
   const queryClient = useQueryClient();
   const [visible, setVisible] = useState(false);
   const {
@@ -72,6 +148,9 @@ function SignInForm({ offline }: { offline: boolean }) {
     onSuccess: async () => {
       await clearPrivateCache(queryClient);
       await queryClient.invalidateQueries({ queryKey: ["session"] });
+    },
+    onError: (error, values) => {
+      if (isEmailVerificationRequired(error)) onVerificationRequired(values.email);
     },
   });
 
@@ -139,8 +218,13 @@ function SignInForm({ offline }: { offline: boolean }) {
   );
 }
 
-function SignUpForm({ offline }: { offline: boolean }) {
-  const queryClient = useQueryClient();
+function SignUpForm({
+  offline,
+  onVerificationRequired,
+}: {
+  offline: boolean;
+  onVerificationRequired(email: string): void;
+}) {
   const [visible, setVisible] = useState(false);
   const {
     control,
@@ -153,10 +237,7 @@ function SignUpForm({ offline }: { offline: boolean }) {
   const mutation = useMutation({
     mutationFn: (values: SignUpValues) =>
       signUp(values.name.trim(), values.email.trim().toLowerCase(), values.password),
-    onSuccess: async () => {
-      await clearPrivateCache(queryClient);
-      await queryClient.invalidateQueries({ queryKey: ["session"] });
-    },
+    onSuccess: ({ email }) => onVerificationRequired(email),
   });
 
   return (
@@ -237,6 +318,39 @@ function SignUpForm({ offline }: { offline: boolean }) {
         contentStyle={sharedStyles.actionContent}
       >
         Crear cuenta
+      </Button>
+    </View>
+  );
+}
+
+function EmailVerificationPanel({
+  email,
+  offline,
+  onContinue,
+}: {
+  email: string;
+  offline: boolean;
+  onContinue(): void;
+}) {
+  const resend = useMutation({ mutationFn: () => resendVerificationEmail(email) });
+  return (
+    <View style={styles.fields}>
+      <Text>
+        Enviamos un enlace a {email}. Ábrelo para activar la cuenta antes de iniciar sesión.
+      </Text>
+      {resend.isSuccess && <Text accessibilityRole="alert">Correo enviado nuevamente.</Text>}
+      {resend.isError && <Text accessibilityRole="alert">{resend.error.message}</Text>}
+      <Button
+        mode="contained"
+        loading={resend.isPending}
+        disabled={offline || resend.isPending}
+        onPress={() => resend.mutate()}
+        contentStyle={sharedStyles.actionContent}
+      >
+        Reenviar correo
+      </Button>
+      <Button mode="text" onPress={onContinue}>
+        Ya verifiqué mi correo
       </Button>
     </View>
   );

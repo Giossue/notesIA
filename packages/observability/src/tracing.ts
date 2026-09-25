@@ -12,9 +12,11 @@ const spanNames = new Set([
   "db.push.enqueue",
   "db.query",
   "db.recovery-mail.enqueue",
+  "db.verification-mail.enqueue",
   "worker.outbox",
   "worker.push-delivery",
   "worker.recovery-mail",
+  "worker.verification-mail",
   "provider.ai",
   "provider.fcm",
   "provider.smtp",
@@ -30,9 +32,11 @@ export type TraceSpanName =
   | "db.push.enqueue"
   | "db.query"
   | "db.recovery-mail.enqueue"
+  | "db.verification-mail.enqueue"
   | "worker.outbox"
   | "worker.push-delivery"
   | "worker.recovery-mail"
+  | "worker.verification-mail"
   | "provider.ai"
   | "provider.fcm"
   | "provider.smtp";

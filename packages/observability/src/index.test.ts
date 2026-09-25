@@ -64,6 +64,30 @@ test("worker failure observations omit exception details", () => {
   expect(lines[0]).not.toContain("private SQL and payload");
 });
 
+test("worker processed observations report verification mail as a bounded counter", () => {
+  const lines: string[] = [];
+  writeWorkerObservation(
+    {
+      outcome: "processed",
+      durationMs: 20,
+      verification: 1,
+      recovery: 0,
+      outbox: 0,
+      risk: 0,
+      scheduled: 0,
+      push: 0,
+      deletion: 0,
+      aiReconciled: 0,
+    },
+    (line) => lines.push(line),
+  );
+  expect(JSON.parse(lines[0] ?? "null")).toMatchObject({
+    type: "worker_cycle",
+    outcome: "processed",
+    verification: 1,
+  });
+});
+
 test("operational alert observations expose only bounded delivery metadata", () => {
   const lines: string[] = [];
   writeOperationalMonitorObservation(

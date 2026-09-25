@@ -32,6 +32,14 @@ en Android Keystore/iOS Keychain mediante react-native-keychain.
   en lotes acotados. Los contadores de frecuencia administrativa usan el mismo
   almacenamiento, con claves HMAC y vencimiento corto.
 - El cliente nativo usa el origen `notesia://` en las peticiones de autenticación.
+- El registro crea una cuenta pendiente, no crea sesión y encola una verificación
+  cifrada que vence en una hora. La cuenta no puede iniciar sesión ni conservar una
+  sesión anterior mientras `correo_verificado` sea falso. El enlace vuelve solo a
+  `notesia://email-verified`; Android e iOS declaran esa ruta y la verificación no
+  inicia sesión automáticamente.
+- El reenvío devuelve la misma respuesta para cuentas inexistentes, pendientes o
+  verificadas. El worker borra el enlace cifrado después de entregarlo o agotar los
+  reintentos. Habilitar registro requiere SMTP configurado en API y worker.
 - La recuperación usa un token de un solo uso de 15 minutos con identificador
   protegido en almacenamiento secundario. El enlace viaja cifrado por un outbox
   hasta el worker; el endpoint se habilita solo cuando se configura un remitente
@@ -43,9 +51,13 @@ en Android Keystore/iOS Keychain mediante react-native-keychain.
   reactivar incrementa esa versión; un token anterior se rechaza aunque no haya
   aparecido en la lista de sesiones que se revoca durante la suspensión. Los
   valores anteriores a esta medida solo son válidos para cuentas en versión 1.
-- El proxy de autenticación solo expone las once operaciones previstas de sesión,
-  recuperación y TOTP. Otras rutas incluidas por Better Auth devuelven `404`;
+- El proxy de autenticación solo expone las trece operaciones previstas de sesión,
+  verificación, recuperación y TOTP. Otras rutas incluidas por Better Auth devuelven `404`;
   `update-user` no puede saltarse el perfil versionado y `delete-user` no puede
   saltarse la política de eliminación. El contrato OpenAPI comprueba el mismo
   inventario. Los códigos de respaldo se pueden renovar con contraseña y cada
   código consumido deja de servir para otro inicio de sesión.
+
+La decisión usa el comportamiento documentado de Better Auth 1.7.5 para
+[`requireEmailVerification`](https://www.better-auth.com/docs/reference/options#requireemailverification)
+y [verificación de correo](https://www.better-auth.com/docs/concepts/email#email-verification).

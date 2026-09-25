@@ -67,9 +67,11 @@ administrador con MFA y contraseña verificada puede asignar o quitar roles. La 
 impide quitar el propio rol o el último administrador. Limita a cada administrador
 a 120 lecturas y 30 mutaciones por minuto; después responde `429` con
 `Retry-After`. No insertar textos de ejemplo en `notesia_dev` ni abrir
-registro público para usuarios reales antes de esa aprobación. La recuperación de
-contraseña ya tiene flujo de API y worker con SMTP configurable; falta conectar
-un proveedor real y la pantalla de restablecimiento. La eliminación ya tiene
+registro público para usuarios reales antes de esa aprobación. El registro crea
+una cuenta pendiente y bloquea toda la app hasta verificar el correo; la
+recuperación de contraseña también tiene flujo de API y worker con SMTP
+configurable. Falta conectar un proveedor real y la pantalla de restablecimiento.
+La eliminación ya tiene
 flujo de backend probado, pero requiere una política aprobada para habilitarse.
 
 El rollback manual preparado en `packages/db/rollback/0018_documentos_consentimientos.sql`

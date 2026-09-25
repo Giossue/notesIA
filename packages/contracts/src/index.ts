@@ -209,6 +209,7 @@ export const adminSystemHealthSchema = z.object({
     outbox: adminQueueHealthSchema,
     push: adminQueueHealthSchema,
     recoveryMail: adminQueueHealthSchema,
+    verificationMail: adminQueueHealthSchema,
   }),
   worker: z.object({
     lastSeenAt: z.iso.datetime().nullable(),
@@ -224,7 +225,7 @@ export const adminSystemHealthSchema = z.object({
     z.union([
       z.object({
         code: z.enum(["WORKER_UNAVAILABLE", "QUEUE_BACKLOG", "QUEUE_DEAD"]),
-        queue: z.enum(["outbox", "push", "recoveryMail"]).nullable(),
+        queue: z.enum(["outbox", "push", "recoveryMail", "verificationMail"]).nullable(),
       }),
       z.object({
         code: z.enum(["AI_PROVIDER_UNAVAILABLE", "AI_ERROR_RATE_HIGH"]),

@@ -18,6 +18,7 @@ const { auth, pool } = createAuth({
   secret: crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", ""),
   baseURL: "http://127.0.0.1:3000",
   allowSignUp: true,
+  allowUnverifiedEmailForTests: true,
 });
 const subjects = createSubjectRepository(pool);
 const app = createApp(

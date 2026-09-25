@@ -1,4 +1,14 @@
-import { getCurrentUser, sessionCookieFromHeader, signIn, signOut } from "@/core/auth/auth-client";
+import {
+  AuthenticationError,
+  emailVerificationCallbackResult,
+  getCurrentUser,
+  isEmailVerificationRequired,
+  resendVerificationEmail,
+  sessionCookieFromHeader,
+  signIn,
+  signOut,
+  signUp,
+} from "@/core/auth/auth-client";
 
 let mockCookie: string | null = null;
 jest.mock("@/core/auth/session-storage", () => ({
@@ -53,4 +63,58 @@ test("rejects a successful response without a Better Auth cookie", async () => {
 
 test("does not accept a similarly named cookie", () => {
   expect(sessionCookieFromHeader("fake-better-auth.session_token=bad; Path=/")).toBeNull();
+});
+
+test("registers a pending account without creating a session", async () => {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    headers: { get: () => null },
+    json: async () => ({
+      token: null,
+      user: { id: "user-1", email: "ana@example.test", emailVerified: false },
+    }),
+  });
+
+  await expect(signUp("Ana", "ana@example.test", "a-secure-password")).resolves.toEqual({
+    email: "ana@example.test",
+  });
+  expect(mockCookie).toBeNull();
+});
+
+test("identifies the fixed email verification callback", () => {
+  expect(emailVerificationCallbackResult("notesia://email-verified")).toEqual({
+    kind: "verified",
+  });
+  expect(emailVerificationCallbackResult("notesia://email-verified?error=invalid_token")).toEqual({
+    kind: "error",
+    code: "invalid_token",
+  });
+  expect(emailVerificationCallbackResult("notesia://another-route")).toBeNull();
+});
+
+test("surfaces an unverified account and requests another generic email", async () => {
+  global.fetch = jest
+    .fn()
+    .mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      headers: { get: () => null },
+      clone: () => ({ json: async () => ({ code: "EMAIL_NOT_VERIFIED" }) }),
+    })
+    .mockResolvedValueOnce({ ok: true, headers: { get: () => null } });
+
+  let failure: unknown;
+  try {
+    await signIn("ana@example.test", "a-secure-password");
+  } catch (error) {
+    failure = error;
+  }
+  expect(failure).toBeInstanceOf(AuthenticationError);
+  expect(isEmailVerificationRequired(failure)).toBe(true);
+  expect((failure as Error).message).toBe("Verifica tu correo antes de iniciar sesión.");
+
+  await resendVerificationEmail("ana@example.test");
+  const request = (global.fetch as jest.Mock).mock.calls[1];
+  expect(request[0]).toContain("/auth/send-verification-email");
+  expect(JSON.parse(request[1].body)).toEqual({ email: "ana@example.test" });
 });
