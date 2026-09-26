@@ -34,6 +34,7 @@ function toNotification(row: Notification) {
     planId: row.planId,
     activityId: row.activityId,
     blockId: row.blockId,
+    reportId: row.reportId,
     referenceAt: row.referenceAt?.toISOString() ?? null,
     version: row.version,
     readAt: row.readAt?.toISOString() ?? null,

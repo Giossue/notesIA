@@ -6,6 +6,7 @@ const notification = (type: string) => ({
   type,
   activityId: crypto.randomUUID(),
   planId: null,
+  reportId: null,
   activityTitle: "Entrega de Cálculo",
   referenceAt: new Date(Date.now() + 3_600_000),
   timeZone: "America/Guayaquil",

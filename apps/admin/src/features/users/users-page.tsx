@@ -36,7 +36,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { type AdminUser, adminApi } from "@/lib/admin-api";
 import { roleLabel } from "@/lib/labels";
-import { rolesQueryKey, usersQueryKey } from "@/lib/query";
+import { meQuery, rolesQueryKey, usersQueryKey } from "@/lib/query";
 
 type SuspensionValues = z.infer<typeof adminUserSuspensionSchema>;
 
@@ -127,9 +127,10 @@ function SuspensionDialog({
 function UserActions({ user }: { user: AdminUser }) {
   const [open, setOpen] = useState(false);
   const [viewing, setViewing] = useState(false);
+  const me = useQuery(meQuery);
   const suspended = user.suspendedAt === null;
-  // A un administrador no se lo suspende: primero se le quita el rol.
-  const canSuspend = !(suspended && user.role === "admin");
+  // Solo un administrador suspende, y nunca a otro administrador (primero se le quita el rol).
+  const canSuspend = me.data?.role === "admin" && !(suspended && user.role === "admin");
   return (
     <RowActions
       actions={[

@@ -46,6 +46,7 @@ export function createFcmSender(options: Options): PushSender {
       };
       if (notification.activityId) data.activityId = notification.activityId;
       if (notification.planId) data.planId = notification.planId;
+      if (notification.reportId) data.reportId = notification.reportId;
       const response = await fetcher(url, {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },

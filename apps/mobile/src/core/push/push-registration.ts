@@ -98,6 +98,7 @@ export type PushEvent = {
   type?: string;
   activityId?: string;
   planId?: string;
+  reportId?: string;
 };
 
 type RemoteMessage = {
@@ -118,6 +119,7 @@ function toPushEvent(message: RemoteMessage | null | undefined): PushEvent | nul
     type: text("type"),
     activityId: text("activityId"),
     planId: text("planId"),
+    reportId: text("reportId"),
   };
 }
 

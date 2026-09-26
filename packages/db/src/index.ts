@@ -74,6 +74,15 @@ export {
   createRecoveryMailRepository,
   type RecoveryMailRepository,
 } from "./recovery-mail-repository";
+export type {
+  AdminReportRow,
+  ReportContext,
+  ReportRepository,
+  ReportRow,
+  ReportStatus,
+  ReportType,
+} from "./report-repository";
+export { createReportRepository } from "./report-repository";
 export { createRequestTransactionPool } from "./request-transaction";
 export { createSubtaskRepository, type SubtaskRepository } from "./subtask-repository";
 export { createTimeEntryRepository, type TimeEntryRepository } from "./time-entry-repository";

@@ -76,6 +76,13 @@ export function ProfileScreen() {
       subtitle: "Documentos, IA, exportar o eliminar tu cuenta",
       onPress: () => navigation.navigate("Privacy"),
     },
+    {
+      icon: "lifebuoy",
+      color: categories.orange,
+      title: "Ayuda y reportes",
+      subtitle: "Reporta un problema o envía una sugerencia",
+      onPress: () => navigation.navigate("Reports"),
+    },
   ];
 
   return (

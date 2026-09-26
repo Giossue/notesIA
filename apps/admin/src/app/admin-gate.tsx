@@ -6,11 +6,12 @@ import { AuthLayout } from "@/features/auth/auth-layout";
 import { FreshSessionRequired } from "@/features/auth/fresh-session-required";
 import { TwoFactorEnrollment } from "@/features/auth/two-factor-enrollment";
 import { ApiError } from "@/lib/api";
-import { sessionQuery, systemHealthQuery } from "@/lib/query";
+import { meQuery, sessionQuery } from "@/lib/query";
 
 export function AdminGate() {
   const session = useQuery(sessionQuery);
-  const access = useQuery({ ...systemHealthQuery, enabled: Boolean(session.data) });
+  // Admin y soporte entran; el menú y las páginas dependen del rol.
+  const access = useQuery({ ...meQuery, enabled: Boolean(session.data) });
   if (session.isPending)
     return (
       <AdminShell>

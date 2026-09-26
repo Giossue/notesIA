@@ -1050,8 +1050,10 @@ export const notificationSchema = z.object({
     "block_reminder",
     "risk_alert",
     "streak_at_risk",
+    "report_updated",
   ]),
   planId: z.uuid().nullable(),
+  reportId: z.uuid().nullable(),
   activityId: z.uuid().nullable(),
   blockId: z.uuid().nullable(),
   referenceAt: z.iso.datetime().nullable(),
@@ -1211,3 +1213,78 @@ export type OnboardingTurnResponse = z.infer<typeof onboardingTurnResponseSchema
 export type AssistantMessage = z.infer<typeof assistantMessageSchema>;
 export type AssistantAction = z.infer<typeof assistantActionSchema>;
 export type AssistantTurnResponse = z.infer<typeof assistantTurnResponseSchema>;
+
+/** Reportes: el estudiante los envía desde la app y soporte los atiende en el panel. */
+export const reportTypeSchema = z.enum(["bug", "suggestion", "account", "other"]);
+export const reportStatusSchema = z.enum(["new", "in_review", "resolved", "closed"]);
+export const reportContextSchema = z.strictObject({
+  platform: z.string().max(20).nullable(),
+  osVersion: z.string().max(40).nullable(),
+  appVersion: z.string().max(40).nullable(),
+});
+export const reportCreateSchema = z.strictObject({
+  id: z.uuid(),
+  type: reportTypeSchema,
+  title: z.string().trim().min(1).max(160),
+  description: z.string().trim().min(1).max(5000),
+  context: reportContextSchema,
+});
+export const reportSchema = z.object({
+  id: z.uuid(),
+  type: reportTypeSchema,
+  title: z.string(),
+  description: z.string(),
+  status: reportStatusSchema,
+  reply: z.string().nullable(),
+  repliedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+export const reportListSchema = z.object({ items: z.array(reportSchema).max(100) });
+
+export const adminReportSchema = reportSchema.extend({
+  userId: z.uuid(),
+  userEmail: z.string(),
+  userName: z.string(),
+  assigneeId: z.uuid().nullable(),
+  assigneeEmail: z.string().nullable(),
+  context: reportContextSchema,
+  closedAt: z.iso.datetime().nullable(),
+  version: z.number().int().positive(),
+});
+export const adminReportPageSchema = z.object({
+  items: z.array(adminReportSchema),
+  nextCursor: z.string().nullable(),
+});
+export const adminReportDetailSchema = adminReportSchema.extend({
+  history: z.array(
+    z.object({
+      action: z.enum(["created", "assigned", "status_changed", "replied"]),
+      actorEmail: z.string().nullable(),
+      detail: z.record(z.string(), z.unknown()),
+      recordedAt: z.iso.datetime(),
+    }),
+  ),
+});
+/** Cambios de soporte sobre un reporte: cualquiera de los tres, con la versión vista. */
+export const adminReportUpdateSchema = z
+  .strictObject({
+    version: z.number().int().positive(),
+    status: reportStatusSchema.optional(),
+    assignToMe: z.boolean().optional(),
+    reply: z.string().trim().min(1).max(2000).optional(),
+  })
+  .refine((value) => value.status || value.assignToMe || value.reply, {
+    message: "Indica algún cambio.",
+  });
+/** Quién entró al panel y con qué rol: el menú muestra solo lo que ese rol puede usar. */
+export const adminMeSchema = z.object({
+  userId: z.uuid(),
+  email: z.string(),
+  role: z.enum(["admin", "support"]),
+});
+export type Report = z.infer<typeof reportSchema>;
+export type ReportCreate = z.infer<typeof reportCreateSchema>;
+export type AdminReport = z.infer<typeof adminReportSchema>;
+export type AdminReportDetail = z.infer<typeof adminReportDetailSchema>;
+export type AdminMe = z.infer<typeof adminMeSchema>;

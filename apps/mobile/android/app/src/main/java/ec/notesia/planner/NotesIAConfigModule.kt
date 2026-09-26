@@ -8,5 +8,9 @@ class NotesIAConfigModule(reactContext: ReactApplicationContext) :
   override fun getName() = "NotesIAConfig"
 
   override fun getConstants(): Map<String, Any> =
-      mapOf("apiBaseUrl" to BuildConfig.NOTESIA_API_BASE_URL)
+      mapOf(
+          "apiBaseUrl" to BuildConfig.NOTESIA_API_BASE_URL,
+          // Para los reportes: qué versión de la app usa el estudiante.
+          "appVersion" to BuildConfig.VERSION_NAME,
+      )
 }

@@ -3,7 +3,8 @@ export type PushNotificationType =
   | "deadline_reminder"
   | "block_reminder"
   | "risk_alert"
-  | "streak_at_risk";
+  | "streak_at_risk"
+  | "report_updated";
 
 export type PushMessageInput = {
   type: PushNotificationType;
@@ -74,6 +75,11 @@ export function pushMessage(input: PushMessageInput): { title: string; body: str
       return {
         title: "🔥 Tu racha está en peligro",
         body: "Completa una tarea hoy para no perderla",
+      };
+    case "report_updated":
+      return {
+        title: "Soporte revisó tu reporte",
+        body: `${activity}: toca para ver la respuesta`,
       };
     case "plan_applied":
       return { title: "Plan aplicado", body: "Tu plan de estudio ya está listo" };

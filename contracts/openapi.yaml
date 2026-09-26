@@ -996,6 +996,22 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /admin/me:
+    get:
+      operationId: getAdminMe
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminMe"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /admin/privacy-documents:
     get:
       operationId: getAdminPrivacyDocuments
@@ -1063,6 +1079,73 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminDocument"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /admin/reports:
+    get:
+      operationId: getAdminReports
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReportPage"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /admin/reports/{reportId}:
+    get:
+      operationId: getAdminReportsByReportId
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReportDetail"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: patchAdminReportsByReportId
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminReportUpdateInput"
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReport"
         default:
           description: Error
           content:
@@ -2826,6 +2909,50 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Readiness"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /reports:
+    get:
+      operationId: getReports
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportList"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: postReports
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportCreateInput"
+      responses:
+        "201":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
         default:
           description: Error
           content:
@@ -4706,6 +4833,25 @@ components:
         - items
         - nextCursor
       additionalProperties: false
+    AdminMe:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        email:
+          type: string
+        role:
+          type: string
+          enum:
+            - admin
+            - support
+      required:
+        - userId
+        - email
+        - role
+      additionalProperties: false
     AdminPublishInput:
       type: object
       properties:
@@ -4714,6 +4860,413 @@ components:
           const: PUBLICAR
       required:
         - confirmation
+      additionalProperties: false
+    AdminReport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        type:
+          type: string
+          enum:
+            - bug
+            - suggestion
+            - account
+            - other
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+            - new
+            - in_review
+            - resolved
+            - closed
+        reply:
+          type:
+            - string
+            - "null"
+        repliedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+        userId:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        userEmail:
+          type: string
+        userName:
+          type: string
+        assigneeId:
+          anyOf:
+            - type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            - type: "null"
+        assigneeEmail:
+          type:
+            - string
+            - "null"
+        context:
+          type: object
+          properties:
+            platform:
+              anyOf:
+                - type: string
+                  maxLength: 20
+                - type: "null"
+            osVersion:
+              anyOf:
+                - type: string
+                  maxLength: 40
+                - type: "null"
+            appVersion:
+              anyOf:
+                - type: string
+                  maxLength: 40
+                - type: "null"
+          required:
+            - platform
+            - osVersion
+            - appVersion
+          additionalProperties: false
+        closedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            - type: "null"
+        version:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 9007199254740991
+      required:
+        - id
+        - type
+        - title
+        - description
+        - status
+        - reply
+        - repliedAt
+        - createdAt
+        - updatedAt
+        - userId
+        - userEmail
+        - userName
+        - assigneeId
+        - assigneeEmail
+        - context
+        - closedAt
+        - version
+      additionalProperties: false
+    AdminReportDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        type:
+          type: string
+          enum:
+            - bug
+            - suggestion
+            - account
+            - other
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+            - new
+            - in_review
+            - resolved
+            - closed
+        reply:
+          type:
+            - string
+            - "null"
+        repliedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+        userId:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        userEmail:
+          type: string
+        userName:
+          type: string
+        assigneeId:
+          anyOf:
+            - type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            - type: "null"
+        assigneeEmail:
+          type:
+            - string
+            - "null"
+        context:
+          type: object
+          properties:
+            platform:
+              anyOf:
+                - type: string
+                  maxLength: 20
+                - type: "null"
+            osVersion:
+              anyOf:
+                - type: string
+                  maxLength: 40
+                - type: "null"
+            appVersion:
+              anyOf:
+                - type: string
+                  maxLength: 40
+                - type: "null"
+          required:
+            - platform
+            - osVersion
+            - appVersion
+          additionalProperties: false
+        closedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            - type: "null"
+        version:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 9007199254740991
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              action:
+                type: string
+                enum:
+                  - created
+                  - assigned
+                  - status_changed
+                  - replied
+              actorEmail:
+                type:
+                  - string
+                  - "null"
+              detail:
+                type: object
+                propertyNames:
+                  type: string
+                additionalProperties: {}
+              recordedAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            required:
+              - action
+              - actorEmail
+              - detail
+              - recordedAt
+            additionalProperties: false
+      required:
+        - id
+        - type
+        - title
+        - description
+        - status
+        - reply
+        - repliedAt
+        - createdAt
+        - updatedAt
+        - userId
+        - userEmail
+        - userName
+        - assigneeId
+        - assigneeEmail
+        - context
+        - closedAt
+        - version
+        - history
+      additionalProperties: false
+    AdminReportPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              type:
+                type: string
+                enum:
+                  - bug
+                  - suggestion
+                  - account
+                  - other
+              title:
+                type: string
+              description:
+                type: string
+              status:
+                type: string
+                enum:
+                  - new
+                  - in_review
+                  - resolved
+                  - closed
+              reply:
+                type:
+                  - string
+                  - "null"
+              repliedAt:
+                anyOf:
+                  - type: string
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                  - type: "null"
+              createdAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              updatedAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              userId:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              userEmail:
+                type: string
+              userName:
+                type: string
+              assigneeId:
+                anyOf:
+                  - type: string
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                  - type: "null"
+              assigneeEmail:
+                type:
+                  - string
+                  - "null"
+              context:
+                type: object
+                properties:
+                  platform:
+                    anyOf:
+                      - type: string
+                        maxLength: 20
+                      - type: "null"
+                  osVersion:
+                    anyOf:
+                      - type: string
+                        maxLength: 40
+                      - type: "null"
+                  appVersion:
+                    anyOf:
+                      - type: string
+                        maxLength: 40
+                      - type: "null"
+                required:
+                  - platform
+                  - osVersion
+                  - appVersion
+                additionalProperties: false
+              closedAt:
+                anyOf:
+                  - type: string
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                  - type: "null"
+              version:
+                type: integer
+                exclusiveMinimum: 0
+                maximum: 9007199254740991
+            required:
+              - id
+              - type
+              - title
+              - description
+              - status
+              - reply
+              - repliedAt
+              - createdAt
+              - updatedAt
+              - userId
+              - userEmail
+              - userName
+              - assigneeId
+              - assigneeEmail
+              - context
+              - closedAt
+              - version
+            additionalProperties: false
+        nextCursor:
+          type:
+            - string
+            - "null"
+      required:
+        - items
+        - nextCursor
+      additionalProperties: false
+    AdminReportUpdateInput:
+      type: object
+      properties:
+        version:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 9007199254740991
+        status:
+          type: string
+          enum:
+            - new
+            - in_review
+            - resolved
+            - closed
+        assignToMe:
+          type: boolean
+        reply:
+          type: string
+          minLength: 1
+          maxLength: 2000
+      required:
+        - version
       additionalProperties: false
     AdminRolePage:
       type: object
@@ -7610,7 +8163,14 @@ components:
             - block_reminder
             - risk_alert
             - streak_at_risk
+            - report_updated
         planId:
+          anyOf:
+            - type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            - type: "null"
+        reportId:
           anyOf:
             - type: string
               format: uuid
@@ -7652,6 +8212,7 @@ components:
         - id
         - type
         - planId
+        - reportId
         - activityId
         - blockId
         - referenceAt
@@ -7679,7 +8240,14 @@ components:
                   - block_reminder
                   - risk_alert
                   - streak_at_risk
+                  - report_updated
               planId:
+                anyOf:
+                  - type: string
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                  - type: "null"
+              reportId:
                 anyOf:
                   - type: string
                     format: uuid
@@ -7721,6 +8289,7 @@ components:
               - id
               - type
               - planId
+              - reportId
               - activityId
               - blockId
               - referenceAt
@@ -8725,6 +9294,175 @@ components:
       required:
         - status
         - database
+      additionalProperties: false
+    Report:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        type:
+          type: string
+          enum:
+            - bug
+            - suggestion
+            - account
+            - other
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+            - new
+            - in_review
+            - resolved
+            - closed
+        reply:
+          type:
+            - string
+            - "null"
+        repliedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+      required:
+        - id
+        - type
+        - title
+        - description
+        - status
+        - reply
+        - repliedAt
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+    ReportCreateInput:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        type:
+          type: string
+          enum:
+            - bug
+            - suggestion
+            - account
+            - other
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: string
+          minLength: 1
+          maxLength: 5000
+        context:
+          type: object
+          properties:
+            platform:
+              anyOf:
+                - type: string
+                  maxLength: 20
+                - type: "null"
+            osVersion:
+              anyOf:
+                - type: string
+                  maxLength: 40
+                - type: "null"
+            appVersion:
+              anyOf:
+                - type: string
+                  maxLength: 40
+                - type: "null"
+          required:
+            - platform
+            - osVersion
+            - appVersion
+          additionalProperties: false
+      required:
+        - id
+        - type
+        - title
+        - description
+        - context
+      additionalProperties: false
+    ReportList:
+      type: object
+      properties:
+        items:
+          maxItems: 100
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              type:
+                type: string
+                enum:
+                  - bug
+                  - suggestion
+                  - account
+                  - other
+              title:
+                type: string
+              description:
+                type: string
+              status:
+                type: string
+                enum:
+                  - new
+                  - in_review
+                  - resolved
+                  - closed
+              reply:
+                type:
+                  - string
+                  - "null"
+              repliedAt:
+                anyOf:
+                  - type: string
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                  - type: "null"
+              createdAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+              updatedAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            required:
+              - id
+              - type
+              - title
+              - description
+              - status
+              - reply
+              - repliedAt
+              - createdAt
+              - updatedAt
+            additionalProperties: false
+      required:
+        - items
       additionalProperties: false
     RiskAssessmentPage:
       type: object

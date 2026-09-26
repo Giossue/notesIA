@@ -10,7 +10,12 @@ import {
   adminDocumentCreateSchema,
   adminDocumentPageSchema,
   adminDocumentSchema,
+  adminMeSchema,
   adminPublishSchema,
+  adminReportDetailSchema,
+  adminReportPageSchema,
+  adminReportSchema,
+  adminReportUpdateSchema,
   adminRolePageSchema,
   adminRoleRemoveSchema,
   adminRoleUpdateSchema,
@@ -35,6 +40,9 @@ function withCursor(path: `/v1/${string}`, cursor?: string | null) {
   return cursor ? (`${path}?cursor=${encodeURIComponent(cursor)}` as `/v1/${string}`) : path;
 }
 
+export type AdminReport = z.infer<typeof adminReportSchema>;
+export type AdminReportDetail = z.infer<typeof adminReportDetailSchema>;
+export type ReportStatus = AdminReport["status"];
 export type AdminAudit = z.infer<typeof adminAuditPageSchema>["items"][number];
 export type AdminUserDetail = z.infer<typeof adminUserDetailSchema>;
 export type AdminUser = z.infer<typeof adminUserPageSchema>["items"][number];
@@ -45,6 +53,21 @@ export type AdminAiRoute = z.infer<typeof adminAiRouteSchema>;
 export type AdminAiRouteUpdate = z.infer<typeof adminAiRouteUpdateSchema>;
 
 export const adminApi = {
+  me: () => apiRequest("/v1/admin/me", adminMeSchema),
+  reports: (status: ReportStatus | null, cursor?: string | null) => {
+    const query = new URLSearchParams();
+    if (status) query.set("status", status);
+    if (cursor) query.set("cursor", cursor);
+    const search = query.toString();
+    return apiRequest(`/v1/admin/reports${search ? `?${search}` : ""}`, adminReportPageSchema);
+  },
+  report: (reportId: string) =>
+    apiRequest(`/v1/admin/reports/${reportId}`, adminReportDetailSchema),
+  updateReport: (reportId: string, input: z.infer<typeof adminReportUpdateSchema>) =>
+    apiRequest(`/v1/admin/reports/${reportId}`, adminReportSchema, {
+      method: "PATCH",
+      body: adminReportUpdateSchema.parse(input),
+    }),
   systemHealth: () => apiRequest("/v1/admin/system-health", adminSystemHealthSchema),
   users: (cursor?: string | null) =>
     apiRequest(withCursor("/v1/admin/users", cursor), adminUserPageSchema),

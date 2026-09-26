@@ -23,4 +23,6 @@ export type RootStackParamList = {
   /** `prompt` se envía solo al abrir el chat. */
   AiAssistant: { prompt?: string } | undefined;
   OfflineChanges: undefined;
+  Reports: undefined;
+  ReportForm: undefined;
 };

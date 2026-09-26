@@ -319,6 +319,16 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
         },
       };
     },
+    /** Rol del personal (admin o soporte) con la cuenta activa; null si no es personal. */
+    async staffRole(userId: string) {
+      const result = await pool.query<{ role: "admin" | "support" }>(
+        `SELECT r.rol AS role FROM autenticacion.roles_usuario r
+         JOIN autenticacion.usuarios u ON u.id = r.usuario_id
+         WHERE r.usuario_id = $1 AND u.suspendido_en IS NULL LIMIT 1`,
+        [userId],
+      );
+      return result.rows[0]?.role ?? null;
+    },
     async isAdmin(userId: string) {
       const result = await pool.query(
         `SELECT 1 FROM autenticacion.roles_usuario r
@@ -332,7 +342,7 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
       const result = await pool.query(
         `SELECT 1 FROM autenticacion.usuarios u
          JOIN autenticacion.roles_usuario r ON r.usuario_id = u.id
-         WHERE u.id = $1 AND r.rol = 'admin'
+         WHERE u.id = $1 AND r.rol IN ('admin', 'support')
            AND u.suspendido_en IS NULL
            AND u.segundo_factor_habilitado = true
            AND u.segundo_factor_activado_en IS NOT NULL

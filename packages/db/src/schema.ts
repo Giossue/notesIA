@@ -338,7 +338,14 @@ export const notifications = domainSchema.table("notificaciones", {
     onDelete: "cascade",
   }),
   type: text("tipo", {
-    enum: ["plan_applied", "deadline_reminder", "block_reminder", "risk_alert", "streak_at_risk"],
+    enum: [
+      "plan_applied",
+      "deadline_reminder",
+      "block_reminder",
+      "risk_alert",
+      "streak_at_risk",
+      "report_updated",
+    ],
   }).notNull(),
   planId: uuid("plan_id").references(() => plans.id, { onDelete: "cascade" }),
   activityId: uuid("actividad_id").references(() => activities.id, { onDelete: "cascade" }),

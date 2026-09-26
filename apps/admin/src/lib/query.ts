@@ -9,6 +9,16 @@ export const sessionQuery = queryOptions({
   retry: false,
 });
 
+/** Quién entró al panel y con qué rol (admin o soporte). */
+export const meQuery = queryOptions({
+  queryKey: ["admin", "me"],
+  queryFn: adminApi.me,
+  staleTime: 60_000,
+  retry: false,
+});
+
+export const reportsQueryKey = ["admin", "reports"] as const;
+
 export const systemHealthQuery = queryOptions({
   queryKey: ["admin", "system-health"],
   queryFn: adminApi.systemHealth,

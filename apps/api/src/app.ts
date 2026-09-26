@@ -20,6 +20,7 @@ import type {
   ProfileRepository,
   PushDeviceRepository,
   PushTokenCipher,
+  ReportRepository,
   SubtaskRepository,
   TimeEntryRepository,
 } from "@notesia/db";
@@ -52,6 +53,7 @@ import { registerNotificationRoutes } from "./modules/notifications/routes";
 import { registerPlanRoutes } from "./modules/plans/routes";
 import { registerPrivacyRoutes } from "./modules/privacy/routes";
 import { registerPushDeviceRoutes } from "./modules/push-devices/routes";
+import { registerReportRoutes } from "./modules/reports/routes";
 import { registerSubtaskRoutes } from "./modules/subtasks/routes";
 import { registerTimeEntryRoutes } from "./modules/time-entries/routes";
 
@@ -126,10 +128,11 @@ type PrivacyDependencies = {
 };
 type AdminDependencies = {
   getSession(headers: Headers): Promise<{
-    user: { id: string };
+    user: { id: string; email?: string };
     session: { createdAt: Date | string };
   } | null>;
   admin: AdminRepository;
+  reports?: ReportRepository;
   rateLimiter: AdminRateLimiter;
   verifyPassword(headers: Headers, password: string): Promise<boolean>;
   ai?: AiRepository;
@@ -486,6 +489,11 @@ export function createApp(
   if (notificationDependencies) registerNotificationRoutes(app, notificationDependencies);
   if (privacyDependencies) registerPrivacyRoutes(app, privacyDependencies);
   if (adminDependencies) registerAdminRoutes(app, adminDependencies);
+  if (adminDependencies?.reports)
+    registerReportRoutes(app, {
+      getSession: adminDependencies.getSession,
+      reports: adminDependencies.reports,
+    });
   if (aiDependencies) registerAiRoutes(app, aiDependencies);
   if (accountExportDependencies) registerAccountExportRoutes(app, accountExportDependencies);
   if (pushDependencies) registerPushDeviceRoutes(app, pushDependencies);

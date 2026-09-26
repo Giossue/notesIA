@@ -18,6 +18,7 @@ const labels = {
   block_reminder: "Bloque próximo",
   risk_alert: "Alerta de riesgo",
   streak_at_risk: "Tu racha está en peligro",
+  report_updated: "Soporte revisó tu reporte",
 };
 
 export function NotificationsScreen() {
@@ -77,6 +78,9 @@ export function NotificationsScreen() {
               >
                 Abrir actividad
               </Button>
+            )}
+            {item.reportId && (
+              <Button onPress={() => navigation.navigate("Reports")}>Ver mi reporte</Button>
             )}
             {!item.activityId && item.planId && (
               <Button onPress={() => navigation.navigate("Agenda")}>Abrir agenda</Button>

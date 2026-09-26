@@ -2,8 +2,15 @@ import type { Pool } from "pg";
 
 type Notification = {
   id: string;
-  type: "plan_applied" | "deadline_reminder" | "block_reminder" | "risk_alert" | "streak_at_risk";
+  type:
+    | "plan_applied"
+    | "deadline_reminder"
+    | "block_reminder"
+    | "risk_alert"
+    | "streak_at_risk"
+    | "report_updated";
   planId: string | null;
+  reportId: string | null;
   activityId: string | null;
   blockId: string | null;
   referenceAt: Date | null;
@@ -12,7 +19,7 @@ type Notification = {
   createdAt: Date;
   cursorCreatedAt: string;
 };
-const columns = `id, tipo AS type, plan_id AS "planId",
+const columns = `id, tipo AS type, plan_id AS "planId", reporte_id AS "reportId",
   actividad_id AS "activityId", bloque_id AS "blockId",
   referencia_en AS "referenceAt", leida_en AS "readAt",
   version, creada_en AS "createdAt",

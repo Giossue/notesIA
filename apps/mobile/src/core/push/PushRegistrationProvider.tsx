@@ -10,6 +10,7 @@ function openPushEvent(event: PushEvent) {
     if (event.activityId) navigationRef.navigate("ActivityForm", { id: event.activityId });
     else if (event.planId) navigationRef.navigate("Agenda");
     else if (event.type === "streak_at_risk") navigationRef.navigate("Progress");
+    else if (event.reportId) navigationRef.navigate("Reports");
     else navigationRef.navigate("Notifications");
   });
 }

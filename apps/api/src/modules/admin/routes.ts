@@ -11,7 +11,12 @@ import {
   adminDocumentCreateSchema,
   adminDocumentPageSchema,
   adminDocumentSchema,
+  adminMeSchema,
   adminPublishSchema,
+  adminReportDetailSchema,
+  adminReportPageSchema,
+  adminReportSchema,
+  adminReportUpdateSchema,
   adminRolePageSchema,
   adminRoleRemoveSchema,
   adminRoleSchema,
@@ -26,8 +31,16 @@ import {
   aiUseCaseSchema,
   dateRangeSchema,
   type Problem,
+  reportStatusSchema,
 } from "@notesia/contracts";
-import type { AdminDocument, AdminRateLimiter, AdminRepository, AiRepository } from "@notesia/db";
+import type {
+  AdminDocument,
+  AdminRateLimiter,
+  AdminReportRow,
+  AdminRepository,
+  AiRepository,
+  ReportRepository,
+} from "@notesia/db";
 import { computeStreak, todayInTimeZone } from "@notesia/domain";
 import { evaluateHealthAlerts, type HealthAlertPolicy } from "@notesia/observability";
 import type { Hono } from "hono";
@@ -38,10 +51,11 @@ import type { AiKeyCipher } from "../ai/key-cipher";
 
 type Dependencies = {
   getSession(headers: Headers): Promise<{
-    user: { id: string };
+    user: { id: string; email?: string };
     session: { createdAt: Date | string };
   } | null>;
   admin: AdminRepository;
+  reports?: ReportRepository;
   rateLimiter: AdminRateLimiter;
   verifyPassword(headers: Headers, password: string): Promise<boolean>;
   ai?: AiRepository;
@@ -73,10 +87,21 @@ function error(
   });
 }
 
-async function authorize(headers: Headers, method: string, dependencies: Dependencies) {
+type StaffRole = "admin" | "support";
+/** Solo administradores, salvo las rutas que también atiende soporte. */
+const ADMIN_ONLY: StaffRole[] = ["admin"];
+const STAFF: StaffRole[] = ["admin", "support"];
+
+async function authorize(
+  headers: Headers,
+  method: string,
+  dependencies: Dependencies,
+  roles: StaffRole[] = ADMIN_ONLY,
+) {
   const session = await dependencies.getSession(headers);
   if (!session) return { response: error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.") };
-  if (!(await dependencies.admin.isAdmin(session.user.id)))
+  const role = await dependencies.admin.staffRole(session.user.id);
+  if (!role || !roles.includes(role))
     return { response: error(403, "FORBIDDEN", "No tienes permiso para esta operación.") };
   if (
     !(await dependencies.admin.hasFreshMfaSession(
@@ -95,7 +120,7 @@ async function authorize(headers: Headers, method: string, dependencies: Depende
         rate.retryAfterSeconds,
       ),
     };
-  return { userId: session.user.id };
+  return { userId: session.user.id, email: session.user.email ?? "", role };
 }
 
 async function readJson(request: Request) {
@@ -134,7 +159,113 @@ function toDocument(row: AdminDocument) {
   });
 }
 
+function toAdminReport(row: AdminReportRow) {
+  return adminReportSchema.parse({
+    id: row.id,
+    type: row.type,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    reply: row.reply,
+    repliedAt: row.repliedAt?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    userId: row.userId,
+    userEmail: row.userEmail,
+    userName: row.userName,
+    assigneeId: row.assigneeId,
+    assigneeEmail: row.assigneeEmail,
+    context: {
+      platform: row.context.platform ?? null,
+      osVersion: row.context.osVersion ?? null,
+      appVersion: row.context.appVersion ?? null,
+    },
+    closedAt: row.closedAt?.toISOString() ?? null,
+    version: row.version,
+  });
+}
+
 export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
+  // Quién entró y con qué rol: el panel arma su menú con esto.
+  app.get("/v1/admin/me", async (c) => {
+    const access = await authorize(c.req.raw.headers, c.req.method, dependencies, STAFF);
+    if (access.response) return access.response;
+    return c.json(
+      adminMeSchema.parse({ userId: access.userId, email: access.email, role: access.role }),
+      200,
+      { "Cache-Control": "no-store" },
+    );
+  });
+
+  if (dependencies.reports) {
+    const reports = dependencies.reports;
+    app.get("/v1/admin/reports", async (c) => {
+      const access = await authorize(c.req.raw.headers, c.req.method, dependencies, STAFF);
+      if (access.response) return access.response;
+      const status = reportStatusSchema.safeParse(c.req.query("status"));
+      let cursor: { createdAt: string; id: string } | null;
+      try {
+        cursor = cursorFrom(c.req.query("cursor"), "createdAt");
+      } catch {
+        return error(422, "VALIDATION_FAILED", "Cursor inválido.");
+      }
+      const rows = await reports.adminList(status.success ? status.data : null, cursor);
+      const page = rows.slice(0, 20);
+      const last = page.at(-1);
+      return c.json(
+        adminReportPageSchema.parse({
+          items: page.map(toAdminReport),
+          nextCursor:
+            rows.length > 20 && last
+              ? encodeCursor(last.cursorCreatedAt, last.id, "createdAt")
+              : null,
+        }),
+        200,
+        { "Cache-Control": "no-store" },
+      );
+    });
+
+    app.get("/v1/admin/reports/:reportId", async (c) => {
+      const access = await authorize(c.req.raw.headers, c.req.method, dependencies, STAFF);
+      if (access.response) return access.response;
+      const id = z.uuid().safeParse(c.req.param("reportId"));
+      if (!id.success) return error(404, "NOT_FOUND", "Reporte no encontrado.");
+      const row = await reports.adminGet(id.data);
+      if (!row) return error(404, "NOT_FOUND", "Reporte no encontrado.");
+      return c.json(
+        adminReportDetailSchema.parse({
+          ...toAdminReport(row),
+          history: row.history.map((item) => ({
+            action: item.action,
+            actorEmail: item.actorEmail,
+            detail: item.detail,
+            recordedAt: item.recordedAt.toISOString(),
+          })),
+        }),
+        200,
+        { "Cache-Control": "no-store" },
+      );
+    });
+
+    app.patch("/v1/admin/reports/:reportId", async (c) => {
+      const access = await authorize(c.req.raw.headers, c.req.method, dependencies, STAFF);
+      if (access.response) return access.response;
+      if (c.req.header("origin") !== dependencies.allowedOrigin)
+        return error(403, "FORBIDDEN", "Origen no permitido.");
+      const id = z.uuid().safeParse(c.req.param("reportId"));
+      const body = adminReportUpdateSchema.safeParse(await readJson(c.req.raw));
+      if (!id.success || !body.success)
+        return error(422, "VALIDATION_FAILED", "Cambio de reporte inválido.");
+      const result = await reports.adminUpdate(access.userId as string, id.data, body.data);
+      if (result.kind === "not_found") return error(404, "NOT_FOUND", "Reporte no encontrado.");
+      if (result.kind === "version_conflict")
+        return error(409, "VERSION_CONFLICT", "El reporte cambió; actualízalo.");
+      const row = await reports.adminGet(id.data);
+      if (!row) return error(404, "NOT_FOUND", "Reporte no encontrado.");
+      return c.json(toAdminReport(row));
+    });
+  }
+
   app.get("/v1/admin/system-health", async (c) => {
     const access = await authorize(c.req.raw.headers, c.req.method, dependencies);
     if (access.response) return access.response;
@@ -315,7 +446,7 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
   }
 
   app.get("/v1/admin/users", async (c) => {
-    const access = await authorize(c.req.raw.headers, c.req.method, dependencies);
+    const access = await authorize(c.req.raw.headers, c.req.method, dependencies, STAFF);
     if (access.response) return access.response;
     let cursor: { createdAt: string; id: string } | null;
     try {
@@ -350,7 +481,7 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
   });
 
   app.get("/v1/admin/users/:userId", async (c) => {
-    const access = await authorize(c.req.raw.headers, c.req.method, dependencies);
+    const access = await authorize(c.req.raw.headers, c.req.method, dependencies, STAFF);
     if (access.response) return access.response;
     const userId = z.uuid().safeParse(c.req.param("userId"));
     if (!userId.success) return error(404, "NOT_FOUND", "Cuenta no encontrada.");

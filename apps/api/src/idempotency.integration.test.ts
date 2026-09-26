@@ -70,6 +70,7 @@ const app = createApp(
     getSession,
     admin: {
       isAdmin: async () => adminAllowed,
+      staffRole: async () => (adminAllowed ? ("admin" as const) : null),
       hasFreshMfaSession: async () => true,
     } as unknown as AdminRepository,
     rateLimiter: {

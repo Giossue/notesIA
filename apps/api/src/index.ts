@@ -23,6 +23,7 @@ import {
   createProfileRepository,
   createPushDeviceRepository,
   createPushTokenCipher,
+  createReportRepository,
   createRequestTransactionPool,
   createSubtaskRepository,
   createTimeEntryRepository,
@@ -134,6 +135,7 @@ const app = createApp(
   {
     getSession,
     admin: adminRepository,
+    reports: createReportRepository(repositoryPool),
     rateLimiter: createAdminRateLimiter(repositoryPool, process.env.BETTER_AUTH_SECRET as string),
     verifyPassword: async (headers, password) => {
       try {

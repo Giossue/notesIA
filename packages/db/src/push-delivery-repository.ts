@@ -11,6 +11,7 @@ type DeliveryClaim = {
   notificationType: string;
   activityId: string | null;
   planId: string | null;
+  reportId: string | null;
   activityTitle: string | null;
   referenceAt: Date | null;
   attempts: number;
@@ -31,6 +32,7 @@ export type PushNotification = {
   type: string;
   activityId: string | null;
   planId: string | null;
+  reportId: string | null;
   activityTitle: string | null;
   referenceAt: Date | null;
   timeZone: string;
@@ -57,12 +59,15 @@ export function createPushDeliveryRepository(pool: Pool, cipher: PushTokenCipher
          SELECT c.id, c.usuario_id AS "userId", c.dispositivo_id AS "deviceId",
            c.notificacion_id AS "notificationId", n.tipo AS "notificationType",
            n.actividad_id AS "activityId", n.plan_id AS "planId",
-           a.titulo AS "activityTitle", n.referencia_en AS "referenceAt",
+           -- El aviso de un reporte muestra el título del reporte.
+           coalesce(a.titulo, report.titulo) AS "activityTitle",
+           n.reporte_id AS "reportId", n.referencia_en AS "referenceAt",
            c.intentos AS attempts, c.traza_id AS "traceId",
            c.span_origen_id AS "sourceSpanId"
          FROM claimed c
          JOIN dominio.notificaciones n ON n.usuario_id = c.usuario_id AND n.id = c.notificacion_id
-         LEFT JOIN dominio.actividades a ON a.usuario_id = n.usuario_id AND a.id = n.actividad_id`,
+         LEFT JOIN dominio.actividades a ON a.usuario_id = n.usuario_id AND a.id = n.actividad_id
+         LEFT JOIN dominio.reportes report ON report.id = n.reporte_id`,
       );
       const row = claimed.rows[0];
       if (!row) return { kind: "empty" as const };
@@ -116,6 +121,7 @@ export function createPushDeliveryRepository(pool: Pool, cipher: PushTokenCipher
               type: row.notificationType,
               activityId: row.activityId,
               planId: row.planId,
+              reportId: row.reportId,
               activityTitle: row.activityTitle,
               referenceAt: row.referenceAt,
               timeZone: state.timeZone,

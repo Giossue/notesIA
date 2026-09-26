@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   SidebarGroup,
@@ -8,14 +9,22 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { meQuery } from "@/lib/query";
 import { navGroups } from "./nav-items";
 
 export function NavMain() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { isMobile, setOpenMobile } = useSidebar();
+  const me = useQuery(meQuery);
+  const groups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => me.data?.role === "admin" || item.support),
+    }))
+    .filter((group) => group.items.length > 0);
   return (
     <nav aria-label="Administración">
-      {navGroups.map((group) => (
+      {groups.map((group) => (
         <SidebarGroup key={group.label}>
           <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
           <SidebarGroupContent className="flex flex-col gap-2">

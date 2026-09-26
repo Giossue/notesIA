@@ -86,6 +86,13 @@ const sections = [
     WHERE usuario_id = $1 ORDER BY id LIMIT $2 OFFSET $3`,
   },
   {
+    name: "reports",
+    sql: `SELECT id, tipo AS type, titulo AS title, descripcion AS description,
+    estado AS status, respuesta AS reply, respondido_en AS "repliedAt",
+    creado_en AS "createdAt", actualizado_en AS "updatedAt"
+    FROM dominio.reportes WHERE usuario_id = $1 ORDER BY creado_en LIMIT $2 OFFSET $3`,
+  },
+  {
     name: "streakDays",
     sql: `SELECT fecha::text AS date, actividad_id AS "activityId", creado_en AS "createdAt"
     FROM dominio.dias_racha WHERE usuario_id = $1 ORDER BY fecha LIMIT $2 OFFSET $3`,

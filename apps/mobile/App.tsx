@@ -44,6 +44,8 @@ import { PrivacyScreen } from "@/features/privacy/PrivacyScreen";
 import { ProfileEditScreen } from "@/features/profile/ProfileEditScreen";
 import { ProfileScreen } from "@/features/profile/ProfileScreen";
 import { ProgressScreen } from "@/features/progress/ProgressScreen";
+import { ReportFormScreen } from "@/features/reports/ReportFormScreen";
+import { ReportsScreen } from "@/features/reports/ReportsScreen";
 import { StreakCelebration } from "@/features/streak/StreakCelebration";
 import { flushPendingNavigation, navigationRef } from "@/navigation/navigation-ref";
 import type { RootStackParamList, TabParams } from "@/navigation/types";
@@ -212,6 +214,8 @@ function Main() {
               <Stack.Screen name="Privacy" component={PrivacyScreen} />
               <Stack.Screen name="AiAssistant" component={AssistantChatScreen} />
               <Stack.Screen name="OfflineChanges" component={OfflineChangesScreen} />
+              <Stack.Screen name="Reports" component={ReportsScreen} />
+              <Stack.Screen name="ReportForm" component={ReportFormScreen} />
             </Stack.Navigator>
           </NavigationContainer>
         </PushRegistrationProvider>
