@@ -1,13 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { adminUserSuspensionSchema } from "@notesia/contracts";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
 import { DataTable } from "@/components/data-table";
 import { LoadMore } from "@/components/load-more";
 import { Page, PageHeader } from "@/components/page-header";
+import { RowActions } from "@/components/row-actions";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -16,7 +17,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,8 +29,15 @@ import { rolesQueryKey, usersQueryKey } from "@/lib/query";
 
 type SuspensionValues = z.infer<typeof adminUserSuspensionSchema>;
 
-function SuspensionAction({ user }: { user: AdminUser }) {
-  const [open, setOpen] = useState(false);
+function SuspensionDialog({
+  user,
+  open,
+  setOpen,
+}: {
+  user: AdminUser;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
   const queryClient = useQueryClient();
   const suspended = user.suspendedAt === null;
   const confirmation = suspended ? "SUSPENDER" : "REACTIVAR";
@@ -54,25 +61,19 @@ function SuspensionAction({ user }: { user: AdminUser }) {
       ]);
     },
   });
+  // Al abrir desde el menú, el formulario parte de los datos actuales de la fila.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: solo al abrir
+  useEffect(() => {
+    if (!open) return;
+    form.reset({
+      suspended,
+      version: user.version,
+      confirmation: "" as never,
+      password: "",
+    });
+  }, [open]);
   return (
-    <AlertDialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (next)
-          form.reset({
-            suspended,
-            version: user.version,
-            confirmation: "" as never,
-            password: "",
-          });
-      }}
-    >
-      <AlertDialogTrigger asChild>
-        <Button size="sm" variant={suspended ? "destructive" : "outline"}>
-          {confirmation}
-        </Button>
-      </AlertDialogTrigger>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{confirmation} cuenta</AlertDialogTitle>
@@ -121,6 +122,24 @@ function SuspensionAction({ user }: { user: AdminUser }) {
   );
 }
 
+function UserActions({ user }: { user: AdminUser }) {
+  const [open, setOpen] = useState(false);
+  const suspended = user.suspendedAt === null;
+  return (
+    <RowActions
+      actions={[
+        {
+          label: suspended ? "Suspender" : "Reactivar",
+          destructive: suspended,
+          select: () => setOpen(true),
+        },
+      ]}
+    >
+      <SuspensionDialog user={user} open={open} setOpen={setOpen} />
+    </RowActions>
+  );
+}
+
 export function UsersPage() {
   const query = useInfiniteQuery({
     queryKey: usersQueryKey,
@@ -137,7 +156,7 @@ export function UsersPage() {
       {users.length === 0 ? (
         <EmptyResult message="No hay cuentas registradas" />
       ) : (
-        <DataTable columns={["Cuenta", "Rol", "Estado", "Creada", "Acción"]}>
+        <DataTable columns={["Cuenta", "Rol", "Estado", "Creada", ""]}>
           {users.map((user) => (
             <TableRow key={user.id}>
               <TableCell>
@@ -159,7 +178,7 @@ export function UsersPage() {
                 {new Date(user.createdAt).toLocaleString()}
               </TableCell>
               <TableCell>
-                <SuspensionAction user={user} />
+                <UserActions user={user} />
               </TableCell>
             </TableRow>
           ))}

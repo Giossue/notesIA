@@ -2,13 +2,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { adminRoleRemoveSchema, adminRoleUpdateSchema } from "@notesia/contracts";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { UserPlus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
 import { DataTable } from "@/components/data-table";
 import { LoadMore } from "@/components/load-more";
 import { Page, PageHeader } from "@/components/page-header";
+import { RowActions } from "@/components/row-actions";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -17,7 +18,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -188,8 +188,15 @@ function AssignRoleDialog() {
   );
 }
 
-function ChangeRoleAction({ role }: { role: AdminRole }) {
-  const [open, setOpen] = useState(false);
+function ChangeRoleDialog({
+  role,
+  open,
+  setOpen,
+}: {
+  role: AdminRole;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
   const queryClient = useQueryClient();
   const form = useForm<RoleUpdateValues>({
     resolver: zodResolver(adminRoleUpdateSchema),
@@ -210,25 +217,19 @@ function ChangeRoleAction({ role }: { role: AdminRole }) {
       ]);
     },
   });
+  // Al abrir desde el menú, el formulario parte de los datos actuales de la fila.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: solo al abrir
+  useEffect(() => {
+    if (!open) return;
+    form.reset({
+      role: role.role,
+      version: role.version,
+      confirmation: "" as never,
+      password: "",
+    });
+  }, [open]);
   return (
-    <AlertDialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (next)
-          form.reset({
-            role: role.role,
-            version: role.version,
-            confirmation: "" as never,
-            password: "",
-          });
-      }}
-    >
-      <AlertDialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          Cambiar
-        </Button>
-      </AlertDialogTrigger>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Cambiar rol</AlertDialogTitle>
@@ -281,8 +282,15 @@ function ChangeRoleAction({ role }: { role: AdminRole }) {
   );
 }
 
-function RemoveRoleAction({ role }: { role: AdminRole }) {
-  const [open, setOpen] = useState(false);
+function RemoveRoleDialog({
+  role,
+  open,
+  setOpen,
+}: {
+  role: AdminRole;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
   const queryClient = useQueryClient();
   const form = useForm<RoleRemoveValues>({
     resolver: zodResolver(adminRoleRemoveSchema),
@@ -298,19 +306,14 @@ function RemoveRoleAction({ role }: { role: AdminRole }) {
       ]);
     },
   });
+  // Al abrir desde el menú, el formulario parte de los datos actuales de la fila.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: solo al abrir
+  useEffect(() => {
+    if (!open) return;
+    form.reset({ version: role.version, confirmation: "" as never, password: "" });
+  }, [open]);
   return (
-    <AlertDialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (next) form.reset({ version: role.version, confirmation: "" as never, password: "" });
-      }}
-    >
-      <AlertDialogTrigger asChild>
-        <Button size="sm" variant="destructive">
-          Quitar
-        </Button>
-      </AlertDialogTrigger>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Quitar rol</AlertDialogTitle>
@@ -355,6 +358,22 @@ function RemoveRoleAction({ role }: { role: AdminRole }) {
   );
 }
 
+function RoleActions({ role }: { role: AdminRole }) {
+  const [open, setOpen] = useState<"change" | "remove" | null>(null);
+  const toggle = (dialog: "change" | "remove") => (next: boolean) => setOpen(next ? dialog : null);
+  return (
+    <RowActions
+      actions={[
+        { label: "Cambiar rol", select: () => setOpen("change") },
+        { label: "Quitar rol", destructive: true, select: () => setOpen("remove") },
+      ]}
+    >
+      <ChangeRoleDialog role={role} open={open === "change"} setOpen={toggle("change")} />
+      <RemoveRoleDialog role={role} open={open === "remove"} setOpen={toggle("remove")} />
+    </RowActions>
+  );
+}
+
 export function RolesPage() {
   const query = useInfiniteQuery({
     queryKey: rolesQueryKey,
@@ -375,7 +394,7 @@ export function RolesPage() {
       {roles.length === 0 ? (
         <EmptyResult message="No hay roles asignados" />
       ) : (
-        <DataTable columns={["Cuenta", "Rol", "Versión", "Actualizado", "Acciones"]}>
+        <DataTable columns={["Cuenta", "Rol", "Versión", "Actualizado", ""]}>
           {roles.map((role) => (
             <TableRow key={role.userId}>
               <TableCell>
@@ -392,10 +411,7 @@ export function RolesPage() {
                 {new Date(role.updatedAt).toLocaleString()}
               </TableCell>
               <TableCell>
-                <div className="flex gap-2">
-                  <ChangeRoleAction role={role} />
-                  <RemoveRoleAction role={role} />
-                </div>
+                <RoleActions role={role} />
               </TableCell>
             </TableRow>
           ))}

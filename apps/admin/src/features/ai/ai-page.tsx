@@ -13,6 +13,7 @@ import { z } from "zod";
 import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
 import { DataTable } from "@/components/data-table";
 import { Page, PageHeader } from "@/components/page-header";
+import { RowActions } from "@/components/row-actions";
 import { StatCard, StatGrid } from "@/components/stat-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -23,7 +24,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -287,9 +287,16 @@ function editRoute(route: AdminAiRoute): RouteFormValues {
   };
 }
 
-function TestRouteAction({ useCase }: { useCase: UseCase }) {
+function TestRouteDialog({
+  useCase,
+  open,
+  setOpen,
+}: {
+  useCase: UseCase;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
   const form = useForm<{ confirmation: "PROBAR" }>({
     resolver: zodResolver(z.object({ confirmation: z.literal("PROBAR") })),
     defaultValues: { confirmation: "" as never },
@@ -303,22 +310,15 @@ function TestRouteAction({ useCase }: { useCase: UseCase }) {
       ]);
     },
   });
+  // Al abrir desde el menú, el formulario parte de los datos actuales de la fila.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: solo al abrir
+  useEffect(() => {
+    if (!open) return;
+    mutation.reset();
+    form.reset({ confirmation: "" as never });
+  }, [open]);
   return (
-    <AlertDialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (next) {
-          mutation.reset();
-          form.reset({ confirmation: "" as never });
-        }
-      }}
-    >
-      <AlertDialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          Probar
-        </Button>
-      </AlertDialogTrigger>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Probar ruta de IA</AlertDialogTitle>
@@ -697,6 +697,20 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
   );
 }
 
+function RouteActions({ route, edit }: { route: AdminAiRoute; edit: () => void }) {
+  const [testing, setTesting] = useState(false);
+  return (
+    <RowActions
+      actions={[
+        { label: "Editar", select: edit },
+        { label: "Probar", select: () => setTesting(true) },
+      ]}
+    >
+      <TestRouteDialog useCase={route.useCase} open={testing} setOpen={setTesting} />
+    </RowActions>
+  );
+}
+
 function RoutesPanel() {
   const query = useQuery(aiRoutesQuery);
   const [selected, setSelected] = useState<AdminAiRoute | null>(null);
@@ -708,7 +722,7 @@ function RoutesPanel() {
       {query.data.length === 0 ? (
         <EmptyResult message="No hay rutas configuradas" />
       ) : (
-        <DataTable columns={["Caso", "Principal", "Alterno", "Estado", "Acciones"]}>
+        <DataTable columns={["Caso", "Principal", "Alterno", "Estado", ""]}>
           {query.data.map((route) => (
             <TableRow key={route.useCase}>
               <TableCell className="font-medium">{route.useCase}</TableCell>
@@ -731,12 +745,7 @@ function RoutesPanel() {
                 </Badge>
               </TableCell>
               <TableCell>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setSelected(route)}>
-                    Editar
-                  </Button>
-                  <TestRouteAction useCase={route.useCase} />
-                </div>
+                <RouteActions route={route} edit={() => setSelected(route)} />
               </TableCell>
             </TableRow>
           ))}
