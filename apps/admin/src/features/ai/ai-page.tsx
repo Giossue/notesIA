@@ -6,11 +6,15 @@ import {
   aiUseCaseSchema,
 } from "@notesia/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Activity, CircleHelp, Coins, DollarSign, PlugZap, Route, Shuffle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
+import { DataTable } from "@/components/data-table";
 import { FormMessage } from "@/components/form-message";
+import { Page, PageHeader } from "@/components/page-header";
+import { StatCard, StatGrid } from "@/components/stat-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -51,15 +55,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { TableCell, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   type AdminAiProvider,
@@ -319,7 +317,9 @@ function TestRouteAction({ useCase }: { useCase: UseCase }) {
       }}
     >
       <AlertDialogTrigger asChild>
-        <Button variant="outline">Probar</Button>
+        <Button size="sm" variant="outline">
+          Probar
+        </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -335,7 +335,7 @@ function TestRouteAction({ useCase }: { useCase: UseCase }) {
           </Alert>
         ) : (
           <form onSubmit={form.handleSubmit(() => mutation.mutate())}>
-            <FieldGroup>
+            <FieldGroup className="gap-4">
               <Field data-invalid={Boolean(form.formState.errors.confirmation)}>
                 <FieldLabel htmlFor={`test-route-${useCase}`}>Escribe PROBAR</FieldLabel>
                 <Input
@@ -709,45 +709,39 @@ function RoutesPanel() {
       {query.data.length === 0 ? (
         <EmptyResult message="No hay rutas configuradas." />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Caso</TableHead>
-              <TableHead>Principal</TableHead>
-              <TableHead>Alterno</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Acciones</TableHead>
+        <DataTable columns={["Caso", "Principal", "Alterno", "Estado", "Acciones"]}>
+          {query.data.map((route) => (
+            <TableRow key={route.useCase}>
+              <TableCell className="font-medium">{route.useCase}</TableCell>
+              <TableCell>
+                {route.provider} / <code className="text-xs">{route.modelId}</code>
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {route.alternate ? (
+                  <>
+                    {route.alternate.provider} /{" "}
+                    <code className="text-xs">{route.alternate.modelId}</code>
+                  </>
+                ) : (
+                  "sin alterno"
+                )}
+              </TableCell>
+              <TableCell>
+                <Badge variant={route.enabled ? "secondary" : "outline"}>
+                  {route.enabled ? "habilitada" : "deshabilitada"}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setSelected(route)}>
+                    Editar
+                  </Button>
+                  <TestRouteAction useCase={route.useCase} />
+                </div>
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {query.data.map((route) => (
-              <TableRow key={route.useCase}>
-                <TableCell>{route.useCase}</TableCell>
-                <TableCell>
-                  {route.provider} / {route.modelId}
-                </TableCell>
-                <TableCell>
-                  {route.alternate
-                    ? `${route.alternate.provider} / ${route.alternate.modelId}`
-                    : "sin alterno"}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={route.enabled ? "secondary" : "outline"}>
-                    {route.enabled ? "habilitada" : "deshabilitada"}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setSelected(route)}>
-                      Editar
-                    </Button>
-                    <TestRouteAction useCase={route.useCase} />
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+          ))}
+        </DataTable>
       )}
     </div>
   );
@@ -769,6 +763,89 @@ const usageRangeSchema = z
     path: ["through"],
   });
 type UsageRange = z.infer<typeof usageRangeSchema>;
+
+type AiUsage = Awaited<ReturnType<typeof adminApi.aiUsage>>;
+
+/** Suma importes con nueve decimales fijos sin pasar por coma flotante. */
+function sumUsd(values: string[]) {
+  const total = values.reduce((sum, value) => sum + BigInt(value.replace(".", "")), 0n);
+  const text = total.toString().padStart(10, "0");
+  return `${text.slice(0, -9)}.${text.slice(-9)}`;
+}
+
+function UsageSummary({ usage }: { usage: AiUsage }) {
+  const requests = usage.items.reduce((sum, item) => sum + item.requests, 0);
+  const tokens = usage.items.reduce((sum, item) => sum + item.inputTokens + item.outputTokens, 0);
+  const fallbacks = usage.fallbacks.reduce((sum, item) => sum + item.requests, 0);
+  return (
+    <StatGrid>
+      <StatCard
+        icon={Activity}
+        label="Solicitudes"
+        value={requests}
+        footer="En el rango consultado."
+      />
+      <StatCard icon={Coins} label="Tokens" value={tokens} footer="Entrada más salida." />
+      <StatCard
+        icon={DollarSign}
+        label="Coste conocido"
+        value={`USD ${sumUsd(usage.items.map((item) => item.knownCostUsd))}`}
+        footer="Solo solicitudes con precio configurado."
+      />
+      <StatCard
+        icon={Shuffle}
+        label="Fallbacks"
+        value={fallbacks}
+        footer="Solicitudes resueltas por el proveedor alterno."
+      />
+    </StatGrid>
+  );
+}
+
+function AiOverview() {
+  const health = useQuery(systemHealthQuery);
+  const providersQuery = useQuery(aiProvidersQuery);
+  const routes = useQuery(aiRoutesQuery);
+  const enabledProviders = providersQuery.data?.filter((item) => item.enabled).length;
+  const enabledRoutes = routes.data?.filter((item) => item.enabled).length;
+  const pending = <Skeleton className="h-8 w-20" />;
+  return (
+    <StatGrid>
+      <StatCard
+        icon={DollarSign}
+        label={
+          health.data ? `Coste, últimos ${health.data.ai.windowMinutes} minutos` : "Coste reciente"
+        }
+        value={health.data ? `USD ${health.data.ai.knownCostUsd}` : pending}
+        footer="Coste conocido de la ventana de salud."
+      />
+      <StatCard
+        icon={CircleHelp}
+        label="Sin coste calculado"
+        value={health.data ? health.data.ai.uncostedRequests : pending}
+        footer="Solicitudes sin precio configurado."
+      />
+      <StatCard
+        icon={PlugZap}
+        label="Proveedores habilitados"
+        value={
+          enabledProviders === undefined ? pending : `${enabledProviders} de ${providers.length}`
+        }
+        footer="Conexiones activas con clave guardada."
+      />
+      <StatCard
+        icon={Route}
+        label="Rutas habilitadas"
+        value={
+          enabledRoutes === undefined || !routes.data
+            ? pending
+            : `${enabledRoutes} de ${routes.data.length}`
+        }
+        footer="Casos de uso con modelo activo."
+      />
+    </StatGrid>
+  );
+}
 
 function UsagePanel() {
   const [range, setRange] = useState<UsageRange>({
@@ -792,7 +869,7 @@ function UsagePanel() {
         </CardHeader>
         <form onSubmit={form.handleSubmit(setRange)}>
           <CardContent>
-            <FieldGroup>
+            <FieldGroup className="grid gap-4 sm:grid-cols-2">
               <Field data-invalid={Boolean(form.formState.errors.from)}>
                 <FieldLabel htmlFor="usage-from">Desde</FieldLabel>
                 <Input
@@ -824,35 +901,37 @@ function UsagePanel() {
       {query.isError ? <PageError error={query.error} retry={() => query.refetch()} /> : null}
       {query.data ? (
         <>
+          <UsageSummary usage={query.data} />
           {query.data.items.length === 0 ? (
             <EmptyResult message="No hay consumo en el rango." />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Caso</TableHead>
-                  <TableHead>Proveedor</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Solicitudes</TableHead>
-                  <TableHead>Tokens</TableHead>
-                  <TableHead>Coste USD</TableHead>
-                  <TableHead>p95 ms</TableHead>
+            <DataTable
+              columns={[
+                "Caso",
+                "Proveedor",
+                "Estado",
+                "Solicitudes",
+                "Tokens",
+                "Coste USD",
+                "p95 ms",
+              ]}
+            >
+              {query.data.items.map((item) => (
+                <TableRow key={`${item.useCase}-${item.provider}-${item.status}`}>
+                  <TableCell className="font-medium">{item.useCase}</TableCell>
+                  <TableCell>{item.provider}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{item.status}</Badge>
+                  </TableCell>
+                  <TableCell className="tabular-nums">{item.requests}</TableCell>
+                  <TableCell className="tabular-nums">
+                    {item.inputTokens + item.outputTokens}
+                  </TableCell>
+                  <TableCell>{item.totalCostUsd ?? `${item.knownCostUsd} conocido`}</TableCell>
+                  <TableCell>{item.p95DurationMs ?? "sin dato"}</TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {query.data.items.map((item) => (
-                  <TableRow key={`${item.useCase}-${item.provider}-${item.status}`}>
-                    <TableCell>{item.useCase}</TableCell>
-                    <TableCell>{item.provider}</TableCell>
-                    <TableCell>{item.status}</TableCell>
-                    <TableCell>{item.requests}</TableCell>
-                    <TableCell>{item.inputTokens + item.outputTokens}</TableCell>
-                    <TableCell>{item.totalCostUsd ?? `${item.knownCostUsd} conocido`}</TableCell>
-                    <TableCell>{item.p95DurationMs ?? "sin dato"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+              ))}
+            </DataTable>
           )}
           <Card>
             <CardHeader>
@@ -862,7 +941,12 @@ function UsagePanel() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ul>
+              {query.data.fallbacks.length + query.data.transitions.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  Sin fallbacks ni transiciones en el rango.
+                </p>
+              ) : null}
+              <ul className="flex flex-col gap-1 text-sm">
                 {query.data.fallbacks.map((item) => (
                   <li key={`${item.useCase}-${item.reason}`}>
                     {item.useCase}: {item.reason} ({item.requests})
@@ -887,11 +971,12 @@ function UsagePanel() {
 
 export function AiPage() {
   return (
-    <section className="flex flex-col gap-4">
-      <header>
-        <h1>Configuración de IA</h1>
-        <p>Conexiones, modelos por caso de uso, prueba sintética y consumo.</p>
-      </header>
+    <Page>
+      <PageHeader
+        title="Configuración de IA"
+        description="Conexiones, modelos por caso de uso, prueba sintética y consumo."
+      />
+      <AiOverview />
       <Tabs defaultValue="providers">
         <TabsList>
           <TabsTrigger value="providers">Proveedores</TabsTrigger>
@@ -908,6 +993,6 @@ export function AiPage() {
           <UsagePanel />
         </TabsContent>
       </Tabs>
-    </section>
+    </Page>
   );
 }

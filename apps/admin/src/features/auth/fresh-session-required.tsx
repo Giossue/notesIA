@@ -2,16 +2,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { FormMessage } from "@/components/form-message";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { authApi } from "@/lib/auth-api";
+import { AuthHeading } from "./auth-layout";
 
 export function FreshSessionRequired() {
   const navigate = useNavigate();
@@ -24,22 +17,18 @@ export function FreshSessionRequired() {
     },
   });
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Vuelve a confirmar el acceso</CardTitle>
-        <CardDescription>
-          El segundo factor cambió después de crear esta sesión. Inicia sesión otra vez.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="mx-auto flex w-full flex-col justify-center space-y-8 sm:w-[350px]">
+      <AuthHeading
+        title="Vuelve a confirmar el acceso"
+        description="El segundo factor cambió después de crear esta sesión. Inicia sesión otra vez."
+      />
+      <div className="flex flex-col gap-4">
         <FormMessage error={signOut.error} />
-      </CardContent>
-      <CardFooter>
-        <Button onClick={() => signOut.mutate()} disabled={signOut.isPending}>
+        <Button className="w-full" onClick={() => signOut.mutate()} disabled={signOut.isPending}>
           {signOut.isPending ? <Spinner data-icon="inline-start" /> : null}
           Volver a iniciar sesión
         </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 }

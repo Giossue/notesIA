@@ -1,7 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
+import { Bell, BrainCircuit, Cpu, Database } from "lucide-react";
 import { PageError, PageLoading } from "@/components/async-state";
+import { DataTable } from "@/components/data-table";
+import { Page, PageHeader } from "@/components/page-header";
+import { StatCard, StatGrid } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { TableCell, TableRow } from "@/components/ui/table";
 import { systemHealthQuery } from "@/lib/query";
 
 export function SystemHealthPage() {
@@ -9,58 +15,75 @@ export function SystemHealthPage() {
   if (health.isPending) return <PageLoading />;
   if (health.isError) return <PageError error={health.error} retry={() => health.refetch()} />;
   const queues = Object.entries(health.data.queues);
+  const { database, worker, alerts, ai } = health.data;
   return (
-    <section className="flex flex-col gap-4">
-      <header>
-        <h1>Salud del sistema</h1>
-        <p>Última comprobación: {new Date(health.data.checkedAt).toLocaleString()}</p>
-      </header>
-      <Card>
-        <CardHeader>
-          <CardTitle>Estado general</CardTitle>
-          <CardDescription>Base de datos, worker y alertas activas.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          <Badge>{health.data.database}</Badge>
-          <Badge variant={health.data.worker.seenRecently ? "secondary" : "destructive"}>
-            Worker {health.data.worker.seenRecently ? "activo" : "sin señal reciente"}
-          </Badge>
-          <Badge variant={health.data.alerts.length ? "destructive" : "secondary"}>
-            {health.data.alerts.length} alertas
-          </Badge>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Colas</CardTitle>
-          <CardDescription>Elementos pendientes, en proceso y agotados.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid gap-3 sm:grid-cols-2">
-            {queues.map(([name, queue]) => (
-              <div key={name}>
-                <dt>{name}</dt>
-                <dd>
-                  pendientes {queue.pending}
-                  {"; "}listos {queue.ready}
-                  {"; "}en proceso {queue.inFlight}
-                  {"; "}agotados {queue.dead}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>IA, últimos {health.data.ai.windowMinutes} minutos</CardTitle>
-          <CardDescription>Coste conocido y solicitudes sin coste calculado.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>USD {health.data.ai.knownCostUsd}</p>
-          <p>Sin coste calculado: {health.data.ai.uncostedRequests}</p>
-        </CardContent>
-      </Card>
-    </section>
+    <Page>
+      <PageHeader
+        title="Salud del sistema"
+        description={`Última comprobación: ${new Date(health.data.checkedAt).toLocaleString()}`}
+        actions={
+          <Button variant="outline" onClick={() => health.refetch()} disabled={health.isFetching}>
+            {health.isFetching ? <Spinner data-icon="inline-start" /> : null}
+            Actualizar
+          </Button>
+        }
+      />
+      <StatGrid>
+        <StatCard
+          icon={Database}
+          label="Base de datos"
+          value={<Badge variant="secondary">{database}</Badge>}
+          footer="Estado de la conexión principal."
+        />
+        <StatCard
+          icon={Cpu}
+          label="Worker"
+          value={
+            <Badge variant={worker.seenRecently ? "secondary" : "destructive"}>
+              Worker {worker.seenRecently ? "activo" : "sin señal reciente"}
+            </Badge>
+          }
+          footer="Procesamiento en segundo plano."
+        />
+        <StatCard
+          icon={Bell}
+          label="Alertas activas"
+          value={alerts.length}
+          badge={
+            <Badge variant={alerts.length ? "destructive" : "secondary"}>
+              {alerts.length} alertas
+            </Badge>
+          }
+          footer="Avisos pendientes de atención."
+        />
+        <StatCard
+          icon={BrainCircuit}
+          label={`IA, últimos ${ai.windowMinutes} minutos`}
+          value={`USD ${ai.knownCostUsd}`}
+          footer={`Sin coste calculado: ${ai.uncostedRequests}`}
+        />
+      </StatGrid>
+      <div className="flex flex-col gap-3">
+        <div>
+          <h2 className="font-medium">Colas</h2>
+          <p className="text-muted-foreground text-sm">
+            Elementos pendientes, listos, en proceso y agotados.
+          </p>
+        </div>
+        <DataTable columns={["Cola", "Pendientes", "Listos", "En proceso", "Agotados"]}>
+          {queues.map(([name, queue]) => (
+            <TableRow key={name}>
+              <TableCell className="font-medium">{name}</TableCell>
+              <TableCell className="tabular-nums">{queue.pending}</TableCell>
+              <TableCell className="tabular-nums">{queue.ready}</TableCell>
+              <TableCell className="tabular-nums">{queue.inFlight}</TableCell>
+              <TableCell>
+                <Badge variant={queue.dead ? "destructive" : "outline"}>{queue.dead}</Badge>
+              </TableCell>
+            </TableRow>
+          ))}
+        </DataTable>
+      </div>
+    </Page>
   );
 }

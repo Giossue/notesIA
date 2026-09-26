@@ -1,21 +1,44 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, Outlet, useNavigate } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
+import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { NotebookPen } from "lucide-react";
+import type { CSSProperties } from "react";
+import { FormMessage } from "@/components/form-message";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { type AuthSession, authApi } from "@/lib/auth-api";
+import { navItems } from "./shell/nav-items";
+import { NavMain } from "./shell/nav-main";
+import { NavUser } from "./shell/nav-user";
+import { ThemeSwitcher } from "./shell/theme-switcher";
 
-const links = [
-  { to: "/" as const, label: "Salud" },
-  { to: "/users" as const, label: "Usuarios" },
-  { to: "/roles" as const, label: "Roles" },
-  { to: "/privacy" as const, label: "Privacidad" },
-  { to: "/ai" as const, label: "IA" },
-  { to: "/audit" as const, label: "Auditoría" },
-];
+function sidebarDefaultOpen() {
+  return !document.cookie.split("; ").includes("sidebar_state=false");
+}
 
 export function AdminShell({ session }: { session: AuthSession }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const current = navItems.find((item) => item.to === pathname);
   const signOut = useMutation({
     mutationFn: authApi.signOut,
     onSuccess: async () => {
@@ -24,27 +47,72 @@ export function AdminShell({ session }: { session: AuthSession }) {
     },
   });
   return (
-    <div className="mx-auto flex min-h-svh max-w-7xl flex-col gap-4 p-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <strong>NotesIA Admin</strong>
-          <div>{session.user.email}</div>
-        </div>
-        <Button variant="outline" onClick={() => signOut.mutate()} disabled={signOut.isPending}>
-          Cerrar sesión
-        </Button>
-      </header>
-      <nav aria-label="Administración" className="flex flex-wrap gap-2">
-        {links.map((link) => (
-          <Button key={link.to} variant="ghost" asChild>
-            <Link to={link.to}>{link.label}</Link>
-          </Button>
-        ))}
-      </nav>
-      <Separator />
-      <main>
-        <Outlet />
-      </main>
-    </div>
+    <TooltipProvider>
+      <SidebarProvider
+        defaultOpen={sidebarDefaultOpen()}
+        style={{ "--sidebar-width": "calc(var(--spacing) * 68)" } as CSSProperties}
+      >
+        <Sidebar variant="inset" collapsible="icon">
+          <SidebarHeader>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                {/* Marca sin enlace: evita un segundo enlace cuyo nombre contenga "IA". */}
+                <SidebarMenuButton asChild className="hover:bg-transparent active:bg-transparent">
+                  <div>
+                    <NotebookPen />
+                    <span className="font-semibold text-base">NotesIA Admin</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarHeader>
+          <SidebarContent>
+            <NavMain />
+          </SidebarContent>
+          <SidebarFooter>
+            <NavUser
+              user={session.user}
+              signOut={() => signOut.mutate()}
+              signingOut={signOut.isPending}
+            />
+          </SidebarFooter>
+        </Sidebar>
+        <SidebarInset className="min-w-0 overflow-x-clip peer-data-[variant=inset]:border">
+          <header className="flex h-12 shrink-0 items-center gap-2 border-b">
+            <div className="flex w-full items-center justify-between px-4 lg:px-6">
+              <div className="flex items-center gap-1 lg:gap-2">
+                <SidebarTrigger className="-ml-1" />
+                <Separator
+                  orientation="vertical"
+                  className="mx-2 data-[orientation=vertical]:h-4 data-[orientation=vertical]:self-center"
+                />
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem className="hidden md:block">Administración</BreadcrumbItem>
+                    {current ? (
+                      <>
+                        <BreadcrumbSeparator className="hidden md:block" />
+                        <BreadcrumbItem>
+                          <BreadcrumbPage>{current.label}</BreadcrumbPage>
+                        </BreadcrumbItem>
+                      </>
+                    ) : null}
+                  </BreadcrumbList>
+                </Breadcrumb>
+              </div>
+              <ThemeSwitcher />
+            </div>
+          </header>
+          <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden p-4 md:p-6">
+            {signOut.error ? (
+              <div className="mb-4">
+                <FormMessage error={signOut.error} />
+              </div>
+            ) : null}
+            <Outlet />
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
   );
 }

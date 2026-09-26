@@ -1,12 +1,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { adminDocumentCreateSchema, adminPublishSchema } from "@notesia/contracts";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { FilePlus } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
+import { DataTable } from "@/components/data-table";
 import { FormMessage } from "@/components/form-message";
 import { LoadMore } from "@/components/load-more";
+import { Page, PageHeader } from "@/components/page-header";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -20,13 +23,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,14 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { TableCell, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { type AdminDocument, adminApi } from "@/lib/admin-api";
 import { documentsQueryKey } from "@/lib/query";
@@ -56,7 +54,8 @@ const createDocumentFormSchema = adminDocumentCreateSchema
 type CreateDocumentValues = z.infer<typeof createDocumentFormSchema>;
 type PublishValues = z.infer<typeof adminPublishSchema>;
 
-function CreateDocumentCard() {
+function CreateDocumentDialog() {
+  const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const form = useForm<CreateDocumentValues>({
     resolver: zodResolver(createDocumentFormSchema),
@@ -73,20 +72,33 @@ function CreateDocumentCard() {
       adminApi.createDocument({ id: crypto.randomUUID(), ...values }),
     onSuccess: async () => {
       form.reset();
+      setOpen(false);
       await queryClient.invalidateQueries({ queryKey: documentsQueryKey });
     },
   });
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Crear borrador</CardTitle>
-        <CardDescription>
-          Introduce únicamente el texto aprobado. Crear no publica el documento.
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
-        <CardContent>
-          <FieldGroup>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) mutation.reset();
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button>
+          <FilePlus data-icon="inline-start" />
+          Crear borrador
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Crear borrador</DialogTitle>
+          <DialogDescription>
+            Introduce únicamente el texto aprobado. Crear no publica el documento.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+          <FieldGroup className="gap-4">
             <Field data-invalid={Boolean(form.formState.errors.type)}>
               <FieldLabel>Tipo</FieldLabel>
               <Controller
@@ -162,16 +174,21 @@ function CreateDocumentCard() {
               <FieldError errors={[form.formState.errors.confirmation]} />
             </Field>
             <FormMessage error={mutation.error} />
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Cancelar
+                </Button>
+              </DialogClose>
+              <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending ? <Spinner data-icon="inline-start" /> : null}
+                Crear borrador
+              </Button>
+            </DialogFooter>
           </FieldGroup>
-        </CardContent>
-        <CardFooter>
-          <Button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? <Spinner data-icon="inline-start" /> : null}
-            Crear borrador
-          </Button>
-        </CardFooter>
-      </form>
-    </Card>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -198,7 +215,7 @@ function PublishAction({ document }: { document: AdminDocument }) {
       }}
     >
       <AlertDialogTrigger asChild>
-        <Button>Publicar</Button>
+        <Button size="sm">Publicar</Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -209,7 +226,7 @@ function PublishAction({ document }: { document: AdminDocument }) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
-          <FieldGroup>
+          <FieldGroup className="gap-4">
             <Field data-invalid={Boolean(form.formState.errors.confirmation)}>
               <FieldLabel htmlFor={`publish-${document.id}`}>Escribe PUBLICAR</FieldLabel>
               <Input
@@ -246,60 +263,55 @@ export function PrivacyPage() {
   if (query.isError) return <PageError error={query.error} retry={() => query.refetch()} />;
   const documents = query.data.pages.flatMap((page) => page.items);
   return (
-    <section className="flex flex-col gap-4">
-      <header>
-        <h1>Privacidad y términos</h1>
-        <p>Crea versiones y publícalas solo después de su aprobación.</p>
-      </header>
-      <CreateDocumentCard />
+    <Page>
+      <PageHeader
+        title="Privacidad y términos"
+        description="Crea versiones y publícalas solo después de su aprobación."
+        actions={<CreateDocumentDialog />}
+      />
       {documents.length === 0 ? (
         <EmptyResult message="No hay documentos creados." />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Documento</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Creado</TableHead>
-              <TableHead>Contenido</TableHead>
-              <TableHead>Acción</TableHead>
+        <DataTable columns={["Documento", "Estado", "Creado", "Contenido", "Acción"]}>
+          {documents.map((document) => (
+            <TableRow key={document.id}>
+              <TableCell className="font-medium">
+                {document.type} · {document.language} · v{document.version}
+              </TableCell>
+              <TableCell>
+                <Badge variant={document.publishedAt ? "secondary" : "outline"}>
+                  {document.publishedAt ? "publicado" : "borrador"}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {new Date(document.createdAt).toLocaleString()}
+              </TableCell>
+              <TableCell>
+                <details>
+                  <summary className="cursor-pointer text-sm underline-offset-4 hover:underline">
+                    Ver texto
+                  </summary>
+                  <pre className="mt-2 max-h-64 max-w-xl overflow-y-auto whitespace-pre-wrap rounded-md border bg-muted/40 p-3 font-sans text-xs">
+                    {document.content}
+                  </pre>
+                </details>
+              </TableCell>
+              <TableCell>
+                {document.publishedAt ? (
+                  new Date(document.publishedAt).toLocaleString()
+                ) : (
+                  <PublishAction document={document} />
+                )}
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {documents.map((document) => (
-              <TableRow key={document.id}>
-                <TableCell>
-                  {document.type} · {document.language} · v{document.version}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={document.publishedAt ? "secondary" : "outline"}>
-                    {document.publishedAt ? "publicado" : "borrador"}
-                  </Badge>
-                </TableCell>
-                <TableCell>{new Date(document.createdAt).toLocaleString()}</TableCell>
-                <TableCell>
-                  <details>
-                    <summary>Ver texto</summary>
-                    <pre className="max-w-xl whitespace-pre-wrap">{document.content}</pre>
-                  </details>
-                </TableCell>
-                <TableCell>
-                  {document.publishedAt ? (
-                    new Date(document.publishedAt).toLocaleString()
-                  ) : (
-                    <PublishAction document={document} />
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+          ))}
+        </DataTable>
       )}
       <LoadMore
         hasMore={query.hasNextPage}
         loading={query.isFetchingNextPage}
         load={() => query.fetchNextPage()}
       />
-    </section>
+    </Page>
   );
 }

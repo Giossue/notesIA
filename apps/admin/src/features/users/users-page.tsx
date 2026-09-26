@@ -5,8 +5,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
+import { DataTable } from "@/components/data-table";
 import { FormMessage } from "@/components/form-message";
 import { LoadMore } from "@/components/load-more";
+import { Page, PageHeader } from "@/components/page-header";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -22,14 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { TableCell, TableRow } from "@/components/ui/table";
 import { type AdminUser, adminApi } from "@/lib/admin-api";
 import { rolesQueryKey, usersQueryKey } from "@/lib/query";
 
@@ -75,7 +70,9 @@ function SuspensionAction({ user }: { user: AdminUser }) {
       }}
     >
       <AlertDialogTrigger asChild>
-        <Button variant={suspended ? "destructive" : "outline"}>{confirmation}</Button>
+        <Button size="sm" variant={suspended ? "destructive" : "outline"}>
+          {confirmation}
+        </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -85,7 +82,7 @@ function SuspensionAction({ user }: { user: AdminUser }) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
-          <FieldGroup>
+          <FieldGroup className="gap-4">
             <Field data-invalid={Boolean(form.formState.errors.confirmation)}>
               <FieldLabel htmlFor={`confirmation-${user.id}`}>Escribe {confirmation}</FieldLabel>
               <Input
@@ -137,52 +134,44 @@ export function UsersPage() {
   if (query.isError) return <PageError error={query.error} retry={() => query.refetch()} />;
   const users = query.data.pages.flatMap((page) => page.items);
   return (
-    <section className="flex flex-col gap-4">
-      <header>
-        <h1>Usuarios</h1>
-        <p>Consulta, suspende o reactiva cuentas.</p>
-      </header>
+    <Page>
+      <PageHeader title="Usuarios" description="Consulta, suspende o reactiva cuentas." />
       {users.length === 0 ? (
         <EmptyResult message="No hay cuentas registradas." />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cuenta</TableHead>
-              <TableHead>Rol</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Creada</TableHead>
-              <TableHead>Acción</TableHead>
+        <DataTable columns={["Cuenta", "Rol", "Estado", "Creada", "Acción"]}>
+          {users.map((user) => (
+            <TableRow key={user.id}>
+              <TableCell>
+                <div className="flex flex-col">
+                  <span className="font-medium">{user.name}</span>
+                  <span className="text-muted-foreground text-sm">{user.email}</span>
+                  <code className="text-muted-foreground text-xs">{user.id}</code>
+                </div>
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline">{user.role ?? "estudiante"}</Badge>
+              </TableCell>
+              <TableCell>
+                <Badge variant={user.suspendedAt ? "destructive" : "secondary"}>
+                  {user.suspendedAt ? "suspendida" : "activa"}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {new Date(user.createdAt).toLocaleString()}
+              </TableCell>
+              <TableCell>
+                <SuspensionAction user={user} />
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>
-                  <div>{user.name}</div>
-                  <div>{user.email}</div>
-                  <code>{user.id}</code>
-                </TableCell>
-                <TableCell>{user.role ?? "estudiante"}</TableCell>
-                <TableCell>
-                  <Badge variant={user.suspendedAt ? "destructive" : "secondary"}>
-                    {user.suspendedAt ? "suspendida" : "activa"}
-                  </Badge>
-                </TableCell>
-                <TableCell>{new Date(user.createdAt).toLocaleString()}</TableCell>
-                <TableCell>
-                  <SuspensionAction user={user} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+          ))}
+        </DataTable>
       )}
       <LoadMore
         hasMore={query.hasNextPage}
         loading={query.isFetchingNextPage}
         load={() => query.fetchNextPage()}
       />
-    </section>
+    </Page>
   );
 }

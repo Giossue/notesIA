@@ -12,9 +12,11 @@ export function LoadMore({
 }) {
   if (!hasMore) return null;
   return (
-    <Button variant="outline" onClick={load} disabled={loading}>
-      {loading ? <Spinner data-icon="inline-start" /> : null}
-      Cargar más
-    </Button>
+    <div className="flex justify-center">
+      <Button variant="outline" onClick={load} disabled={loading}>
+        {loading ? <Spinner data-icon="inline-start" /> : null}
+        Cargar más
+      </Button>
+    </div>
   );
 }
