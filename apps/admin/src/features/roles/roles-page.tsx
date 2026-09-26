@@ -82,7 +82,7 @@ function AssignRoleDialog() {
       userId: "",
       role: "support",
       version: 0,
-      confirmation: "" as never,
+      confirmation: "ASIGNAR",
       password: "",
     },
   });
@@ -149,16 +149,6 @@ function AssignRoleDialog() {
               />
               <FieldError errors={[form.formState.errors.version]} />
             </Field>
-            <Field data-invalid={Boolean(form.formState.errors.confirmation)}>
-              <FieldLabel htmlFor="assign-confirmation">Escribe ASIGNAR</FieldLabel>
-              <Input
-                id="assign-confirmation"
-                autoComplete="off"
-                aria-invalid={Boolean(form.formState.errors.confirmation)}
-                {...form.register("confirmation")}
-              />
-              <FieldError errors={[form.formState.errors.confirmation]} />
-            </Field>
             <Field data-invalid={Boolean(form.formState.errors.password)}>
               <FieldLabel htmlFor="assign-password">Contraseña actual</FieldLabel>
               <Input
@@ -203,7 +193,7 @@ function ChangeRoleDialog({
     defaultValues: {
       role: role.role,
       version: role.version,
-      confirmation: "" as never,
+      confirmation: "ASIGNAR",
       password: "",
     },
   });
@@ -224,7 +214,7 @@ function ChangeRoleDialog({
     form.reset({
       role: role.role,
       version: role.version,
-      confirmation: "" as never,
+      confirmation: "ASIGNAR",
       password: "",
     });
   }, [open]);
@@ -244,18 +234,6 @@ function ChangeRoleDialog({
                 name="role"
                 render={({ field }) => <RoleSelect value={field.value} change={field.onChange} />}
               />
-            </Field>
-            <Field data-invalid={Boolean(form.formState.errors.confirmation)}>
-              <FieldLabel htmlFor={`change-confirmation-${role.userId}`}>
-                Escribe ASIGNAR
-              </FieldLabel>
-              <Input
-                id={`change-confirmation-${role.userId}`}
-                autoComplete="off"
-                aria-invalid={Boolean(form.formState.errors.confirmation)}
-                {...form.register("confirmation")}
-              />
-              <FieldError errors={[form.formState.errors.confirmation]} />
             </Field>
             <Field data-invalid={Boolean(form.formState.errors.password)}>
               <FieldLabel htmlFor={`change-password-${role.userId}`}>Contraseña actual</FieldLabel>
@@ -294,7 +272,7 @@ function RemoveRoleDialog({
   const queryClient = useQueryClient();
   const form = useForm<RoleRemoveValues>({
     resolver: zodResolver(adminRoleRemoveSchema),
-    defaultValues: { version: role.version, confirmation: "" as never, password: "" },
+    defaultValues: { version: role.version, confirmation: "QUITAR", password: "" },
   });
   const mutation = useMutation({
     mutationFn: (values: RoleRemoveValues) => adminApi.removeRole(role.userId, values),
@@ -310,7 +288,7 @@ function RemoveRoleDialog({
   // biome-ignore lint/correctness/useExhaustiveDependencies: solo al abrir
   useEffect(() => {
     if (!open) return;
-    form.reset({ version: role.version, confirmation: "" as never, password: "" });
+    form.reset({ version: role.version, confirmation: "QUITAR", password: "" });
   }, [open]);
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -323,16 +301,6 @@ function RemoveRoleDialog({
         </AlertDialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
           <FieldGroup className="gap-4">
-            <Field data-invalid={Boolean(form.formState.errors.confirmation)}>
-              <FieldLabel htmlFor={`remove-confirmation-${role.userId}`}>Escribe QUITAR</FieldLabel>
-              <Input
-                id={`remove-confirmation-${role.userId}`}
-                autoComplete="off"
-                aria-invalid={Boolean(form.formState.errors.confirmation)}
-                {...form.register("confirmation")}
-              />
-              <FieldError errors={[form.formState.errors.confirmation]} />
-            </Field>
             <Field data-invalid={Boolean(form.formState.errors.password)}>
               <FieldLabel htmlFor={`remove-password-${role.userId}`}>Contraseña actual</FieldLabel>
               <Input

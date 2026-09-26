@@ -19,8 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
@@ -68,7 +67,7 @@ function EditDocumentDialog({
   const queryClient = useQueryClient();
   const form = useForm<EditValues>({
     resolver: zodResolver(editFormSchema),
-    defaultValues: { content: current?.content ?? "", confirmation: "" as never },
+    defaultValues: { content: current?.content ?? "", confirmation: "PUBLICAR" },
   });
   const mutation = useMutation({
     mutationFn: async ({ content }: EditValues) => {
@@ -89,7 +88,7 @@ function EditDocumentDialog({
   useEffect(() => {
     if (!open) return;
     mutation.reset();
-    form.reset({ content: current?.content ?? "", confirmation: "" as never });
+    form.reset({ content: current?.content ?? "", confirmation: "PUBLICAR" });
   }, [open]);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -112,17 +111,6 @@ function EditDocumentDialog({
                 {...form.register("content")}
               />
               <FieldError errors={[form.formState.errors.content]} />
-            </Field>
-            <Field data-invalid={Boolean(form.formState.errors.confirmation)}>
-              <FieldLabel htmlFor={`confirmation-${type}`}>Escribe PUBLICAR</FieldLabel>
-              <Input
-                id={`confirmation-${type}`}
-                autoComplete="off"
-                aria-invalid={Boolean(form.formState.errors.confirmation)}
-                {...form.register("confirmation")}
-              />
-              <FieldDescription>La versión anterior queda en el historial</FieldDescription>
-              <FieldError errors={[form.formState.errors.confirmation]} />
             </Field>
             <DialogFooter>
               <DialogClose asChild>

@@ -46,7 +46,7 @@ function SuspensionDialog({
     defaultValues: {
       suspended,
       version: user.version,
-      confirmation: "" as never,
+      confirmation,
       password: "",
     },
   });
@@ -68,7 +68,7 @@ function SuspensionDialog({
     form.reset({
       suspended,
       version: user.version,
-      confirmation: "" as never,
+      confirmation,
       password: "",
     });
   }, [open]);
@@ -83,16 +83,6 @@ function SuspensionDialog({
         </AlertDialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
           <FieldGroup className="gap-4">
-            <Field data-invalid={Boolean(form.formState.errors.confirmation)}>
-              <FieldLabel htmlFor={`confirmation-${user.id}`}>Escribe {confirmation}</FieldLabel>
-              <Input
-                id={`confirmation-${user.id}`}
-                autoComplete="off"
-                aria-invalid={Boolean(form.formState.errors.confirmation)}
-                {...form.register("confirmation")}
-              />
-              <FieldError errors={[form.formState.errors.confirmation]} />
-            </Field>
             <Field data-invalid={Boolean(form.formState.errors.password)}>
               <FieldLabel htmlFor={`password-${user.id}`}>Contraseña actual</FieldLabel>
               <Input

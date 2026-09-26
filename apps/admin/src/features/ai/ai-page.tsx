@@ -135,7 +135,7 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
       apiKey: "",
       enabled: current?.enabled ?? false,
       password: "",
-      confirmation: "" as never,
+      confirmation: "GUARDAR",
     },
   });
   const mutation = useMutation({
@@ -145,7 +145,7 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
         apiKey: values.apiKey || undefined,
       }),
     onSuccess: async (result) => {
-      form.reset({ apiKey: "", enabled: result.enabled, password: "", confirmation: "" as never });
+      form.reset({ apiKey: "", enabled: result.enabled, password: "", confirmation: "GUARDAR" });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: aiProvidersQuery.queryKey }),
         queryClient.invalidateQueries({ queryKey: auditQueryKey }),
@@ -196,16 +196,6 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
                 />
               )}
             />
-            <Field data-invalid={Boolean(form.formState.errors.confirmation)}>
-              <FieldLabel htmlFor={`provider-confirmation-${provider}`}>Escribe GUARDAR</FieldLabel>
-              <Input
-                id={`provider-confirmation-${provider}`}
-                autoComplete="off"
-                aria-invalid={Boolean(form.formState.errors.confirmation)}
-                {...form.register("confirmation")}
-              />
-              <FieldError errors={[form.formState.errors.confirmation]} />
-            </Field>
             <Field data-invalid={Boolean(form.formState.errors.password)}>
               <FieldLabel htmlFor={`provider-password-${provider}`}>Contraseña actual</FieldLabel>
               <Input
@@ -263,7 +253,7 @@ function emptyRoute(): RouteFormValues {
     costReviewed: false,
     privacyReviewed: false,
     password: "",
-    confirmation: "" as never,
+    confirmation: "GUARDAR",
   };
 }
 
@@ -283,7 +273,7 @@ function editRoute(route: AdminAiRoute): RouteFormValues {
     costReviewed: false,
     privacyReviewed: false,
     password: "",
-    confirmation: "" as never,
+    confirmation: "GUARDAR",
   };
 }
 
@@ -299,7 +289,7 @@ function TestRouteDialog({
   const queryClient = useQueryClient();
   const form = useForm<{ confirmation: "PROBAR" }>({
     resolver: zodResolver(z.object({ confirmation: z.literal("PROBAR") })),
-    defaultValues: { confirmation: "" as never },
+    defaultValues: { confirmation: "PROBAR" },
   });
   const mutation = useMutation({
     mutationFn: () => adminApi.testAiRoute(useCase),
@@ -315,7 +305,7 @@ function TestRouteDialog({
   useEffect(() => {
     if (!open) return;
     mutation.reset();
-    form.reset({ confirmation: "" as never });
+    form.reset({ confirmation: "PROBAR" });
   }, [open]);
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -334,16 +324,6 @@ function TestRouteDialog({
         ) : (
           <form onSubmit={form.handleSubmit(() => mutation.mutate())}>
             <FieldGroup className="gap-4">
-              <Field data-invalid={Boolean(form.formState.errors.confirmation)}>
-                <FieldLabel htmlFor={`test-route-${useCase}`}>Escribe PROBAR</FieldLabel>
-                <Input
-                  id={`test-route-${useCase}`}
-                  autoComplete="off"
-                  aria-invalid={Boolean(form.formState.errors.confirmation)}
-                  {...form.register("confirmation")}
-                />
-                <FieldError errors={[form.formState.errors.confirmation]} />
-              </Field>
               <AlertDialogFooter>
                 <AlertDialogCancel type="button">Cancelar</AlertDialogCancel>
                 <Button type="submit" disabled={mutation.isPending}>
@@ -657,16 +637,6 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
                 />
               )}
             />
-            <Field data-invalid={Boolean(form.formState.errors.confirmation)}>
-              <FieldLabel htmlFor="route-confirmation">Escribe GUARDAR</FieldLabel>
-              <Input
-                id="route-confirmation"
-                autoComplete="off"
-                aria-invalid={Boolean(form.formState.errors.confirmation)}
-                {...form.register("confirmation")}
-              />
-              <FieldError errors={[form.formState.errors.confirmation]} />
-            </Field>
             <Field data-invalid={Boolean(form.formState.errors.password)}>
               <FieldLabel htmlFor="route-password">Contraseña actual</FieldLabel>
               <Input
