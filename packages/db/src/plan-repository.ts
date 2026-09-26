@@ -271,7 +271,8 @@ export function createPlanRepository(pool: Pool) {
         client.release();
       }
     },
-    async apply(userId: string, id: string, version: number) {
+    /** `notify: false` (plan automático) no genera el aviso "Plan aplicado". */
+    async apply(userId: string, id: string, version: number, options: { notify?: boolean } = {}) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
@@ -324,18 +325,19 @@ export function createPlanRepository(pool: Pool) {
            where usuario_id = $1 and id = $2`,
           [userId, id],
         );
-        await withTraceSpan(
-          { name: "db.outbox.enqueue", component: "database", target: "postgresql" },
-          async () => {
-            const trace = currentTracePropagation();
-            await client.query(
-              `insert into dominio.bandeja_salida
+        if (options.notify !== false)
+          await withTraceSpan(
+            { name: "db.outbox.enqueue", component: "database", target: "postgresql" },
+            async () => {
+              const trace = currentTracePropagation();
+              await client.query(
+                `insert into dominio.bandeja_salida
                  (usuario_id, tipo_evento, plan_id, traza_id, span_origen_id)
                values ($1,'plan.applied',$2,$3,$4) on conflict do nothing`,
-              [userId, id, trace?.traceId ?? null, trace?.spanId ?? null],
-            );
-          },
-        );
+                [userId, id, trace?.traceId ?? null, trace?.spanId ?? null],
+              );
+            },
+          );
         await client.query("COMMIT");
         return { kind: "applied" as const, plan: await this.get(userId, id) };
       } catch (error) {

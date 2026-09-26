@@ -11,3 +11,8 @@ export function updateProfile(input: ProfileUpdate) {
     body: profileUpdateSchema.parse(input),
   });
 }
+
+/** Termina la configuración inicial (horario de estudio y compromisos). */
+export function completeOnboarding() {
+  return requestJson("/me/onboarding/complete", profileSchema, { method: "POST" });
+}

@@ -2272,6 +2272,29 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /me/onboarding/complete:
+    post:
+      operationId: postMeOnboardingComplete
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /me/preferences:
     get:
       operationId: getMePreferences
@@ -5577,7 +5600,6 @@ components:
                           - create_event
                           - update_event
                           - archive_event
-                          - plan_week
                       activityId:
                         anyOf:
                           - type: string
@@ -6189,17 +6211,6 @@ components:
                     required:
                       - type
                       - eventId
-                      - title
-                    additionalProperties: false
-                  - type: object
-                    properties:
-                      type:
-                        type: string
-                        const: plan_week
-                      title:
-                        type: string
-                    required:
-                      - type
                       - title
                     additionalProperties: false
           required:
@@ -7972,6 +7983,8 @@ components:
             - indian-male-man
             - indian-man-sikh
             - male-man-old
+        onboardingCompleted:
+          type: boolean
         version:
           type: integer
           exclusiveMinimum: 0
@@ -7987,6 +8000,7 @@ components:
         - language
         - timeZone
         - avatar
+        - onboardingCompleted
         - version
         - updatedAt
       additionalProperties: false

@@ -12,7 +12,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ApiError, OfflineQueuedError } from "@/core/api/client";
 import { getProfile } from "@/core/api/profile";
@@ -36,6 +36,7 @@ import { AlertsScreen } from "@/features/notifications/AlertsScreen";
 import { NotificationsScreen } from "@/features/notifications/NotificationsScreen";
 import { PushPermissionPrompt } from "@/features/notifications/PushPermissionPrompt";
 import { OfflineChangesScreen } from "@/features/offline/OfflineChangesScreen";
+import { OnboardingScreen } from "@/features/onboarding/OnboardingScreen";
 import { ConsentGate } from "@/features/privacy/ConsentGate";
 import { PrivacyScreen } from "@/features/privacy/PrivacyScreen";
 import { ProfileEditScreen } from "@/features/profile/ProfileEditScreen";
@@ -98,6 +99,19 @@ function EventFormRoute({ route }: NativeStackScreenProps<RootStackParamList, "E
   return <EventFormScreen id={route.params.id} date={route.params.date} />;
 }
 
+/**
+ * La primera vez (recién registrado) se configura la semana antes de entrar.
+ * Sin perfil todavía se espera con la pantalla de arranque; si no carga (sin
+ * conexión), se entra a la app como siempre.
+ */
+function OnboardingGate({ children }: { children: ReactNode }) {
+  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
+  if (profile.isPending) return null;
+  if (profile.data && !profile.data.onboardingCompleted)
+    return <OnboardingScreen profile={profile.data} />;
+  return children;
+}
+
 /** Al entrar, el perfil toma la zona horaria del teléfono si cambió. */
 function TimeZoneSync() {
   const queryClient = useQueryClient();
@@ -148,43 +162,45 @@ function Main() {
   if (!optimistic && !session.data) return <AuthScreen />;
   return (
     <ConsentGate>
-      <PushRegistrationProvider>
-        <NavigationContainer
-          ref={navigationRef}
-          onReady={() => {
-            hideSplash();
-            flushPendingNavigation();
-          }}
-        >
-          <TimeZoneSync />
-          <PushPermissionPrompt />
-          <StreakCelebration />
-          <Stack.Navigator
-            screenOptions={{
-              headerShown: false,
-              // Deslizamiento lateral sin fundido: la nueva pantalla entra por la
-              // derecha y empuja un poco a la anterior; al volver, al revés.
-              animation: "ios_from_right",
+      <OnboardingGate>
+        <PushRegistrationProvider>
+          <NavigationContainer
+            ref={navigationRef}
+            onReady={() => {
+              hideSplash();
+              flushPendingNavigation();
             }}
           >
-            <Stack.Screen name="Home" options={tabScreen} component={HomeScreen} />
-            <Stack.Screen name="Progress" options={tabScreen} component={ProgressScreen} />
-            <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
-            <Stack.Screen name="Activities" component={ActivityListScreen} />
-            <Stack.Screen name="ActivityForm" component={ActivityFormRoute} />
-            <Stack.Screen name="Agenda" options={tabScreen} component={AgendaScreen} />
-            <Stack.Screen name="Events" component={EventsScreen} />
-            <Stack.Screen name="EventForm" component={EventFormRoute} />
-            <Stack.Screen name="Profile" options={tabScreen} component={ProfileScreen} />
-            <Stack.Screen name="Availability" component={AvailabilityScreen} />
-            <Stack.Screen name="Notifications" component={NotificationsScreen} />
-            <Stack.Screen name="Alerts" component={AlertsScreen} />
-            <Stack.Screen name="Privacy" component={PrivacyScreen} />
-            <Stack.Screen name="AiAssistant" component={AssistantChatScreen} />
-            <Stack.Screen name="OfflineChanges" component={OfflineChangesScreen} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </PushRegistrationProvider>
+            <TimeZoneSync />
+            <PushPermissionPrompt />
+            <StreakCelebration />
+            <Stack.Navigator
+              screenOptions={{
+                headerShown: false,
+                // Deslizamiento lateral sin fundido: la nueva pantalla entra por la
+                // derecha y empuja un poco a la anterior; al volver, al revés.
+                animation: "ios_from_right",
+              }}
+            >
+              <Stack.Screen name="Home" options={tabScreen} component={HomeScreen} />
+              <Stack.Screen name="Progress" options={tabScreen} component={ProgressScreen} />
+              <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
+              <Stack.Screen name="Activities" component={ActivityListScreen} />
+              <Stack.Screen name="ActivityForm" component={ActivityFormRoute} />
+              <Stack.Screen name="Agenda" options={tabScreen} component={AgendaScreen} />
+              <Stack.Screen name="Events" component={EventsScreen} />
+              <Stack.Screen name="EventForm" component={EventFormRoute} />
+              <Stack.Screen name="Profile" options={tabScreen} component={ProfileScreen} />
+              <Stack.Screen name="Availability" component={AvailabilityScreen} />
+              <Stack.Screen name="Notifications" component={NotificationsScreen} />
+              <Stack.Screen name="Alerts" component={AlertsScreen} />
+              <Stack.Screen name="Privacy" component={PrivacyScreen} />
+              <Stack.Screen name="AiAssistant" component={AssistantChatScreen} />
+              <Stack.Screen name="OfflineChanges" component={OfflineChangesScreen} />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </PushRegistrationProvider>
+      </OnboardingGate>
     </ConsentGate>
   );
 }

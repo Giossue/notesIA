@@ -132,7 +132,7 @@ export function AgendaScreen() {
         label: kind.label,
         color: kind.color,
         title: item.title,
-        meta: item.description?.trim() || "Evento",
+        meta: item.description?.trim() || "Compromiso",
         metaIcon: kind.icon,
         open: () => navigation.navigate("EventForm", { id: item.id }),
       };
@@ -289,7 +289,7 @@ export function AgendaScreen() {
         title: "Agenda",
         right: {
           icon: "calendar-month-outline",
-          label: "Ver mis eventos",
+          label: "Ver mis compromisos",
           onPress: () => navigation.navigate("Events"),
         },
       }}
@@ -304,14 +304,6 @@ export function AgendaScreen() {
       )}
 
       {weekStrip}
-      <Button
-        mode="contained-tonal"
-        icon="calendar-check-outline"
-        onPress={() => navigation.navigate("AiAssistant", { prompt: "Planifica mi semana" })}
-        contentStyle={styles.planContent}
-      >
-        Planificar mi semana
-      </Button>
       {week && (
         <View style={styles.card}>
           {loading && <ActivityIndicator accessibilityLabel="Cargando agenda" />}
@@ -362,7 +354,6 @@ function ErrorRetry({ message, onRetry }: { message: string; onRetry: () => void
 }
 
 const styles = StyleSheet.create({
-  planContent: { minHeight: 48 },
   message: { gap: layout.itemGap },
   bold: { fontWeight: "700" },
   card: { gap: 16 },

@@ -38,6 +38,15 @@ export function createProfileRepository(pool: Pool) {
         .returning();
       return rows[0] ?? null;
     },
+    /** Marca terminada la configuración inicial; repetirlo no cambia la fecha. */
+    async completeOnboarding(userId: string) {
+      await pool.query(
+        `UPDATE dominio.perfiles_usuario SET onboarding_completado_en = now()
+         WHERE usuario_id = $1 AND onboarding_completado_en IS NULL`,
+        [userId],
+      );
+      return this.get(userId);
+    },
   };
 }
 

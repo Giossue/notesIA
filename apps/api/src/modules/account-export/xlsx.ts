@@ -11,7 +11,7 @@ const sheetNames: Record<string, string> = {
   activities: "Actividades",
   activityHistory: "Historial de actividades",
   subtasks: "Subtareas",
-  calendarEvents: "Eventos",
+  calendarEvents: "Compromisos",
   streakDays: "Racha",
   availabilityRules: "Disponibilidad",
   availabilityExceptions: "Excepciones",

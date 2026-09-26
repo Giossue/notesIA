@@ -93,6 +93,7 @@ export type WorkerObservation =
       verification: number;
       recovery: number;
       outbox: number;
+      plan: number;
       risk: number;
       scheduled: number;
       push: number;
@@ -115,6 +116,7 @@ export function writeWorkerObservation(
             verification: event.verification,
             recovery: event.recovery,
             outbox: event.outbox,
+            plan: event.plan,
             risk: event.risk,
             scheduled: event.scheduled,
             push: event.push,

@@ -63,6 +63,7 @@ export function registerMeRoutes(app: Hono, dependencies: Dependencies) {
         language: profile.language,
         timeZone: profile.timeZone,
         avatar: profile.avatar,
+        onboardingCompleted: profile.onboardingCompletedAt !== null,
         version: profile.version,
         updatedAt: profile.updatedAt.toISOString(),
       }),
@@ -109,8 +110,37 @@ export function registerMeRoutes(app: Hono, dependencies: Dependencies) {
         language: updated.language,
         timeZone: updated.timeZone,
         avatar: updated.avatar,
+        onboardingCompleted: updated.onboardingCompletedAt !== null,
         version: updated.version,
         updatedAt: updated.updatedAt.toISOString(),
+      }),
+    );
+  });
+
+  app.post("/v1/me/onboarding/complete", async (c) => {
+    const session = await dependencies.getSession(c.req.raw.headers);
+    if (!session) {
+      return c.json(problem(401, "AUTH_REQUIRED", "Inicia sesión para continuar."), 401, {
+        "Content-Type": "application/problem+json",
+      });
+    }
+    const profile = await dependencies.profiles.completeOnboarding(session.user.id);
+    if (!profile) {
+      return c.json(problem(404, "PROFILE_NOT_FOUND", "Perfil no disponible."), 404, {
+        "Content-Type": "application/problem+json",
+      });
+    }
+    return c.json(
+      profileSchema.parse({
+        id: session.user.id,
+        email: session.user.email,
+        displayName: profile.displayName,
+        language: profile.language,
+        timeZone: profile.timeZone,
+        avatar: profile.avatar,
+        onboardingCompleted: true,
+        version: profile.version,
+        updatedAt: profile.updatedAt.toISOString(),
       }),
     );
   });

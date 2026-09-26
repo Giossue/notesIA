@@ -29,6 +29,7 @@ export const userProfiles = domainSchema.table("perfiles_usuario", {
   language: text("idioma").notNull().default("es"),
   timeZone: text("zona_horaria").notNull().default("Etc/UTC"),
   avatar: text("avatar").notNull().default("avatar-coffee-cup"),
+  onboardingCompletedAt: timestamp("onboarding_completado_en", { withTimezone: true }),
   version: integer("version").notNull().default(1),
   createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),

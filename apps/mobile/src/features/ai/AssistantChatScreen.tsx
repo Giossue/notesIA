@@ -34,7 +34,6 @@ import { Button, Card, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { UserAvatar } from "@/shared/UserAvatar";
 import { applyAssistantAction, describeAction } from "./assistant-actions";
-import { PlanWeekCard } from "./PlanWeekCard";
 
 const fallbackMessages = {
   not_configured: "El asistente aún no está configurado. Puedes crear tus actividades a mano.",
@@ -44,7 +43,6 @@ const fallbackMessages = {
   provider_unavailable: "El servicio de IA no responde ahora. Inténtalo en un momento.",
 };
 const suggestions = [
-  "Planifica mi semana",
   "¿Qué tengo esta semana?",
   "Tengo examen de cálculo el viernes a las 10",
   "Tengo clase de inglés mañana de 8 a 10",
@@ -321,13 +319,9 @@ function MessageBody({ message, mine }: { message: ChatMessage; mine: boolean })
           Propuesta generada con IA · revísala antes de confirmar
         </Text>
       )}
-      {message.actions.map((item) =>
-        item.action.type === "plan_week" ? (
-          <PlanWeekCard key={item.id} messageId={message.id} item={item} />
-        ) : (
-          <ActionCard key={item.id} messageId={message.id} item={item} />
-        ),
-      )}
+      {message.actions.map((item) => (
+        <ActionCard key={item.id} messageId={message.id} item={item} />
+      ))}
     </View>
   );
 }
@@ -445,8 +439,6 @@ function openEditor(
     case "update_event":
     case "archive_event":
       navigation.navigate("EventForm", { id: action.eventId });
-      return;
-    case "plan_week":
       return;
     default:
       navigation.navigate("ActivityForm", { id: action.activityId });

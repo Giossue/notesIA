@@ -19,43 +19,25 @@ import { getPreferences, updatePreferences } from "@/core/api/preferences";
 import { layout } from "@/core/theme/layout";
 import { userMessage } from "@/shared/errors";
 import { DateField, FormSection, TimeField } from "@/shared/fields";
-import { Button, Card } from "@/shared/paper";
+import { Button } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { Tabs } from "@/shared/Tabs";
 import { clockToMinute, minuteToClock } from "./time";
+import {
+  closestDaily,
+  dailyChoices,
+  type HourSlot,
+  toMinutes,
+  twoHoursAfter,
+  WeeklyHoursEditor,
+  weekdays,
+} from "./WeeklyHours";
 
 type Rule = z.infer<typeof availabilityRuleSchema>;
 type Preferences = z.infer<typeof preferencesSchema>;
 /** Un tramo del borrador; `rule` es el horario guardado del que viene, si existe. */
-type Slot = { key: string; rule?: Rule; start: string; end: string };
+type Slot = HourSlot & { rule?: Rule };
 type Window = { key: string; start: string; end: string };
-
-const weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-const dailyChoices = [
-  { value: "60", label: "1 h" },
-  { value: "120", label: "2 h" },
-  { value: "180", label: "3 h" },
-  { value: "240", label: "4 h" },
-  { value: "360", label: "6 h" },
-] as const;
-
-const closestDaily = (minutes: number) =>
-  dailyChoices.reduce((best, choice) =>
-    Math.abs(Number(choice.value) - minutes) < Math.abs(Number(best.value) - minutes)
-      ? choice
-      : best,
-  ).value;
-
-/** Dos horas después de `start`, sin pasar de las 23. */
-const twoHoursAfter = (start: string) =>
-  `${String(Math.min(23, Number(start.slice(0, 2)) + 2)).padStart(2, "0")}:${start.slice(3)}`;
-
-/** Si el fin es igual o anterior al inicio, el tramo termina al día siguiente. */
-function toMinutes(start: string, end: string) {
-  const startMinute = clockToMinute(start);
-  const endClock = clockToMinute(end);
-  return { startMinute, endMinute: endClock > startMinute ? endClock : endClock + 1440 };
-}
 
 export function AvailabilityScreen() {
   const theme = useTheme();
@@ -235,74 +217,7 @@ function ScheduleForm({
   return (
     <View style={styles.form}>
       <FormSection title="Días y horas">
-        {days.map((slots, index) => (
-          <Card key={weekdays[index]} mode="contained">
-            <Card.Content style={styles.group}>
-              <View style={styles.dayHeader}>
-                <Text variant="titleMedium" style={styles.flex}>
-                  {weekdays[index]}
-                </Text>
-                <Button
-                  compact
-                  icon="plus"
-                  onPress={() =>
-                    updateDay(index, (current) => {
-                      const start = current.at(-1)?.end ?? "08:00";
-                      return [...current, { key: uuidv4(), start, end: twoHoursAfter(start) }];
-                    })
-                  }
-                >
-                  Agregar
-                </Button>
-              </View>
-              {slots.length === 0 && (
-                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  Sin horas de estudio.
-                </Text>
-              )}
-              {slots.map((slot, position) => (
-                <View key={slot.key} style={styles.slotRow}>
-                  <View style={styles.flex}>
-                    <TimeField
-                      label="Desde"
-                      value={slot.start}
-                      onChange={(start) =>
-                        updateDay(index, (current) =>
-                          current.map((item) =>
-                            item.key === slot.key ? { ...item, start } : item,
-                          ),
-                        )
-                      }
-                    />
-                  </View>
-                  <View style={styles.flex}>
-                    <TimeField
-                      label="Hasta"
-                      value={slot.end}
-                      onChange={(end) =>
-                        updateDay(index, (current) =>
-                          current.map((item) => (item.key === slot.key ? { ...item, end } : item)),
-                        )
-                      }
-                    />
-                  </View>
-                  <IconButton
-                    icon="close"
-                    size={20}
-                    accessibilityLabel={`Quitar horario ${position + 1} del ${weekdays[index]}`}
-                    onPress={() =>
-                      updateDay(index, (current) => current.filter((item) => item.key !== slot.key))
-                    }
-                    style={styles.remove}
-                  />
-                </View>
-              ))}
-            </Card.Content>
-          </Card>
-        ))}
-        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-          Si la hora de fin es anterior a la de inicio, el horario termina al día siguiente.
-        </Text>
+        <WeeklyHoursEditor days={days} onChangeDay={updateDay} />
       </FormSection>
 
       <FormSection title="Máximo de estudio al día">

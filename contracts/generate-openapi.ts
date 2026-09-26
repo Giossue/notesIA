@@ -233,6 +233,7 @@ add("GET", "/v1/calendar-events/:id", "calendarEventSchema");
 add("POST", "/v1/calendar-events", "calendarEventSchema", "calendarEventCreateSchema", [200, 201]);
 add("PATCH", "/v1/calendar-events/:id", "calendarEventSchema", "calendarEventUpdateSchema");
 add("GET", "/v1/streak", "streakSchema");
+add("POST", "/v1/me/onboarding/complete", "profileSchema");
 add("DELETE", "/v1/calendar-events/:id", undefined, "calendarEventVersionSchema", [204]);
 for (const action of ["archive", "restore"])
   add(

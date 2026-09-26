@@ -72,10 +72,10 @@ export function EventFormScreen({ id, date }: { id?: string; date?: string }) {
   return (
     <ScreenLayout
       keyboardShouldPersistTaps="handled"
-      header={{ title: id ? "Evento" : "Nuevo evento" }}
+      header={{ title: id ? "Compromiso" : "Nuevo compromiso" }}
     >
       {(profile.isPending || (id && event.isPending)) && (
-        <ActivityIndicator accessibilityLabel="Cargando evento" />
+        <ActivityIndicator accessibilityLabel="Cargando compromiso" />
       )}
       {profile.isError && (
         <View style={styles.message}>
@@ -86,7 +86,7 @@ export function EventFormScreen({ id, date }: { id?: string; date?: string }) {
       {id && event.isError && (
         <View style={styles.message}>
           <Text accessibilityRole="alert">{userMessage(event.error)}</Text>
-          <Button onPress={() => void event.refetch()}>Reintentar evento</Button>
+          <Button onPress={() => void event.refetch()}>Reintentar compromiso</Button>
         </View>
       )}
       {profile.data && (!id || event.data) && (
@@ -208,7 +208,7 @@ function EventForm({
         );
         first ??= created;
       }
-      if (!first) throw new Error("No se pudo crear el evento.");
+      if (!first) throw new Error("No se pudo crear el compromiso.");
       return first;
     },
     onSuccess: (updated) => {
@@ -221,7 +221,7 @@ function EventForm({
 
   return (
     <View style={styles.form}>
-      {event?.archivedAt && <Text>Evento archivado. Restáuralo para editarlo.</Text>}
+      {event?.archivedAt && <Text>Compromiso archivado. Restáuralo para editarlo.</Text>}
       <FormSection title="Detalles">
         <Controller
           control={control}
@@ -234,7 +234,7 @@ function EventForm({
               onChangeText={field.onChange}
               onBlur={field.onBlur}
               error={!!errors.title}
-              accessibilityLabel="Título del evento"
+              accessibilityLabel="Título del compromiso"
             />
           )}
         />
@@ -251,7 +251,7 @@ function EventForm({
               onChangeText={field.onChange}
               onBlur={field.onBlur}
               error={!!errors.description}
-              accessibilityLabel="Descripción del evento"
+              accessibilityLabel="Descripción del compromiso"
             />
           )}
         />
@@ -307,7 +307,7 @@ function EventForm({
       {!event && (
         <FormSection
           title="Repetir"
-          hint="Ideal para tu horario de clases: crea el evento cada semana hasta la fecha elegida."
+          hint="Ideal para tu horario de clases: crea el compromiso cada semana hasta la fecha elegida."
         >
           <Tabs
             value={repeat}
@@ -338,7 +338,7 @@ function EventForm({
         onPress={() => void handleSubmit((values) => save.mutate(values))()}
         contentStyle={sharedStyles.actionContent}
       >
-        Guardar evento
+        Guardar compromiso
       </Button>
       {event && <EventActions event={event} offline={offline} />}
     </View>

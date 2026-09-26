@@ -21,6 +21,7 @@ import {
 } from "@notesia/observability";
 import { Pool } from "pg";
 import { createAuthSmtpSender } from "./auth-smtp";
+import { createAutoPlanner } from "./auto-planner";
 import { createFcmSender } from "./fcm";
 import { createRiskReassessment } from "./risk-reassessment";
 
@@ -31,6 +32,7 @@ const pool = createTracedPool(new Pool({ connectionString: databaseUrl, max: 2 }
 const outbox = createOutboxRepository(pool);
 const scheduler = createNotificationSchedulerRepository(pool);
 const riskReassessment = createRiskReassessment(pool);
+const autoPlanner = createAutoPlanner(pool);
 const pushCipher = process.env.PUSH_ENCRYPTION_KEY
   ? createPushTokenCipher(process.env.PUSH_ENCRYPTION_KEY)
   : null;
@@ -89,6 +91,7 @@ while (running) {
         ? await recovery.processOne(mailSender.recovery)
         : { kind: "empty" as const };
     const result = await outbox.processOne();
+    const planResult = await autoPlanner.processOne();
     const riskResult = await riskReassessment.processOne();
     const scheduled = await scheduler.processDue();
     const pushResult =
@@ -112,6 +115,7 @@ while (running) {
     }
     const idle =
       result.kind === "empty" &&
+      planResult.kind === "empty" &&
       riskResult.kind === "empty" &&
       verificationResult.kind === "empty" &&
       recoveryResult.kind === "empty" &&
@@ -128,6 +132,7 @@ while (running) {
         verification: Number(verificationResult.kind !== "empty"),
         recovery: Number(recoveryResult.kind !== "empty"),
         outbox: Number(result.kind !== "empty"),
+        plan: Number(planResult.kind !== "empty"),
         risk: Number(riskResult.kind !== "empty"),
         scheduled,
         push: Number(pushResult.kind !== "empty"),

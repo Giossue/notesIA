@@ -80,9 +80,6 @@ export async function applyAssistantAction(action: AssistantAction) {
       const current = await getCalendarEvent(action.eventId);
       return deleteCalendarEvent(action.eventId, current.version, uuidv4());
     }
-    case "plan_week":
-      // Se aplica desde su propia tarjeta, con la vista previa del planificador.
-      return;
   }
 }
 
@@ -93,7 +90,7 @@ const eventKindLabels = {
   appointment: "Cita",
   personal: "Personal",
   unavailable: "No disponible",
-  other: "Evento",
+  other: "Compromiso",
 };
 const transitionLabels = {
   complete: "Marcar como completada",
@@ -185,7 +182,7 @@ export function describeAction(action: AssistantAction): {
     case "create_event":
       return {
         icon: "calendar-plus",
-        heading: "Crear evento",
+        heading: "Crear compromiso",
         title: action.event.title,
         details: [
           eventKindLabels[action.event.kind],
@@ -199,7 +196,7 @@ export function describeAction(action: AssistantAction): {
       const { changes } = action;
       return {
         icon: "pencil-outline",
-        heading: "Editar evento",
+        heading: "Editar compromiso",
         title: action.title,
         details: [
           ...(changes.title ? [`Nuevo nombre: ${changes.title}`] : []),
@@ -212,14 +209,7 @@ export function describeAction(action: AssistantAction): {
     case "archive_event":
       return {
         icon: "delete-outline",
-        heading: "Eliminar evento",
-        title: action.title,
-        details: [],
-      };
-    case "plan_week":
-      return {
-        icon: "calendar-clock",
-        heading: "Planificar mi semana",
+        heading: "Eliminar compromiso",
         title: action.title,
         details: [],
       };

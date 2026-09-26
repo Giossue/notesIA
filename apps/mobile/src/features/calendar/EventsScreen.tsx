@@ -37,18 +37,21 @@ export function EventsScreen() {
 
   return (
     <ScreenLayout
-      header={{ title: "Mis eventos" }}
-      fab={{ label: "Nuevo evento", onPress: () => navigation.navigate("EventForm", {}) }}
+      header={{ title: "Mis compromisos" }}
+      fab={{ label: "Nuevo compromiso", onPress: () => navigation.navigate("EventForm", {}) }}
     >
       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-        Clases y compromisos que ocupan tiempo real.
+        Clases, trabajo y citas: las horas en que estás ocupado. Tu plan de estudio no se pone
+        encima.
       </Text>
       {offline && (
         <Text style={{ color: theme.colors.error }}>
           Sin conexión. Se muestran los datos guardados en esta sesión.
         </Text>
       )}
-      {events.isPending && !offline && <ActivityIndicator accessibilityLabel="Cargando eventos" />}
+      {events.isPending && !offline && (
+        <ActivityIndicator accessibilityLabel="Cargando compromisos" />
+      )}
       {events.isError && (
         <View style={styles.message}>
           <Text accessibilityRole="alert">{userMessage(events.error)}</Text>
@@ -56,14 +59,14 @@ export function EventsScreen() {
         </View>
       )}
       {!events.isPending && !events.isError && items.length === 0 && (
-        <EmptyState message="Aún no tienes eventos." />
+        <EmptyState message="Aún no tienes compromisos." />
       )}
       {items.map((item) => (
         <Card
           key={item.id}
           mode="contained"
           onPress={() => navigation.navigate("EventForm", { id: item.id })}
-          accessibilityLabel={`Abrir evento ${item.title}`}
+          accessibilityLabel={`Abrir compromiso ${item.title}`}
         >
           <Card.Content style={sharedStyles.listItem}>
             <Text variant="titleMedium">{item.title}</Text>

@@ -73,6 +73,7 @@ test("worker processed observations report verification mail as a bounded counte
       verification: 1,
       recovery: 0,
       outbox: 0,
+      plan: 0,
       risk: 0,
       scheduled: 0,
       push: 0,

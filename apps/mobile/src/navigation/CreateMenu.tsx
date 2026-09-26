@@ -41,7 +41,7 @@ export function CreateMenu({
     },
     {
       icon: "calendar-plus",
-      label: "Nuevo evento",
+      label: "Nuevo compromiso",
       route: "EventForm",
       open: () => navigation.navigate("EventForm", { date }),
       color: categories.orange,
