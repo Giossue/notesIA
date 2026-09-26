@@ -21,10 +21,11 @@ export function createAuthSmtpSender(config: AuthMailConfig["smtp"]) {
       } catch (error) {
         // Solo el código del proveedor (p. ej. 525 IP no autorizada, 535 credenciales),
         // nunca el correo ni el enlace: basta para diagnosticar desde los logs.
-        const { code, responseCode, command } = error as {
+        const { code, responseCode, command, message } = error as {
           code?: unknown;
           responseCode?: unknown;
           command?: unknown;
+          message?: unknown;
         };
         console.error(
           JSON.stringify({
@@ -32,6 +33,10 @@ export function createAuthSmtpSender(config: AuthMailConfig["smtp"]) {
             code: typeof code === "string" ? code : undefined,
             responseCode: typeof responseCode === "number" ? responseCode : undefined,
             command: typeof command === "string" ? command : undefined,
+            // Al conectar aún no se envió nada del usuario: el texto solo describe la
+            // red (p. ej. "connect ECONNREFUSED 1.2.3.4:587"). Después se omite.
+            reason:
+              command === "CONN" && typeof message === "string" ? message.slice(0, 200) : undefined,
           }),
         );
         throw error;
