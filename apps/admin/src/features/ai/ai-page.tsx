@@ -535,16 +535,16 @@ function UsageSummary({ usage }: { usage: AiUsage }) {
     <StatGrid>
       <StatCard
         icon={Activity}
-        label="Solicitudes"
+        label="Consultas a la IA"
         value={requests}
-        footer="En el rango consultado"
+        footer="Cada mensaje del chat usa una o dos"
       />
-      <StatCard icon={Coins} label="Tokens" value={tokens} footer="Entrada más salida" />
+      <StatCard icon={Coins} label="Tokens" value={tokens} footer="Texto enviado y recibido" />
       <StatCard
         icon={DollarSign}
-        label="Coste conocido"
+        label="Gasto"
         value={formatUsd(sumUsd(usage.items.map((item) => item.knownCostUsd)))}
-        footer="Solo solicitudes con precio configurado"
+        footer="En el rango consultado"
       />
       <StatCard
         icon={CircleHelp}
@@ -560,38 +560,46 @@ function AiOverview() {
   const health = useQuery(systemHealthQuery);
   const providersQuery = useQuery(aiProvidersQuery);
   const routes = useQuery(aiRoutesQuery);
-  const enabledProviders = providersQuery.data?.filter((item) => item.enabled).length;
+  const active = providersQuery.data?.find((item) => item.enabled);
   const assistant = routes.data?.find((item) => item.useCase === "assistant_chat");
+  const dailyLimit = assistant
+    ? (assistant.dailyBudgetTokens *
+        topPrice(
+          assistant.inputPriceUsdPerMillion ?? "0",
+          assistant.outputPriceUsdPerMillion ?? "0",
+        )) /
+      1_000_000
+    : null;
   const pending = <Skeleton className="h-8 w-20" />;
   return (
     <StatGrid>
-      <StatCard
-        icon={DollarSign}
-        label={
-          health.data ? `Coste, últimos ${health.data.ai.windowMinutes} minutos` : "Coste reciente"
-        }
-        value={health.data ? formatUsd(health.data.ai.knownCostUsd) : pending}
-        footer="Coste conocido de la ventana de salud"
-      />
-      <StatCard
-        icon={CircleHelp}
-        label="Sin coste calculado"
-        value={health.data ? health.data.ai.uncostedRequests : pending}
-        footer="Solicitudes sin precio configurado"
-      />
-      <StatCard
-        icon={PlugZap}
-        label="Proveedores habilitados"
-        value={
-          enabledProviders === undefined ? pending : `${enabledProviders} de ${providers.length}`
-        }
-        footer="Conexiones activas con API key guardada"
-      />
       <StatCard
         icon={Route}
         label="Asistente"
         value={!routes.data ? pending : assistant?.enabled ? "Activo" : "Inactivo"}
         footer={assistant ? assistant.modelId : "Sin configurar"}
+      />
+      <StatCard
+        icon={PlugZap}
+        label="Proveedor en uso"
+        value={
+          !providersQuery.data ? pending : active ? providerLabels[active.provider] : "Ninguno"
+        }
+        footer="Se cambia en la pestaña Proveedores"
+      />
+      <StatCard
+        icon={DollarSign}
+        label={
+          health.data ? `Gasto, últimos ${health.data.ai.windowMinutes} minutos` : "Gasto reciente"
+        }
+        value={health.data ? formatUsd(health.data.ai.knownCostUsd) : pending}
+        footer="Según el precio del modelo"
+      />
+      <StatCard
+        icon={Coins}
+        label="Límite diario"
+        value={!routes.data ? pending : dailyLimit === null ? "—" : formatUsd(String(dailyLimit))}
+        footer="Al alcanzarlo, el asistente se pausa hasta mañana"
       />
     </StatGrid>
   );
