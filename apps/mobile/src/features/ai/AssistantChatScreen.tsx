@@ -191,6 +191,8 @@ export function AssistantChatScreen() {
           maxLength={2000}
           style={styles.input}
           outlineStyle={styles.inputOutline}
+          // Paper deja arriba el texto multilínea: se centra con relleno parejo.
+          contentStyle={styles.inputContent}
           accessibilityLabel="Mensaje para el asistente"
         />
         <IconButton
@@ -500,4 +502,5 @@ const styles = StyleSheet.create({
   composerRow: { flexDirection: "row", alignItems: "center", gap: 2 },
   input: { flex: 1, maxHeight: 120, textAlignVertical: "center" },
   inputOutline: { borderRadius: 22 },
+  inputContent: { textAlignVertical: "center", paddingTop: 10, paddingBottom: 10 },
 });
