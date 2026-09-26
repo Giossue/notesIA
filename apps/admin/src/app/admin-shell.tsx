@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Outlet, useNavigate } from "@tanstack/react-router";
 import { NotebookPen } from "lucide-react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -11,6 +11,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSkeleton,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
@@ -24,7 +25,12 @@ function sidebarDefaultOpen() {
   return !document.cookie.split("; ").includes("sidebar_state=false");
 }
 
-export function AdminShell({ session }: { session: AuthSession }) {
+/**
+ * Marco del panel. Se muestra desde el primer instante: mientras la sesión o
+ * el acceso se comprueban, `children` ocupa el contenido (carga o error) y el
+ * pie del menú lateral espera a la cuenta.
+ */
+export function AdminShell({ session, children }: { session?: AuthSession; children?: ReactNode }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const signOut = useMutation({
@@ -57,11 +63,19 @@ export function AdminShell({ session }: { session: AuthSession }) {
           <NavMain />
         </SidebarContent>
         <SidebarFooter>
-          <NavUser
-            user={session.user}
-            signOut={() => signOut.mutate()}
-            signingOut={signOut.isPending}
-          />
+          {session ? (
+            <NavUser
+              user={session.user}
+              signOut={() => signOut.mutate()}
+              signingOut={signOut.isPending}
+            />
+          ) : (
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuSkeleton showIcon />
+              </SidebarMenuItem>
+            </SidebarMenu>
+          )}
         </SidebarFooter>
       </Sidebar>
       <SidebarInset className="min-w-0 overflow-x-clip peer-data-[variant=inset]:border">
@@ -79,8 +93,7 @@ export function AdminShell({ session }: { session: AuthSession }) {
           </div>
         </header>
         <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden p-4 md:p-6">
-          {signOut.error ? <div className="mb-4"></div> : null}
-          <Outlet />
+          {children ?? <Outlet />}
         </main>
       </SidebarInset>
     </SidebarProvider>

@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { Navigate } from "@tanstack/react-router";
-import type { ReactNode } from "react";
 import { AdminShell } from "@/app/admin-shell";
 import { PageError, PageLoading } from "@/components/async-state";
 import { AuthLayout } from "@/features/auth/auth-layout";
@@ -9,34 +8,28 @@ import { TwoFactorEnrollment } from "@/features/auth/two-factor-enrollment";
 import { ApiError } from "@/lib/api";
 import { sessionQuery, systemHealthQuery } from "@/lib/query";
 
-function GateFrame({ children }: { children: ReactNode }) {
-  return (
-    <main className="mx-auto flex min-h-svh max-w-3xl flex-col justify-center p-4 md:p-6">
-      {children}
-    </main>
-  );
-}
-
-function GateLoading() {
-  return (
-    <GateFrame>
-      <PageLoading />
-    </GateFrame>
-  );
-}
-
 export function AdminGate() {
   const session = useQuery(sessionQuery);
   const access = useQuery({ ...systemHealthQuery, enabled: Boolean(session.data) });
-  if (session.isPending) return <GateLoading />;
+  if (session.isPending)
+    return (
+      <AdminShell>
+        <PageLoading />
+      </AdminShell>
+    );
   if (session.isError)
     return (
-      <GateFrame>
+      <AdminShell>
         <PageError error={session.error} retry={() => session.refetch()} />
-      </GateFrame>
+      </AdminShell>
     );
   if (!session.data) return <Navigate to="/login" />;
-  if (access.isPending) return <GateLoading />;
+  if (access.isPending)
+    return (
+      <AdminShell session={session.data}>
+        <PageLoading />
+      </AdminShell>
+    );
   if (access.error instanceof ApiError && access.error.code === "MFA_REQUIRED")
     return (
       <AuthLayout>
@@ -53,9 +46,9 @@ export function AdminGate() {
     );
   if (access.isError)
     return (
-      <GateFrame>
+      <AdminShell session={session.data}>
         <PageError error={access.error} retry={() => access.refetch()} />
-      </GateFrame>
+      </AdminShell>
     );
   return <AdminShell session={session.data} />;
 }
