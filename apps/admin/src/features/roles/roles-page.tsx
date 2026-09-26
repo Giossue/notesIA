@@ -10,6 +10,7 @@ import { DataTable } from "@/components/data-table";
 import { LoadMore } from "@/components/load-more";
 import { Page, PageHeader } from "@/components/page-header";
 import { RowActions } from "@/components/row-actions";
+import { StatusBadge } from "@/components/status-badge";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -19,7 +20,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -404,7 +404,7 @@ export function RolesPage() {
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant={role.role === "admin" ? "default" : "secondary"}>{role.role}</Badge>
+                <StatusBadge>{role.role}</StatusBadge>
               </TableCell>
               <TableCell className="tabular-nums">{role.version}</TableCell>
               <TableCell className="text-muted-foreground">

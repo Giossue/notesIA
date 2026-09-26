@@ -15,6 +15,7 @@ import { DataTable } from "@/components/data-table";
 import { Page, PageHeader } from "@/components/page-header";
 import { RowActions } from "@/components/row-actions";
 import { StatCard, StatGrid } from "@/components/stat-card";
+import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -25,7 +26,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -740,9 +740,9 @@ function RoutesPanel() {
                 )}
               </TableCell>
               <TableCell>
-                <Badge variant={route.enabled ? "secondary" : "outline"}>
+                <StatusBadge tone={route.enabled ? "success" : "neutral"}>
                   {route.enabled ? "habilitada" : "deshabilitada"}
-                </Badge>
+                </StatusBadge>
               </TableCell>
               <TableCell className="w-12 text-right">
                 <RouteActions route={route} edit={() => setSelected(route)} />
@@ -929,7 +929,7 @@ function UsagePanel() {
                   <TableCell className="font-medium">{item.useCase}</TableCell>
                   <TableCell>{item.provider}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{item.status}</Badge>
+                    <StatusBadge>{item.status}</StatusBadge>
                   </TableCell>
                   <TableCell className="tabular-nums">{item.requests}</TableCell>
                   <TableCell className="tabular-nums">

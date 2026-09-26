@@ -9,6 +9,7 @@ import { DataTable } from "@/components/data-table";
 import { LoadMore } from "@/components/load-more";
 import { Page, PageHeader } from "@/components/page-header";
 import { RowActions } from "@/components/row-actions";
+import { StatusBadge } from "@/components/status-badge";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -18,7 +19,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -167,12 +167,12 @@ export function UsersPage() {
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant="outline">{user.role ?? "estudiante"}</Badge>
+                <StatusBadge>{user.role ?? "estudiante"}</StatusBadge>
               </TableCell>
               <TableCell>
-                <Badge variant={user.suspendedAt ? "destructive" : "secondary"}>
+                <StatusBadge tone={user.suspendedAt ? "danger" : "success"}>
                   {user.suspendedAt ? "suspendida" : "activa"}
-                </Badge>
+                </StatusBadge>
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {new Date(user.createdAt).toLocaleString()}

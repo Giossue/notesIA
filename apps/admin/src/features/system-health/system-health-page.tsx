@@ -4,7 +4,7 @@ import { PageError, PageLoading } from "@/components/async-state";
 import { DataTable } from "@/components/data-table";
 import { Page, PageHeader } from "@/components/page-header";
 import { StatCard, StatGrid } from "@/components/stat-card";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -32,16 +32,16 @@ export function SystemHealthPage() {
         <StatCard
           icon={Database}
           label="Base de datos"
-          value={<Badge variant="secondary">{database}</Badge>}
+          value={<StatusBadge tone="success">{database}</StatusBadge>}
           footer="Estado de la conexión principal."
         />
         <StatCard
           icon={Cpu}
           label="Worker"
           value={
-            <Badge variant={worker.seenRecently ? "secondary" : "destructive"}>
+            <StatusBadge tone={worker.seenRecently ? "success" : "danger"}>
               Worker {worker.seenRecently ? "activo" : "sin señal reciente"}
-            </Badge>
+            </StatusBadge>
           }
           footer="Procesamiento en segundo plano."
         />
@@ -50,9 +50,9 @@ export function SystemHealthPage() {
           label="Alertas activas"
           value={alerts.length}
           badge={
-            <Badge variant={alerts.length ? "destructive" : "secondary"}>
+            <StatusBadge tone={alerts.length ? "danger" : "success"}>
               {alerts.length} alertas
-            </Badge>
+            </StatusBadge>
           }
           footer="Avisos pendientes de atención."
         />
@@ -78,7 +78,7 @@ export function SystemHealthPage() {
               <TableCell className="tabular-nums">{queue.ready}</TableCell>
               <TableCell className="tabular-nums">{queue.inFlight}</TableCell>
               <TableCell>
-                <Badge variant={queue.dead ? "destructive" : "outline"}>{queue.dead}</Badge>
+                <StatusBadge tone={queue.dead ? "danger" : "neutral"}>{queue.dead}</StatusBadge>
               </TableCell>
             </TableRow>
           ))}

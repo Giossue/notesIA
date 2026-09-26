@@ -3,7 +3,7 @@ import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
 import { DataTable } from "@/components/data-table";
 import { LoadMore } from "@/components/load-more";
 import { Page, PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/status-badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { adminApi } from "@/lib/admin-api";
 import { auditQueryKey } from "@/lib/query";
@@ -34,7 +34,7 @@ export function AuditPage() {
                 {new Date(record.recordedAt).toLocaleString()}
               </TableCell>
               <TableCell>
-                <Badge variant="outline">{record.action}</Badge>
+                <StatusBadge>{record.action}</StatusBadge>
               </TableCell>
               <TableCell>
                 <code className="text-muted-foreground text-xs">{record.actorId}</code>

@@ -10,6 +10,7 @@ import { DataTable } from "@/components/data-table";
 import { LoadMore } from "@/components/load-more";
 import { Page, PageHeader } from "@/components/page-header";
 import { RowActions } from "@/components/row-actions";
+import { StatusBadge } from "@/components/status-badge";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -19,7 +20,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -332,9 +332,9 @@ export function PrivacyPage() {
             <TableRow key={document.id}>
               <TableCell className="font-medium">{documentName(document)}</TableCell>
               <TableCell>
-                <Badge variant={document.publishedAt ? "secondary" : "outline"}>
+                <StatusBadge tone={document.publishedAt ? "success" : "neutral"}>
                   {document.publishedAt ? "publicado" : "borrador"}
-                </Badge>
+                </StatusBadge>
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {new Date(document.createdAt).toLocaleString()}
