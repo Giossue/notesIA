@@ -1,25 +1,25 @@
 import { useRef, useState } from "react";
-import { ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
-import { Icon, Text } from "react-native-paper";
+import { Image, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/shared/paper";
 import { AppLogo, HeroBackdrop, HeroStatusBar, heroColors } from "./AuthHero";
 
 const slides = [
   {
-    icon: "calendar-month-outline",
+    image: require("../../../assets/welcome/1.png"),
     title: "Organiza tus actividades",
     text: "Tareas, clases y eventos en un solo lugar, con fechas y prioridades claras.",
   },
   {
-    icon: "auto-fix",
+    image: require("../../../assets/welcome/2.png"),
     title: "Planifica tu tiempo",
     text: "Marca cuándo estás libre y recibe una propuesta de cuándo avanzar en cada actividad.",
   },
   {
-    icon: "chart-bar",
-    title: "Mira cómo avanzas",
-    text: "Registra el tiempo que dedicas y revisa tu progreso de cada semana.",
+    image: require("../../../assets/welcome/3.png"),
+    title: "Registra tu tiempo",
+    text: "Mide cuánto dedicas a cada actividad y revisa tu progreso semana a semana.",
   },
 ] as const;
 
@@ -63,11 +63,12 @@ export function WelcomeScreen({ onDone }: { onDone(mode: "signIn" | "signUp"): v
         {slides.map((slide) => (
           <View key={slide.title} style={[styles.slide, { width }]}>
             <View style={styles.art}>
-              <View style={[styles.ring, styles.ringOuter]} />
-              <View style={[styles.ring, styles.ringInner]} />
-              <View style={styles.badge}>
-                <Icon source={slide.icon} size={56} color={heroColors.text} />
-              </View>
+              <Image
+                source={slide.image}
+                style={styles.image}
+                resizeMode="contain"
+                accessibilityIgnoresInvertColors
+              />
             </View>
             <View style={styles.copy}>
               <Text variant="displaySmall" style={styles.title}>
@@ -135,26 +136,7 @@ const styles = StyleSheet.create({
   },
   slide: { flex: 1, paddingHorizontal: 24, justifyContent: "space-between" },
   art: { flex: 1, alignItems: "center", justifyContent: "center" },
-  ring: {
-    position: "absolute",
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-  },
-  ringOuter: { width: 260, height: 260 },
-  ringInner: {
-    width: 190,
-    height: 190,
-    backgroundColor: "rgba(52, 104, 225, 0.12)",
-  },
-  badge: {
-    width: 116,
-    height: 116,
-    borderRadius: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: heroColors.glow,
-  },
+  image: { width: "100%", height: "100%", maxHeight: 420 },
   copy: { gap: 12, paddingBottom: 8 },
   title: { color: heroColors.text, fontWeight: "700" },
   text: { color: heroColors.muted },
