@@ -8,8 +8,18 @@ const { getDefaultConfig, mergeConfig } = require("@react-native/metro-config");
  * @type {import('@react-native/metro-config').MetroConfig}
  */
 const workspaceRoot = path.resolve(__dirname, "../..");
+const appPath = path.relative(workspaceRoot, __dirname);
 const config = {
   watchFolders: [workspaceRoot],
+  server: {
+    // Con la raíz del proyecto en apps/mobile, los bundles diferidos de dependencias
+    // del monorepo salen como /../../node_modules/... y el cliente HTTP los normaliza
+    // mal. Se sirve desde la raíz y se redirige el bundle principal que pide Android.
+    unstable_serverRoot: workspaceRoot,
+    // El servidor HTTP pasa la ruta; el de recarga en caliente, la URL completa.
+    rewriteRequestUrl: (url) =>
+      url.replace(/^((?:https?:\/\/[^/]+)?)\/index\.(bundle|map)/, `$1/${appPath}/index.$2`),
+  },
   resolver: {
     nodeModulesPaths: [
       path.join(__dirname, "node_modules"),
