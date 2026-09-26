@@ -64,6 +64,7 @@ export {
   type NotificationSchedulerRepository,
 } from "./notification-scheduler-repository";
 export { createOutboxRepository, type OutboxRepository } from "./outbox-repository";
+export { OLD_PLAN_DAYS, purgeOldPlans } from "./plan-cleanup";
 export { createPlanRepository, type PlanRepository } from "./plan-repository";
 export { createPreferenceRepository, type PreferenceRepository } from "./preference-repository";
 export { createPrivacyRepository, type PrivacyRepository } from "./privacy-repository";

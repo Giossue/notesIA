@@ -12,6 +12,7 @@ import {
   createVerificationMailRepository,
   createWorkerHealthRepository,
   purgeExpiredSecureStorage,
+  purgeOldPlans,
   purgeUnverifiedAccounts,
 } from "@notesia/db";
 import {
@@ -110,7 +111,8 @@ while (running) {
       const expiredSessions = await purgeExpiredSecureStorage(pool);
       const expiredKeys = await idempotency.purgeExpired();
       const unverified = await purgeUnverifiedAccounts(pool);
-      if (expiredSessions < 500 && expiredKeys < 500 && unverified < 500)
+      const oldPlans = await purgeOldPlans(pool);
+      if (expiredSessions < 500 && expiredKeys < 500 && unverified < 500 && oldPlans < 500)
         nextStorageCleanup = Date.now() + 60 * 60 * 1000;
     }
     const idle =
