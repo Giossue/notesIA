@@ -3,7 +3,6 @@ import { useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { FormMessage } from "@/components/form-message";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -88,7 +87,6 @@ export function ResetPasswordPage() {
                 />
                 <FieldError errors={[form.formState.errors.confirmation]} />
               </Field>
-              <FormMessage error={reset.error} />
             </FieldGroup>
             <Button className="w-full" type="submit" disabled={reset.isPending}>
               {reset.isPending ? <Spinner data-icon="inline-start" /> : null}

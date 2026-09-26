@@ -7,7 +7,6 @@ import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
 import { DataTable } from "@/components/data-table";
-import { FormMessage } from "@/components/form-message";
 import { LoadMore } from "@/components/load-more";
 import { Page, PageHeader } from "@/components/page-header";
 import {
@@ -171,7 +170,6 @@ function AssignRoleDialog() {
               />
               <FieldError errors={[form.formState.errors.password]} />
             </Field>
-            <FormMessage error={mutation.error} />
             <DialogFooter>
               <DialogClose asChild>
                 <Button type="button" variant="outline">
@@ -269,7 +267,6 @@ function ChangeRoleAction({ role }: { role: AdminRole }) {
               />
               <FieldError errors={[form.formState.errors.password]} />
             </Field>
-            <FormMessage error={mutation.error} />
             <AlertDialogFooter>
               <AlertDialogCancel type="button">Cancelar</AlertDialogCancel>
               <Button type="submit" disabled={mutation.isPending}>
@@ -344,7 +341,6 @@ function RemoveRoleAction({ role }: { role: AdminRole }) {
               />
               <FieldError errors={[form.formState.errors.password]} />
             </Field>
-            <FormMessage error={mutation.error} />
             <AlertDialogFooter>
               <AlertDialogCancel type="button">Cancelar</AlertDialogCancel>
               <Button type="submit" variant="destructive" disabled={mutation.isPending}>

@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { NotebookPen } from "lucide-react";
 import type { CSSProperties } from "react";
-import { FormMessage } from "@/components/form-message";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -104,11 +103,7 @@ export function AdminShell({ session }: { session: AuthSession }) {
             </div>
           </header>
           <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden p-4 md:p-6">
-            {signOut.error ? (
-              <div className="mb-4">
-                <FormMessage error={signOut.error} />
-              </div>
-            ) : null}
+            {signOut.error ? <div className="mb-4"></div> : null}
             <Outlet />
           </main>
         </SidebarInset>

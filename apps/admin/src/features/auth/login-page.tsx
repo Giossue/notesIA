@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useNavigate } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { FormMessage } from "@/components/form-message";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -73,7 +72,6 @@ export function LoginPage() {
               />
               <FieldError errors={[form.formState.errors.password]} />
             </Field>
-            <FormMessage error={login.error} />
           </FieldGroup>
           <Button className="w-full" type="submit" disabled={login.isPending}>
             {login.isPending ? <Spinner data-icon="inline-start" /> : null}

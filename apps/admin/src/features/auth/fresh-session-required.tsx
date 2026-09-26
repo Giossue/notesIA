@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { FormMessage } from "@/components/form-message";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { authApi } from "@/lib/auth-api";
@@ -23,7 +22,6 @@ export function FreshSessionRequired() {
         description="El segundo factor cambió después de crear esta sesión. Inicia sesión otra vez."
       />
       <div className="flex flex-col gap-4">
-        <FormMessage error={signOut.error} />
         <Button className="w-full" onClick={() => signOut.mutate()} disabled={signOut.isPending}>
           {signOut.isPending ? <Spinner data-icon="inline-start" /> : null}
           Volver a iniciar sesión

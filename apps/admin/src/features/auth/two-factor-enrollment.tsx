@@ -4,7 +4,6 @@ import { KeyRound } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import { FormMessage } from "@/components/form-message";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -86,7 +85,6 @@ export function TwoFactorEnrollment() {
               />
               <FieldError errors={[passwordForm.formState.errors.password]} />
             </Field>
-            <FormMessage error={enable.error} />
           </FieldGroup>
           <Button className="w-full" type="submit" disabled={enable.isPending}>
             {enable.isPending ? <Spinner data-icon="inline-start" /> : null}
@@ -175,7 +173,6 @@ export function TwoFactorEnrollment() {
             />
             <FieldError errors={[verificationForm.formState.errors.code]} />
           </Field>
-          <FormMessage error={verify.error} />
         </FieldGroup>
         <Button className="w-full" type="submit" disabled={verify.isPending}>
           {verify.isPending ? <Spinner data-icon="inline-start" /> : null}

@@ -12,7 +12,6 @@ import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
 import { DataTable } from "@/components/data-table";
-import { FormMessage } from "@/components/form-message";
 import { Page, PageHeader } from "@/components/page-header";
 import { StatCard, StatGrid } from "@/components/stat-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -218,7 +217,6 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
               />
               <FieldError errors={[form.formState.errors.password]} />
             </Field>
-            <FormMessage error={mutation.error} />
           </FieldGroup>
         </CardContent>
         <CardFooter>
@@ -346,7 +344,6 @@ function TestRouteAction({ useCase }: { useCase: UseCase }) {
                 />
                 <FieldError errors={[form.formState.errors.confirmation]} />
               </Field>
-              <FormMessage error={mutation.error} />
               <AlertDialogFooter>
                 <AlertDialogCancel type="button">Cancelar</AlertDialogCancel>
                 <Button type="submit" disabled={mutation.isPending}>
@@ -679,7 +676,6 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
               <FieldError errors={[form.formState.errors.password]} />
             </Field>
             <FieldError errors={[form.formState.errors.root]} />
-            <FormMessage error={mutation.error} />
           </FieldGroup>
         </CardContent>
         <CardFooter className="flex gap-2">

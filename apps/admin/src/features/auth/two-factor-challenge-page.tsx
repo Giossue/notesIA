@@ -4,7 +4,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import { FormMessage } from "@/components/form-message";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -48,7 +47,6 @@ function TotpForm({ complete }: { complete: () => Promise<void> }) {
           />
           <FieldError errors={[form.formState.errors.code]} />
         </Field>
-        <FormMessage error={verify.error} />
         <Button className="w-full" type="submit" disabled={verify.isPending}>
           {verify.isPending ? <Spinner data-icon="inline-start" /> : null}
           Verificar
@@ -81,7 +79,6 @@ function BackupForm({ complete }: { complete: () => Promise<void> }) {
           />
           <FieldError errors={[form.formState.errors.code]} />
         </Field>
-        <FormMessage error={verify.error} />
         <Button className="w-full" type="submit" disabled={verify.isPending}>
           {verify.isPending ? <Spinner data-icon="inline-start" /> : null}
           Usar código

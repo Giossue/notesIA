@@ -6,7 +6,6 @@ import { useForm } from "react-hook-form";
 import type { z } from "zod";
 import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
 import { DataTable } from "@/components/data-table";
-import { FormMessage } from "@/components/form-message";
 import { LoadMore } from "@/components/load-more";
 import { Page, PageHeader } from "@/components/page-header";
 import {
@@ -104,7 +103,6 @@ function SuspensionAction({ user }: { user: AdminUser }) {
               />
               <FieldError errors={[form.formState.errors.password]} />
             </Field>
-            <FormMessage error={mutation.error} />
             <AlertDialogFooter>
               <AlertDialogCancel type="button">Cancelar</AlertDialogCancel>
               <Button
