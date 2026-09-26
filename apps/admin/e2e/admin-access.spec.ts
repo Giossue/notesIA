@@ -279,12 +279,12 @@ test("an authenticated administrator can open every functional section", async (
 
   await page.getByRole("link", { name: "Privacidad" }).click();
   await expect(page.getByRole("heading", { name: "Privacidad y términos" })).toBeVisible();
-  await expect(page.getByText("privacy · es · v1")).toBeVisible();
+  await expect(page.getByText("Política de privacidad")).toBeVisible();
 
   await page.getByRole("link", { name: "IA" }).click();
   await expect(page.getByRole("heading", { name: "Configuración de IA" })).toBeVisible();
   await expect(
-    page.getByText("Conexión configurada; la clave guardada nunca se muestra."),
+    page.getByText("Conexión configurada; la clave guardada nunca se muestra"),
   ).toBeVisible();
   await page.getByRole("tab", { name: "Rutas" }).click();
   await expect(page.getByText("gpt-5-mini-2026-08-01")).toBeVisible();
