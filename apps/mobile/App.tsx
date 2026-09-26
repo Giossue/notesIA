@@ -12,12 +12,13 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ApiError, OfflineQueuedError } from "@/core/api/client";
 import { getProfile } from "@/core/api/profile";
 import { getCurrentUser } from "@/core/auth/auth-client";
 import { clearPrivateCache } from "@/core/auth/query-cache";
+import { getSessionCookie } from "@/core/auth/session-storage";
 import { OfflineSyncProvider } from "@/core/offline/OfflineSyncProvider";
 import { PushRegistrationProvider } from "@/core/push/PushRegistrationProvider";
 import { AppearanceProvider } from "@/core/theme/AppearanceProvider";
@@ -122,11 +123,21 @@ function Main() {
     queryFn: getCurrentUser,
     retry: false,
   });
+  // Con una sesión guardada en el teléfono se entra directo: el servidor la
+  // confirma por detrás y, si venció, la app vuelve al inicio de sesión.
+  const [savedSession, setSavedSession] = useState<boolean | null>(null);
+  useEffect(() => {
+    getSessionCookie()
+      .then((cookie) => setSavedSession(Boolean(cookie)))
+      .catch(() => setSavedSession(false));
+  }, []);
   useEffect(() => {
     if (session.isSuccess && !session.data) void clearPrivateCache(currentQueryClient);
   }, [currentQueryClient, session.isSuccess, session.data]);
-  if (session.isPending) return <HeroStatus label="Cargando sesión" />;
-  if (session.isError) {
+  const optimistic = savedSession === true && (session.isPending || session.isError);
+  if (session.isPending && !optimistic) return <HeroStatus label="Cargando sesión" />;
+  // Sin conexión, la app sigue usable con los datos guardados.
+  if (session.isError && !optimistic) {
     return (
       <HeroStatus
         message={userMessage(session.error)}
@@ -138,7 +149,7 @@ function Main() {
       />
     );
   }
-  if (!session.data) return <AuthScreen />;
+  if (!optimistic && !session.data) return <AuthScreen />;
   return (
     <ConsentGate>
       <PushRegistrationProvider>

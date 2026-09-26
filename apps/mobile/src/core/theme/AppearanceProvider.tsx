@@ -1,6 +1,7 @@
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
-import { StatusBar, useColorScheme, View } from "react-native";
-import { ActivityIndicator, PaperProvider } from "react-native-paper";
+import { StatusBar, useColorScheme } from "react-native";
+import { PaperProvider } from "react-native-paper";
+import { AppSplash } from "@/shared/AppSplash";
 import { ToastProvider } from "@/shared/Toast";
 import {
   type AppearancePreference,
@@ -62,20 +63,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
           translucent
           backgroundColor="transparent"
         />
-        {ready ? (
-          <ToastProvider>{children}</ToastProvider>
-        ) : (
-          <View
-            style={{
-              flex: 1,
-              justifyContent: "center",
-              alignItems: "center",
-              backgroundColor: theme.colors.background,
-            }}
-          >
-            <ActivityIndicator accessibilityLabel="Cargando apariencia" />
-          </View>
-        )}
+        {ready ? <ToastProvider>{children}</ToastProvider> : <AppSplash />}
       </PaperProvider>
     </AppearanceContext.Provider>
   );

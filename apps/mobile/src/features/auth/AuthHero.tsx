@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { ScrollView, StatusBar, StyleSheet, useWindowDimensions, View } from "react-native";
-import { ActivityIndicator, IconButton, Text, useTheme } from "react-native-paper";
+import { IconButton, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AppSplash } from "@/shared/AppSplash";
 
 /** Fondo oscuro fijo de la entrada, igual en modo claro y oscuro. */
 export const heroColors = {
@@ -123,7 +124,7 @@ export function AuthLayout({
   );
 }
 
-/** Espera o error antes de entrar, sobre el mismo fondo oscuro. */
+/** Espera (logo de arranque) o error antes de entrar, sobre el mismo fondo oscuro. */
 export function HeroStatus({
   label,
   message,
@@ -134,17 +135,14 @@ export function HeroStatus({
   action?: ReactNode;
 }) {
   const { height } = useWindowDimensions();
+  if (!message) return <AppSplash label={label} />;
   return (
     <SafeAreaView style={[styles.dark, styles.status]}>
       <HeroStatusBar />
       <HeroBackdrop height={height} />
-      {message ? (
-        <Text accessibilityRole="alert" variant="bodyLarge" style={styles.statusText}>
-          {message}
-        </Text>
-      ) : (
-        <ActivityIndicator color={heroColors.text} accessibilityLabel={label} />
-      )}
+      <Text accessibilityRole="alert" variant="bodyLarge" style={styles.statusText}>
+        {message}
+      </Text>
       {action}
     </SafeAreaView>
   );

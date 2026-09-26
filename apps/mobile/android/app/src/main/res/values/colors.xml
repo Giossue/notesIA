@@ -1,4 +1,6 @@
 <resources>
     <!-- Color del ícono de los avisos push: el azul principal de la app. -->
     <color name="notification">#3468E1</color>
+    <!-- Fondo de la pantalla de arranque: el mismo oscuro de la entrada de la app. -->
+    <color name="splash_background">#0B0D14</color>
 </resources>
