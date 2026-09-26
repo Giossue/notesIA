@@ -74,7 +74,7 @@ export function NotificationsScreen() {
               </Button>
             )}
             {!item.activityId && item.planId && (
-              <Button onPress={() => navigation.navigate("Planning")}>Abrir planificación</Button>
+              <Button onPress={() => navigation.navigate("Agenda")}>Abrir agenda</Button>
             )}
             {!item.readAt && (
               <Button

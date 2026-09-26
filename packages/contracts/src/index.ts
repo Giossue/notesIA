@@ -1083,6 +1083,8 @@ export const assistantActionSchema = z.discriminatedUnion("type", [
     changes: calendarEventChangesSchema,
   }),
   z.strictObject({ type: z.literal("archive_event"), eventId: z.uuid(), title: z.string() }),
+  // El plan lo calcula el planificador de la app; el asistente solo lo pide.
+  z.strictObject({ type: z.literal("plan_week"), title: z.string() }),
 ]);
 export const assistantTurnResponseSchema = z.union([
   z.object({ kind: z.literal("manual"), reason: aiFallbackReasonSchema }),

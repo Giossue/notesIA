@@ -80,6 +80,9 @@ export async function applyAssistantAction(action: AssistantAction) {
       const current = await getCalendarEvent(action.eventId);
       return deleteCalendarEvent(action.eventId, current.version, uuidv4());
     }
+    case "plan_week":
+      // Se aplica desde su propia tarjeta, con la vista previa del planificador.
+      return;
   }
 }
 
@@ -210,6 +213,13 @@ export function describeAction(action: AssistantAction): {
       return {
         icon: "delete-outline",
         heading: "Eliminar evento",
+        title: action.title,
+        details: [],
+      };
+    case "plan_week":
+      return {
+        icon: "calendar-clock",
+        heading: "Planificar mi semana",
         title: action.title,
         details: [],
       };

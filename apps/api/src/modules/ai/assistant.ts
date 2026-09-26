@@ -238,6 +238,9 @@ export function toAssistantAction(
       if (!eventTarget) return null;
       candidate = { type: flat.type, ...eventTarget };
       break;
+    case "plan_week":
+      candidate = { type: flat.type, title: "Hoy y los próximos 6 días" };
+      break;
   }
   const parsed = assistantActionSchema.safeParse(candidate);
   if (!parsed.success) return null;
@@ -300,6 +303,11 @@ export async function runAssistantTurn(
   const actions = value.actions
     .map((flat) => toAssistantAction(flat, known, timeZone, now))
     .filter((action) => action !== null)
+    // Un solo plan por respuesta.
+    .filter(
+      (action, index, all) =>
+        action.type !== "plan_week" || all.findIndex((item) => item.type === "plan_week") === index,
+    )
     .slice(0, 5);
   return {
     kind: "reply",

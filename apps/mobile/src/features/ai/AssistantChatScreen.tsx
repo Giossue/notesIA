@@ -1,9 +1,9 @@
 import type { AssistantAction } from "@notesia/contracts";
 import { useNetInfo } from "@react-native-community/netinfo";
-import { useNavigation } from "@react-navigation/native";
+import { type RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Icon, IconButton, Text, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -32,6 +32,7 @@ import { userMessage } from "@/shared/errors";
 import { Button, Card, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { applyAssistantAction, describeAction } from "./assistant-actions";
+import { PlanWeekCard } from "./PlanWeekCard";
 
 const fallbackMessages = {
   not_configured: "El asistente aún no está configurado. Puedes crear tus actividades a mano.",
@@ -41,6 +42,7 @@ const fallbackMessages = {
   provider_unavailable: "El servicio de IA no responde ahora. Inténtalo en un momento.",
 };
 const suggestions = [
+  "Planifica mi semana",
   "¿Qué tengo esta semana?",
   "Tengo examen de cálculo el viernes a las 10",
   "Tengo clase de inglés mañana de 8 a 10",
@@ -104,6 +106,18 @@ export function AssistantChatScreen() {
     setDraft("");
     send.mutate({ text: message, history: chatHistory() });
   };
+
+  // Abierto con un mensaje (por ejemplo "Planifica mi semana" desde la Agenda): se envía una vez.
+  const route = useRoute<RouteProp<RootStackParamList, "AiAssistant">>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const prompt = route.params?.prompt;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: solo reacciona a un mensaje nuevo
+  useEffect(() => {
+    if (!prompt) return;
+    navigation.setParams({ prompt: undefined });
+    if (offline || send.isPending) setDraft(prompt);
+    else submit(prompt);
+  }, [prompt]);
 
   const dictate = async () => {
     // Detener termina la frase y conserva lo dictado.
@@ -287,9 +301,13 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           Propuesta generada con IA · revísala antes de confirmar
         </Text>
       )}
-      {message.actions.map((item) => (
-        <ActionCard key={item.id} messageId={message.id} item={item} />
-      ))}
+      {message.actions.map((item) =>
+        item.action.type === "plan_week" ? (
+          <PlanWeekCard key={item.id} messageId={message.id} item={item} />
+        ) : (
+          <ActionCard key={item.id} messageId={message.id} item={item} />
+        ),
+      )}
     </View>
   );
 }
@@ -407,6 +425,8 @@ function openEditor(
     case "update_event":
     case "archive_event":
       navigation.navigate("EventForm", { id: action.eventId });
+      return;
+    case "plan_week":
       return;
     default:
       navigation.navigate("ActivityForm", { id: action.activityId });

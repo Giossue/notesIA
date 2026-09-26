@@ -251,8 +251,7 @@ test("fixed events are private, versioned and appear on each overlapping local d
   // Repetir el borrado no falla y el evento ya no existe.
   expect((await removeEvent(cookieA, 1)).status).toBe(204);
   expect(
-    (await app.request(`/v1/calendar-events/${doomedId}`, { headers: { cookie: cookieA } }))
-      .status,
+    (await app.request(`/v1/calendar-events/${doomedId}`, { headers: { cookie: cookieA } })).status,
   ).toBe(404);
 
   for (let index = 0; index < 21; index++) {

@@ -17,10 +17,10 @@ export type RootStackParamList = {
   Events: undefined;
   EventForm: { id?: string /** Día (AAAA-MM-DD) en que empieza. */; date?: string };
   Availability: undefined;
-  Planning: undefined;
   Notifications: undefined;
   Alerts: undefined;
   Privacy: undefined;
-  AiAssistant: undefined;
+  /** `prompt` se envía solo al abrir el chat. */
+  AiAssistant: { prompt?: string } | undefined;
   OfflineChanges: undefined;
 };

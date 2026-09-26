@@ -5561,6 +5561,7 @@ components:
                           - create_event
                           - update_event
                           - archive_event
+                          - plan_week
                       activityId:
                         anyOf:
                           - type: string
@@ -6172,6 +6173,17 @@ components:
                     required:
                       - type
                       - eventId
+                      - title
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      type:
+                        type: string
+                        const: plan_week
+                      title:
+                        type: string
+                    required:
+                      - type
                       - title
                     additionalProperties: false
           required:

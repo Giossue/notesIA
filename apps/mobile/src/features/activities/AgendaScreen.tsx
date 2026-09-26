@@ -306,7 +306,7 @@ export function AgendaScreen() {
       <Button
         mode="contained-tonal"
         icon="calendar-check-outline"
-        onPress={() => navigation.navigate("Planning")}
+        onPress={() => navigation.navigate("AiAssistant", { prompt: "Planifica mi semana" })}
         contentStyle={styles.planContent}
       >
         Planificar mi semana

@@ -36,7 +36,6 @@ import { AlertsScreen } from "@/features/notifications/AlertsScreen";
 import { NotificationsScreen } from "@/features/notifications/NotificationsScreen";
 import { PushPermissionPrompt } from "@/features/notifications/PushPermissionPrompt";
 import { OfflineChangesScreen } from "@/features/offline/OfflineChangesScreen";
-import { PlanningScreen } from "@/features/planning/PlanningScreen";
 import { ConsentGate } from "@/features/privacy/ConsentGate";
 import { PrivacyScreen } from "@/features/privacy/PrivacyScreen";
 import { ProfileEditScreen } from "@/features/profile/ProfileEditScreen";
@@ -176,7 +175,6 @@ function Main() {
             <Stack.Screen name="EventForm" component={EventFormRoute} />
             <Stack.Screen name="Profile" options={tabScreen} component={ProfileScreen} />
             <Stack.Screen name="Availability" component={AvailabilityScreen} />
-            <Stack.Screen name="Planning" component={PlanningScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Alerts" component={AlertsScreen} />
             <Stack.Screen name="Privacy" component={PrivacyScreen} />

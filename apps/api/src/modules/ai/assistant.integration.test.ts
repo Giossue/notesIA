@@ -159,6 +159,8 @@ test("the assistant looks up the student's data and only proposes changes", asyn
         }),
         // Fecha fuera de la ventana razonable: se descarta.
         flat({ type: "create_activity", title: "Viejo", deadlineAt: "2020-01-01T00:00:00Z" }),
+        // El plan lo arma la app: la acción no lleva horarios.
+        flat({ type: "plan_week" }),
       ],
       queries: [],
     },
@@ -177,7 +179,7 @@ test("the assistant looks up the student's data and only proposes changes", asyn
     kind: "reply",
     source: "ai",
     requiresConfirmation: true,
-    promptVersion: 1,
+    promptVersion: 2,
     reply: "Te propongo marcar tu deber de Cálculo como completado y crear el examen.",
     actions: [
       {
@@ -198,6 +200,7 @@ test("the assistant looks up the student's data and only proposes changes", asyn
           estimatedMinutes: null,
         },
       },
+      { type: "plan_week", title: "Hoy y los próximos 6 días" },
     ],
   });
   // Hora local y zona del estudiante; solo sus datos en la consulta.
