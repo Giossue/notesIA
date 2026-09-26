@@ -5,7 +5,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -15,7 +14,7 @@ export type RowAction = {
   destructive?: boolean;
 };
 
-/** Menú ⋮ de la columna de acciones: las destructivas van al final, separadas. */
+/** Menú ⋮ de la columna de acciones: las destructivas van al final. */
 export function RowActions({ actions, children }: { actions: RowAction[]; children?: ReactNode }) {
   const regular = actions.filter((action) => !action.destructive);
   const destructive = actions.filter((action) => action.destructive);
@@ -34,7 +33,6 @@ export function RowActions({ actions, children }: { actions: RowAction[]; childr
               {action.label}
             </DropdownMenuItem>
           ))}
-          {regular.length > 0 && destructive.length > 0 ? <DropdownMenuSeparator /> : null}
           {destructive.map((action) => (
             <DropdownMenuItem key={action.label} variant="destructive" onSelect={action.select}>
               {action.label}
