@@ -159,21 +159,36 @@ export function OnboardingScreen({
         )}
         <View style={styles.actions}>
           {step > 0 && !(initial && step === 1) && (
-            <Button disabled={finish.isPending} onPress={() => setStep(step - 1)}>
+            <Button
+              mode="outlined"
+              icon="arrow-left"
+              disabled={finish.isPending}
+              onPress={() => setStep(step - 1)}
+            >
               Atrás
             </Button>
           )}
           {onUseAgent && step <= 1 && (
-            <Button icon="robot" disabled={finish.isPending} onPress={onUseAgent}>
+            <Button
+              mode="contained-tonal"
+              icon="robot"
+              disabled={finish.isPending}
+              onPress={onUseAgent}
+            >
               Con el asistente
             </Button>
           )}
           <View style={styles.flex} />
           {step === 2 && commitments.length === 0 && (
-            <Button onPress={() => setStep(3)}>Omitir</Button>
+            <Button mode="outlined" icon="skip-next" onPress={() => setStep(3)}>
+              Omitir
+            </Button>
           )}
           <Button
             mode="contained"
+            icon={last ? "check" : "arrow-right"}
+            // La flecha de avanzar va a la derecha del texto.
+            contentStyle={last ? undefined : styles.iconRight}
             loading={finish.isPending}
             disabled={(step === 1 && !hasHours) || finish.isPending || (last && offline)}
             onPress={() => (last ? finish.mutate({ days, daily, commitments }) : setStep(step + 1))}
@@ -374,5 +389,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 10 },
   progress: { gap: 6 },
   footer: { paddingHorizontal: 20, paddingBottom: 12, gap: 4 },
-  actions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  iconRight: { flexDirection: "row-reverse" },
+  actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
 });

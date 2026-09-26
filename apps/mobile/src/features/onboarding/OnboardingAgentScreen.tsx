@@ -156,7 +156,12 @@ export function OnboardingAgentScreen({
         <Text variant="titleLarge" style={[styles.bold, styles.flex]}>
           Armemos tu semana
         </Text>
-        <Button compact onPress={() => onManual(fromDraft(draft, defaultUntil))}>
+        <Button
+          compact
+          mode="outlined"
+          icon="form-select"
+          onPress={() => onManual(fromDraft(draft, defaultUntil))}
+        >
           Llenar a mano
         </Button>
       </View>
@@ -207,7 +212,11 @@ export function OnboardingAgentScreen({
               <Text style={{ color: theme.colors.onErrorContainer }}>
                 {aiDown} Sigamos con el formulario; lo que ya armamos se conserva.
               </Text>
-              <Button mode="contained" onPress={() => onManual(fromDraft(draft, defaultUntil))}>
+              <Button
+                mode="contained"
+                icon="form-select"
+                onPress={() => onManual(fromDraft(draft, defaultUntil))}
+              >
                 Usar el formulario
               </Button>
             </Card.Content>
@@ -314,9 +323,12 @@ export function OnboardingAgentScreen({
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions>
-            <Button onPress={() => setReviewing(false)}>Seguir ajustando</Button>
+            <Button mode="outlined" icon="pencil-outline" onPress={() => setReviewing(false)}>
+              Seguir ajustando
+            </Button>
             <Button
               mode="contained"
+              icon="check"
               disabled={!canSave}
               onPress={() => {
                 setReviewing(false);
