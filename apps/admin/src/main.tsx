@@ -6,6 +6,7 @@ import ReactDOM from "react-dom/client";
 import { toast } from "sonner";
 import { router } from "@/app/router";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { errorMessage } from "@/lib/api";
 import "./index.css";
 
@@ -28,7 +29,9 @@ ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <TooltipProvider>
+          <RouterProvider router={router} />
+        </TooltipProvider>
         <Toaster position="top-center" />
       </QueryClientProvider>
     </ThemeProvider>

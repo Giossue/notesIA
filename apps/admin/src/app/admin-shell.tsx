@@ -22,7 +22,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type AuthSession, authApi } from "@/lib/auth-api";
 import { navItems } from "./shell/nav-items";
 import { NavMain } from "./shell/nav-main";
@@ -46,7 +46,7 @@ export function AdminShell({ session }: { session: AuthSession }) {
     },
   });
   return (
-    <TooltipProvider>
+    <>
       <SidebarProvider
         defaultOpen={sidebarDefaultOpen()}
         style={{ "--sidebar-width": "calc(var(--spacing) * 68)" } as CSSProperties}
@@ -80,7 +80,12 @@ export function AdminShell({ session }: { session: AuthSession }) {
           <header className="flex h-12 shrink-0 items-center gap-2 border-b">
             <div className="flex w-full items-center justify-between px-4 lg:px-6">
               <div className="flex items-center gap-1 lg:gap-2">
-                <SidebarTrigger className="-ml-1" />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <SidebarTrigger className="-ml-1" />
+                  </TooltipTrigger>
+                  <TooltipContent>Mostrar u ocultar el menú</TooltipContent>
+                </Tooltip>
                 <Separator
                   orientation="vertical"
                   className="mx-2 data-[orientation=vertical]:h-4 data-[orientation=vertical]:self-center"
@@ -108,6 +113,6 @@ export function AdminShell({ session }: { session: AuthSession }) {
           </main>
         </SidebarInset>
       </SidebarProvider>
-    </TooltipProvider>
+    </>
   );
 }
