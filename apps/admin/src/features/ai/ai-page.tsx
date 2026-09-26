@@ -165,8 +165,8 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
         <CardTitle>{provider}</CardTitle>
         <CardDescription>
           {current
-            ? "Conexión configurada; la clave guardada nunca se muestra."
-            : "Sin conexión configurada."}
+            ? "Conexión configurada; la clave guardada nunca se muestra"
+            : "Sin conexión configurada"}
         </CardDescription>
       </CardHeader>
       <form onSubmit={form.handleSubmit(submit)}>
@@ -323,13 +323,13 @@ function TestRouteAction({ useCase }: { useCase: UseCase }) {
         <AlertDialogHeader>
           <AlertDialogTitle>Probar ruta de IA</AlertDialogTitle>
           <AlertDialogDescription>
-            La API usará exclusivamente un dato sintético y validará la salida estructurada.
+            La API usará exclusivamente un dato sintético y validará la salida estructurada
           </AlertDialogDescription>
         </AlertDialogHeader>
         {mutation.isSuccess ? (
           <Alert>
             <AlertTitle>Conexión verificada</AlertTitle>
-            <AlertDescription>La ruta respondió con una salida válida.</AlertDescription>
+            <AlertDescription>La ruta respondió con una salida válida</AlertDescription>
           </Alert>
         ) : (
           <form onSubmit={form.handleSubmit(() => mutation.mutate())}>
@@ -383,7 +383,7 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
       <CardHeader>
         <CardTitle>{selected ? `Editar ${selected.useCase}` : "Configurar ruta"}</CardTitle>
         <CardDescription>
-          Define un modelo concreto, límites, precios y revisiones para un solo caso de uso.
+          Define un modelo concreto, límites, precios y revisiones para un solo caso de uso
         </CardDescription>
       </CardHeader>
       <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
@@ -436,7 +436,7 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
                 {...form.register("modelId")}
               />
               <FieldDescription>
-                No se aceptan identificadores terminados en latest.
+                No se aceptan identificadores terminados en latest
               </FieldDescription>
               <FieldError errors={[form.formState.errors.modelId]} />
             </Field>
@@ -532,7 +532,7 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
                 )
               }
               title="Configurar proveedor alterno"
-              description="Se usa solo para fallos controlados del principal."
+              description="Se usa solo para fallos controlados del principal"
             />
             {alternate ? (
               <FieldGroup>
@@ -703,7 +703,7 @@ function RoutesPanel() {
     <div className="flex flex-col gap-4">
       <RouteEditor selected={selected} clear={() => setSelected(null)} />
       {query.data.length === 0 ? (
-        <EmptyResult message="No hay rutas configuradas." />
+        <EmptyResult message="No hay rutas configuradas" />
       ) : (
         <DataTable columns={["Caso", "Principal", "Alterno", "Estado", "Acciones"]}>
           {query.data.map((route) => (
@@ -860,7 +860,7 @@ function UsagePanel() {
         <CardHeader>
           <CardTitle>Rango de uso</CardTitle>
           <CardDescription>
-            La fecha final es exclusiva y el máximo permitido es 31 días.
+            La fecha final es exclusiva y el máximo permitido es 31 días
           </CardDescription>
         </CardHeader>
         <form onSubmit={form.handleSubmit(setRange)}>
@@ -899,7 +899,7 @@ function UsagePanel() {
         <>
           <UsageSummary usage={query.data} />
           {query.data.items.length === 0 ? (
-            <EmptyResult message="No hay consumo en el rango." />
+            <EmptyResult message="No hay consumo en el rango" />
           ) : (
             <DataTable
               columns={[
@@ -933,13 +933,13 @@ function UsagePanel() {
             <CardHeader>
               <CardTitle>Fallbacks y transiciones</CardTitle>
               <CardDescription>
-                Motivos agregados; no contienen contenido de usuarios.
+                Motivos agregados; no contienen contenido de usuarios
               </CardDescription>
             </CardHeader>
             <CardContent>
               {query.data.fallbacks.length + query.data.transitions.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  Sin fallbacks ni transiciones en el rango.
+                  Sin fallbacks ni transiciones en el rango
                 </p>
               ) : null}
               <ul className="flex flex-col gap-1 text-sm">
@@ -970,7 +970,7 @@ export function AiPage() {
     <Page>
       <PageHeader
         title="Configuración de IA"
-        description="Conexiones, modelos por caso de uso, prueba sintética y consumo."
+        description="Conexiones, modelos por caso de uso, prueba sintética y consumo"
       />
       <AiOverview />
       <Tabs defaultValue="providers">

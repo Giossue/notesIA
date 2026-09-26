@@ -67,7 +67,7 @@ export function TwoFactorEnrollment() {
       <div className="mx-auto flex w-full flex-col justify-center space-y-8 sm:w-[350px]">
         <AuthHeading
           title="Protege la cuenta administradora"
-          description="El panel requiere TOTP. Confirma tu contraseña para iniciar la configuración."
+          description="El panel requiere TOTP. Confirma tu contraseña para iniciar la configuración"
         />
         <form
           noValidate
@@ -103,7 +103,7 @@ export function TwoFactorEnrollment() {
     <div className="mx-auto flex w-full flex-col justify-center space-y-8 py-6 sm:w-[350px]">
       <AuthHeading
         title="Completa el segundo factor"
-        description="Añade la cuenta en una aplicación TOTP y guarda los códigos de respaldo."
+        description="Añade la cuenta en una aplicación TOTP y guarda los códigos de respaldo"
       />
       <form
         noValidate
@@ -122,7 +122,7 @@ export function TwoFactorEnrollment() {
             <FieldLabel htmlFor="totp-uri">Enlace de configuración</FieldLabel>
             <Input id="totp-uri" value={setup.totpURI} readOnly />
             <FieldDescription>
-              Puedes abrir este enlace desde un dispositivo con una aplicación autenticadora.
+              Puedes abrir este enlace desde un dispositivo con una aplicación autenticadora
             </FieldDescription>
           </Field>
           <Field className="gap-1.5">

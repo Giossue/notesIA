@@ -22,10 +22,10 @@ export function AuditPage() {
     <Page>
       <PageHeader
         title="Auditoría administrativa"
-        description="Registro inmutable de operaciones sensibles."
+        description="Registro inmutable de operaciones sensibles"
       />
       {records.length === 0 ? (
-        <EmptyResult message="Todavía no hay acciones administrativas." />
+        <EmptyResult message="Todavía no hay acciones administrativas" />
       ) : (
         <DataTable columns={["Fecha", "Acción", "Actor", "Objetivo"]}>
           {records.map((record) => (

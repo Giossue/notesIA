@@ -115,7 +115,7 @@ function AssignRoleDialog() {
         <DialogHeader>
           <DialogTitle>Asignar un rol</DialogTitle>
           <DialogDescription>
-            Usa versión 0 para una primera asignación. El UUID aparece en la lista de usuarios.
+            Usa versión 0 para una primera asignación. El UUID aparece en la lista de usuarios
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
@@ -315,7 +315,7 @@ function RemoveRoleAction({ role }: { role: AdminRole }) {
         <AlertDialogHeader>
           <AlertDialogTitle>Quitar rol</AlertDialogTitle>
           <AlertDialogDescription>
-            {role.email} perderá el acceso asociado al rol. La operación quedará auditada.
+            {role.email} perderá el acceso asociado al rol. La operación quedará auditada
           </AlertDialogDescription>
         </AlertDialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
@@ -369,11 +369,11 @@ export function RolesPage() {
     <Page>
       <PageHeader
         title="Roles"
-        description="Administra el acceso administrativo y de soporte."
+        description="Administra el acceso administrativo y de soporte"
         actions={<AssignRoleDialog />}
       />
       {roles.length === 0 ? (
-        <EmptyResult message="No hay roles asignados." />
+        <EmptyResult message="No hay roles asignados" />
       ) : (
         <DataTable columns={["Cuenta", "Rol", "Versión", "Actualizado", "Acciones"]}>
           {roles.map((role) => (

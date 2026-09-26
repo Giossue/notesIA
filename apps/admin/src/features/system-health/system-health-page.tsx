@@ -67,7 +67,7 @@ export function SystemHealthPage() {
         <div>
           <h2 className="font-medium">Colas</h2>
           <p className="text-muted-foreground text-sm">
-            Elementos pendientes, listos, en proceso y agotados.
+            Elementos pendientes, listos, en proceso y agotados
           </p>
         </div>
         <DataTable columns={["Cola", "Pendientes", "Listos", "En proceso", "Agotados"]}>

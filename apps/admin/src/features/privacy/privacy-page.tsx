@@ -93,7 +93,7 @@ function CreateDocumentDialog() {
         <DialogHeader>
           <DialogTitle>Crear borrador</DialogTitle>
           <DialogDescription>
-            Introduce únicamente el texto aprobado. Crear no publica el documento.
+            Introduce únicamente el texto aprobado. Crear no publica el documento
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
@@ -220,7 +220,7 @@ function PublishAction({ document }: { document: AdminDocument }) {
           <AlertDialogTitle>Publicar documento</AlertDialogTitle>
           <AlertDialogDescription>
             Publicarás {document.type} {document.language} versión {document.version}. Los usuarios
-            verán esta versión y deberán registrar su decisión.
+            verán esta versión y deberán registrar su decisión
           </AlertDialogDescription>
         </AlertDialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
@@ -263,11 +263,11 @@ export function PrivacyPage() {
     <Page>
       <PageHeader
         title="Privacidad y términos"
-        description="Crea versiones y publícalas solo después de su aprobación."
+        description="Crea versiones y publícalas solo después de su aprobación"
         actions={<CreateDocumentDialog />}
       />
       {documents.length === 0 ? (
-        <EmptyResult message="No hay documentos creados." />
+        <EmptyResult message="No hay documentos creados" />
       ) : (
         <DataTable columns={["Documento", "Estado", "Creado", "Contenido", "Acción"]}>
           {documents.map((document) => (

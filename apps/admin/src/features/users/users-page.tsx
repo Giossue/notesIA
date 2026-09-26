@@ -77,7 +77,7 @@ function SuspensionAction({ user }: { user: AdminUser }) {
         <AlertDialogHeader>
           <AlertDialogTitle>{confirmation} cuenta</AlertDialogTitle>
           <AlertDialogDescription>
-            Confirma el cambio para {user.email}. La operación quedará auditada.
+            Confirma el cambio para {user.email}. La operación quedará auditada
           </AlertDialogDescription>
         </AlertDialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
@@ -133,9 +133,9 @@ export function UsersPage() {
   const users = query.data.pages.flatMap((page) => page.items);
   return (
     <Page>
-      <PageHeader title="Usuarios" description="Consulta, suspende o reactiva cuentas." />
+      <PageHeader title="Usuarios" description="Consulta, suspende o reactiva cuentas" />
       {users.length === 0 ? (
-        <EmptyResult message="No hay cuentas registradas." />
+        <EmptyResult message="No hay cuentas registradas" />
       ) : (
         <DataTable columns={["Cuenta", "Rol", "Estado", "Creada", "Acción"]}>
           {users.map((user) => (

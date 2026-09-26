@@ -37,19 +37,19 @@ export function ResetPasswordPage() {
       <div className="mx-auto flex w-full flex-col justify-center space-y-8 sm:w-[350px]">
         <AuthHeading
           title="Crear una nueva contraseña"
-          description="El enlace es de un solo uso y vence automáticamente."
+          description="El enlace es de un solo uso y vence automáticamente"
         />
         {!token ? (
           <Alert variant="destructive">
             <AlertDescription>
-              <p role="alert">El enlace no contiene un token válido.</p>
+              <p role="alert">El enlace no contiene un token válido</p>
             </AlertDescription>
           </Alert>
         ) : reset.isSuccess ? (
           <div className="flex flex-col gap-4">
             <Alert>
               <AlertDescription>
-                <p role="status">Contraseña actualizada. Ya puedes iniciar sesión.</p>
+                <p role="status">Contraseña actualizada. Ya puedes iniciar sesión</p>
               </AlertDescription>
             </Alert>
             <Button className="w-full" asChild>

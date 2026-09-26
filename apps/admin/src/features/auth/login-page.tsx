@@ -40,7 +40,7 @@ export function LoginPage() {
       <div className="mx-auto flex w-full flex-col justify-center space-y-8 sm:w-[350px]">
         <AuthHeading
           title="Inicia sesión"
-          description="Ingresa con tu cuenta administradora de NotesIA."
+          description="Ingresa con tu cuenta administradora de NotesIA"
         />
         <form
           noValidate
