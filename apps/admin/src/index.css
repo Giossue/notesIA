@@ -127,4 +127,35 @@
   html {
     @apply font-sans;
   }
+  /* Tailwind v4 deja los botones con cursor por defecto: todo lo que se puede
+     pulsar muestra la mano y lo deshabilitado lo indica. */
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="checkbox"],
+  [role="switch"],
+  [role="radio"],
+  [role="menuitem"],
+  [role="menuitemcheckbox"],
+  [role="menuitemradio"],
+  [role="option"],
+  [role="combobox"],
+  select,
+  summary,
+  label[for],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"],
+  a[href] {
+    cursor: pointer;
+  }
+  :disabled,
+  [aria-disabled="true"],
+  [data-disabled]:not([data-disabled="false"]) {
+    cursor: not-allowed;
+  }
+  label:has(+ :disabled),
+  [data-disabled="true"] label {
+    cursor: not-allowed;
+  }
 }
