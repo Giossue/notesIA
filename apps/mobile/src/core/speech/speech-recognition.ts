@@ -1,4 +1,4 @@
-import { NativeModules, PermissionsAndroid, Platform } from "react-native";
+import { NativeEventEmitter, NativeModules, PermissionsAndroid, Platform } from "react-native";
 
 type NativeSpeechModule = {
   isAvailable(): Promise<boolean>;
@@ -67,7 +67,11 @@ async function requestMicrophonePermission() {
   }
 }
 
-export async function recognizeSpeech(locale: string) {
+/**
+ * Escucha una frase y devuelve el texto final. `onPartial` recibe lo reconocido
+ * hasta el momento, para ir mostrándolo mientras la persona habla.
+ */
+export async function recognizeSpeech(locale: string, onPartial?: (text: string) => void) {
   const nativeSpeech = getNativeSpeech();
   await requestMicrophonePermission();
   if (!(await nativeSpeech.isAvailable())) {
@@ -78,6 +82,14 @@ export async function recognizeSpeech(locale: string) {
   }
 
   let timeout: ReturnType<typeof setTimeout> | undefined;
+  const partials = onPartial
+    ? new NativeEventEmitter(NativeModules.NotesIASpeech).addListener(
+        "NotesIASpeechPartial",
+        (text: unknown) => {
+          if (typeof text === "string") onPartial(text.trim().replace(/\s+/g, " "));
+        },
+      )
+    : null;
   try {
     const transcript = await Promise.race([
       nativeSpeech.start(locale),
@@ -96,6 +108,7 @@ export async function recognizeSpeech(locale: string) {
     throw userMessageForNativeError(error);
   } finally {
     if (timeout) clearTimeout(timeout);
+    partials?.remove();
   }
 }
 

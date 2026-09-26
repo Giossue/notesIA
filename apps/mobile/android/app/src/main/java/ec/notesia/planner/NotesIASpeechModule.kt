@@ -14,6 +14,7 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.UiThreadUtil
+import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.module.annotations.ReactModule
 
 @ReactModule(name = NotesIASpeechModule.NAME)
@@ -21,6 +22,8 @@ class NotesIASpeechModule(private val context: ReactApplicationContext) :
     ReactContextBaseJavaModule(context), RecognitionListener {
   companion object {
     const val NAME = "NotesIASpeech"
+    /** Texto reconocido hasta el momento, para mostrarlo mientras se habla. */
+    const val PARTIAL_EVENT = "NotesIASpeechPartial"
   }
 
   private var recognizer: SpeechRecognizer? = null
@@ -168,7 +171,7 @@ class NotesIASpeechModule(private val context: ReactApplicationContext) :
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, currentLocale)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
           },
       )
     } catch (_: RuntimeException) {
@@ -186,6 +189,18 @@ class NotesIASpeechModule(private val context: ReactApplicationContext) :
   override fun onRmsChanged(rmsdB: Float) = Unit
   override fun onBufferReceived(buffer: ByteArray?) = Unit
   override fun onEndOfSpeech() = Unit
-  override fun onPartialResults(partialResults: Bundle?) = Unit
+  override fun onPartialResults(partialResults: Bundle?) {
+    val partial =
+        partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim()
+    if (partial.isNullOrEmpty() || pendingPromise == null) return
+    context
+        .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+        .emit(PARTIAL_EVENT, partial)
+  }
+
+  // Requeridos por NativeEventEmitter en JS; los eventos se emiten igual.
+  @ReactMethod fun addListener(eventName: String) = Unit
+
+  @ReactMethod fun removeListeners(count: Double) = Unit
   override fun onEvent(eventType: Int, params: Bundle?) = Unit
 }

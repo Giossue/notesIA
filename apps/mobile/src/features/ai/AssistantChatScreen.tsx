@@ -23,6 +23,7 @@ import {
   cancelSpeechRecognition,
   recognizeSpeech,
   SpeechRecognitionError,
+  stopSpeechRecognition,
 } from "@/core/speech/speech-recognition";
 import { speak, stopSpeaking } from "@/core/speech/tts";
 import { layout } from "@/core/theme/layout";
@@ -108,22 +109,27 @@ export function AssistantChatScreen() {
   };
 
   const dictate = async () => {
+    // Detener termina la frase y conserva lo dictado.
     if (listening) {
-      setListening(false);
-      await cancelSpeechRecognition().catch(() => undefined);
+      await stopSpeechRecognition().catch(() => cancelSpeechRecognition());
       return;
     }
     // Que el micrófono no escuche la voz del asistente.
     stopSpeaking();
     setDictationError(null);
     setListening(true);
+    // Lo dictado se va escribiendo a continuación de lo que ya había.
+    const before = draft;
     try {
-      const transcript = await recognizeSpeech("es-EC");
-      setDraft((current) => appendRecognizedText(current, transcript));
-    } catch (error) {
-      setDictationError(
-        error instanceof SpeechRecognitionError ? error.message : "No se pudo usar el micrófono.",
+      const transcript = await recognizeSpeech("es-EC", (partial) =>
+        setDraft(appendRecognizedText(before, partial)),
       );
+      setDraft(appendRecognizedText(before, transcript));
+    } catch (error) {
+      if (!(error instanceof SpeechRecognitionError && error.code === "CANCELLED"))
+        setDictationError(
+          error instanceof SpeechRecognitionError ? error.message : "No se pudo usar el micrófono.",
+        );
     } finally {
       setListening(false);
     }
@@ -166,6 +172,7 @@ export function AssistantChatScreen() {
         />
         <TextInput
           mode="outlined"
+          dense
           placeholder={listening ? "Escuchando…" : "Escribe o dicta un mensaje"}
           value={draft}
           onChangeText={setDraft}
@@ -235,9 +242,13 @@ function Welcome({ onPick, disabled }: { onPick(text: string): void; disabled: b
             accessibilityRole="button"
             disabled={disabled}
             onPress={() => onPick(text)}
-            style={[styles.suggestion, { borderColor: theme.colors.outlineVariant }]}
+            style={({ pressed }) => [
+              styles.suggestion,
+              { backgroundColor: pressed ? theme.colors.primaryContainer : theme.colors.surface },
+            ]}
           >
-            <Text style={{ color: theme.colors.onSurface }}>{text}</Text>
+            <Icon source="send-outline" size={18} color={theme.colors.primary} />
+            <Text style={[styles.flex, { color: theme.colors.onSurface }]}>{text}</Text>
           </Pressable>
         ))}
       </View>
@@ -428,7 +439,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   suggestions: { alignSelf: "stretch", gap: 8, marginTop: 8 },
-  suggestion: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12 },
+  suggestion: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
   messageBlock: { gap: 6, marginBottom: 12, maxWidth: "88%" },
   mine: { alignSelf: "flex-end", alignItems: "flex-end" },
   theirs: { alignSelf: "flex-start" },
@@ -451,7 +469,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     gap: 4,
   },
-  composerRow: { flexDirection: "row", alignItems: "flex-end" },
-  input: { flex: 1, maxHeight: 120 },
+  composerRow: { flexDirection: "row", alignItems: "center", gap: 2 },
+  input: { flex: 1, maxHeight: 120, textAlignVertical: "center" },
   inputOutline: { borderRadius: 22 },
 });
