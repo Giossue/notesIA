@@ -327,7 +327,7 @@ export function PrivacyPage() {
       {documents.length === 0 ? (
         <EmptyResult message="No hay documentos creados" />
       ) : (
-        <DataTable columns={["Documento", "Estado", "Creado", "Publicado", ""]}>
+        <DataTable columns={["Documento", "Estado", "Creado", "Publicado", "Acciones"]}>
           {documents.map((document) => (
             <TableRow key={document.id}>
               <TableCell className="font-medium">{documentName(document)}</TableCell>

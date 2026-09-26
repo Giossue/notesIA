@@ -722,7 +722,7 @@ function RoutesPanel() {
       {query.data.length === 0 ? (
         <EmptyResult message="No hay rutas configuradas" />
       ) : (
-        <DataTable columns={["Caso", "Principal", "Alterno", "Estado", ""]}>
+        <DataTable columns={["Caso", "Principal", "Alterno", "Estado", "Acciones"]}>
           {query.data.map((route) => (
             <TableRow key={route.useCase}>
               <TableCell className="font-medium">{route.useCase}</TableCell>

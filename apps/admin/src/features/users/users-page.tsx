@@ -156,7 +156,7 @@ export function UsersPage() {
       {users.length === 0 ? (
         <EmptyResult message="No hay cuentas registradas" />
       ) : (
-        <DataTable columns={["Cuenta", "Rol", "Estado", "Creada", ""]}>
+        <DataTable columns={["Cuenta", "Rol", "Estado", "Creada", "Acciones"]}>
           {users.map((user) => (
             <TableRow key={user.id}>
               <TableCell>

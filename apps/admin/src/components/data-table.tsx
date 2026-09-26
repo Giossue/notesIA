@@ -9,7 +9,9 @@ export function DataTable({ columns, children }: { columns: string[]; children: 
         <TableHeader className="bg-muted/15">
           <TableRow>
             {columns.map((column) => (
-              <TableHead key={column}>{column}</TableHead>
+              <TableHead key={column} className={column === "Acciones" ? "text-right" : undefined}>
+                {column}
+              </TableHead>
             ))}
           </TableRow>
         </TableHeader>

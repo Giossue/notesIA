@@ -394,7 +394,7 @@ export function RolesPage() {
       {roles.length === 0 ? (
         <EmptyResult message="No hay roles asignados" />
       ) : (
-        <DataTable columns={["Cuenta", "Rol", "Versión", "Actualizado", ""]}>
+        <DataTable columns={["Cuenta", "Rol", "Versión", "Actualizado", "Acciones"]}>
           {roles.map((role) => (
             <TableRow key={role.userId}>
               <TableCell>
