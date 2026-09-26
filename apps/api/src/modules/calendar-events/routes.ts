@@ -209,6 +209,20 @@ export function registerCalendarEventRoutes(app: Hono, dependencies: Dependencie
     return resultResponse(result);
   });
 
+  app.delete("/v1/calendar-events/:id", async (c) => {
+    const session = await dependencies.getSession(c.req.raw.headers);
+    if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
+    const id = c.req.param("id");
+    if (!z.uuid().safeParse(id).success)
+      return error(404, "EVENT_NOT_FOUND", "Evento no encontrado.");
+    const parsed = calendarEventVersionSchema.safeParse(await readBody(c.req.raw));
+    if (!parsed.success) return error(422, "VALIDATION_FAILED", "Versión inválida.");
+    const result = await dependencies.events.delete(session.user.id, id, parsed.data);
+    if (result.kind === "conflict")
+      return error(409, "VERSION_CONFLICT", "El evento cambió. Actualízalo antes de continuar.");
+    return c.body(null, 204);
+  });
+
   for (const archived of [true, false]) {
     app.post(`/v1/calendar-events/:id/${archived ? "archive" : "restore"}`, async (c) => {
       const session = await dependencies.getSession(c.req.raw.headers);

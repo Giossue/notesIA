@@ -3,7 +3,6 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 import { listCalendarEvents } from "@/core/api/calendar-events";
@@ -13,7 +12,6 @@ import { EmptyState } from "@/shared/EmptyState";
 import { userMessage } from "@/shared/errors";
 import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
-import { Tabs } from "@/shared/Tabs";
 
 const kindLabels = {
   class: "Clase",
@@ -28,10 +26,9 @@ export function EventsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
-  const [archived, setArchived] = useState(false);
   const events = useInfiniteQuery({
-    queryKey: ["calendar-events", archived],
-    queryFn: ({ pageParam }) => listCalendarEvents({ archived, cursor: pageParam }),
+    queryKey: ["calendar-events", false],
+    queryFn: ({ pageParam }) => listCalendarEvents({ archived: false, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     retry: false,
@@ -46,14 +43,6 @@ export function EventsScreen() {
       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
         Clases y compromisos que ocupan tiempo real.
       </Text>
-      <Tabs
-        value={archived ? "archived" : "active"}
-        onValueChange={(value) => setArchived(value === "archived")}
-        buttons={[
-          { value: "active", label: "Activos" },
-          { value: "archived", label: "Archivo" },
-        ]}
-      />
       {offline && (
         <Text style={{ color: theme.colors.error }}>
           Sin conexión. Se muestran los datos guardados en esta sesión.
@@ -67,9 +56,7 @@ export function EventsScreen() {
         </View>
       )}
       {!events.isPending && !events.isError && items.length === 0 && (
-        <EmptyState
-          message={archived ? "No tienes eventos archivados." : "Aún no tienes eventos."}
-        />
+        <EmptyState message="Aún no tienes eventos." />
       )}
       {items.map((item) => (
         <Card

@@ -10,8 +10,8 @@ import {
 } from "@/core/api/activities";
 import {
   createCalendarEvent,
+  deleteCalendarEvent,
   getCalendarEvent,
-  setCalendarEventArchived,
   updateCalendarEvent,
 } from "@/core/api/calendar-events";
 import { createSubtask } from "@/core/api/subtasks";
@@ -78,7 +78,7 @@ export async function applyAssistantAction(action: AssistantAction) {
     }
     case "archive_event": {
       const current = await getCalendarEvent(action.eventId);
-      return setCalendarEventArchived(action.eventId, true, current.version, uuidv4());
+      return deleteCalendarEvent(action.eventId, current.version, uuidv4());
     }
   }
 }
@@ -208,8 +208,8 @@ export function describeAction(action: AssistantAction): {
     }
     case "archive_event":
       return {
-        icon: "archive-outline",
-        heading: "Archivar evento",
+        icon: "delete-outline",
+        heading: "Eliminar evento",
         title: action.title,
         details: [],
       };

@@ -1964,6 +1964,36 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteCalendarEventsByEventId
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalendarEventVersionInput"
+      responses:
+        "204":
+          description: Sin contenido
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /calendar-events/{eventId}/archive:
     post:
       operationId: postCalendarEventsByEventIdArchive

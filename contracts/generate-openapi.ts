@@ -232,6 +232,7 @@ add("GET", "/v1/calendar-events", "calendarEventPageSchema");
 add("GET", "/v1/calendar-events/:id", "calendarEventSchema");
 add("POST", "/v1/calendar-events", "calendarEventSchema", "calendarEventCreateSchema", [200, 201]);
 add("PATCH", "/v1/calendar-events/:id", "calendarEventSchema", "calendarEventUpdateSchema");
+add("DELETE", "/v1/calendar-events/:id", undefined, "calendarEventVersionSchema", [204]);
 for (const action of ["archive", "restore"])
   add(
     "POST",
@@ -255,12 +256,7 @@ add(
   "availabilityRuleUpdateSchema",
 );
 for (const action of ["archive", "restore"])
-  add(
-    "POST",
-    `/v1/availability-rules/:id/${action}`,
-    "availabilityRuleSchema",
-    "versionSchema",
-  );
+  add("POST", `/v1/availability-rules/:id/${action}`, "availabilityRuleSchema", "versionSchema");
 add("GET", "/v1/availability-exceptions", "availabilityExceptionListSchema");
 add(
   "PUT",

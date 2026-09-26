@@ -230,6 +230,31 @@ test("fixed events are private, versioned and appear on each overlapping local d
     ).status,
   ).toBe(200);
 
+  const doomedId = crypto.randomUUID();
+  expect(
+    (
+      await app.request("/v1/calendar-events", {
+        method: "POST",
+        headers: headers(cookieA),
+        body: JSON.stringify({ ...input, id: doomedId }),
+      })
+    ).status,
+  ).toBe(201);
+  const removeEvent = (cookie: string, version: number) =>
+    app.request(`/v1/calendar-events/${doomedId}`, {
+      method: "DELETE",
+      headers: headers(cookie),
+      body: JSON.stringify({ version, mutationId: crypto.randomUUID() }),
+    });
+  expect((await removeEvent(cookieA, 2)).status).toBe(409);
+  expect((await removeEvent(cookieA, 1)).status).toBe(204);
+  // Repetir el borrado no falla y el evento ya no existe.
+  expect((await removeEvent(cookieA, 1)).status).toBe(204);
+  expect(
+    (await app.request(`/v1/calendar-events/${doomedId}`, { headers: { cookie: cookieA } }))
+      .status,
+  ).toBe(404);
+
   for (let index = 0; index < 21; index++) {
     const start = new Date(Date.UTC(2026, 8, 24, 10, index)).toISOString();
     const end = new Date(Date.UTC(2026, 8, 24, 10, index + 1)).toISOString();

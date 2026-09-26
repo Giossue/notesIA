@@ -46,6 +46,13 @@ export function updateCalendarEvent(id: string, input: CalendarEventUpdate) {
   });
 }
 
+export function deleteCalendarEvent(id: string, version: number, mutationId: string) {
+  return requestJson(`/calendar-events/${encodeURIComponent(id)}`, calendarEventSchema.nullable(), {
+    method: "DELETE",
+    body: calendarEventVersionSchema.parse({ version, mutationId }),
+  });
+}
+
 export function setCalendarEventArchived(
   id: string,
   archived: boolean,

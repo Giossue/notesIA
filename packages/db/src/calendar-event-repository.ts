@@ -183,6 +183,23 @@ export function createCalendarEventRepository(pool: Pool) {
         return { kind: "updated" as const, row: updated };
       });
     },
+    /** Borra el evento. Si ya no existe se da por borrado: repetir la solicitud no falla. */
+    async delete(userId: string, id: string, input: { version: number }) {
+      return db.transaction(async (tx) => {
+        const [current] = await tx
+          .select()
+          .from(calendarEvents)
+          .where(and(eq(calendarEvents.userId, userId), eq(calendarEvents.id, id)))
+          .limit(1)
+          .for("update");
+        if (!current) return { kind: "deleted" as const };
+        if (current.version !== input.version) return { kind: "conflict" as const };
+        await tx
+          .delete(calendarEvents)
+          .where(and(eq(calendarEvents.userId, userId), eq(calendarEvents.id, id)));
+        return { kind: "deleted" as const };
+      });
+    },
   };
 }
 
