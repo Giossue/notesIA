@@ -1,4 +1,3 @@
-import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
 import { AppState, StyleSheet, useWindowDimensions, View } from "react-native";
@@ -6,7 +5,7 @@ import { Portal, Text, useTheme } from "react-native-paper";
 import { acceptConsent, listConsents, listPrivacyDocuments } from "@/core/api/privacy";
 import { signOut } from "@/core/auth/auth-client";
 import { clearPrivateCache } from "@/core/auth/query-cache";
-import { HeroBackdrop, HeroStatus, HeroStatusBar, heroColors } from "@/features/auth/AuthHero";
+import { HeroBackdrop, HeroStatusBar, heroColors } from "@/features/auth/AuthHero";
 import { userMessage } from "@/shared/errors";
 import { Button, Dialog } from "@/shared/paper";
 import { LegalConsentCheckbox, requiredDocuments } from "./LegalConsent";
@@ -18,7 +17,6 @@ import { LegalConsentCheckbox, requiredDocuments } from "./LegalConsent";
  */
 export function ConsentGate({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const offline = useNetInfo().isConnected === false;
   const { height } = useWindowDimensions();
   const documents = useQuery({
     queryKey: ["privacy-documents", "es"],
@@ -53,29 +51,9 @@ export function ConsentGate({ children }: { children: ReactNode }) {
     return () => subscription.remove();
   }, [refetchDocuments, refetchConsents]);
 
-  if (documents.isPending || consents.isPending) {
-    return <HeroStatus label="Cargando documentos" />;
-  }
-  // Sin conexión no se puede comprobar: no se bloquea el uso sin conexión de la app.
-  if ((documents.isError || consents.isError) && offline) return <>{children}</>;
-  if (documents.isError || consents.isError) {
-    const failed = documents.isError ? documents : consents;
-    return (
-      <HeroStatus
-        message={userMessage(failed.error)}
-        action={
-          <Button
-            mode="contained"
-            onPress={() => void failed.refetch()}
-            style={styles.pill}
-            contentStyle={styles.pillContent}
-          >
-            Reintentar
-          </Button>
-        }
-      />
-    );
-  }
+  // La app abre sin esperar esta comprobación: la API ya bloquea por su cuenta
+  // (CONSENT_REQUIRED) y, si falla o no hay conexión, se reintenta al volver.
+  if (!documents.isSuccess || !consents.isSuccess) return <>{children}</>;
   if (pending.length === 0) return <>{children}</>;
 
   // La app queda detrás, sin montar, hasta aceptar: la API también la bloquea.
@@ -152,6 +130,4 @@ function ConsentDialog({
 const styles = StyleSheet.create({
   blocked: { flex: 1, backgroundColor: heroColors.background },
   content: { gap: 12 },
-  pill: { borderRadius: 999 },
-  pillContent: { minHeight: 52 },
 });
