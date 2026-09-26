@@ -25,8 +25,14 @@ export function ScreenLayout({
   fab,
   header,
   top,
+  footer,
+  stickToBottom,
 }: {
   children: ReactNode;
+  /** Barra fija bajo el contenido (por ejemplo, el campo para escribir del chat). */
+  footer?: ReactNode;
+  /** Mantiene la vista en lo último al crecer el contenido, como en un chat. */
+  stickToBottom?: boolean;
   tab?: MainTab;
   /** Color de la franja superior (barra de estado) cuando la pantalla abre con un bloque de color. */
   topColor?: string;
@@ -47,6 +53,7 @@ export function ScreenLayout({
   // El botón + se esconde al bajar y reaparece al subir (patrón estándar de Material).
   const [fabHidden, setFabHidden] = useState(false);
   const lastY = useRef(0);
+  const scroller = useRef<ScrollView>(null);
 
   return (
     <SafeAreaView
@@ -80,6 +87,10 @@ export function ScreenLayout({
         </View>
       )}
       <ScrollView
+        ref={scroller}
+        onContentSizeChange={
+          stickToBottom ? () => scroller.current?.scrollToEnd({ animated: true }) : undefined
+        }
         scrollEventThrottle={16}
         onScroll={
           fab
@@ -98,11 +109,14 @@ export function ScreenLayout({
           styles.content,
           bottomChrome ? styles.tabContent : styles.detailContent,
           // Sin borde inferior protegido, el contenido deja libre la zona segura.
-          !!header && !bottomChrome && { paddingBottom: layout.pagePadding + insets.bottom },
+          !!header &&
+            !bottomChrome &&
+            !footer && { paddingBottom: layout.pagePadding + insets.bottom },
         ]}
       >
         {children}
       </ScrollView>
+      {footer}
       {tab && <FloatingNavBar active={tab} />}
       {fab && <CreateFab {...(fab === true ? {} : fab)} hidden={fabHidden} />}
     </SafeAreaView>

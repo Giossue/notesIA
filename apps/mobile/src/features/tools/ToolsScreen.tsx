@@ -29,9 +29,9 @@ const destinations = [
   ["ActivitySeries", "Actividades recurrentes", "Crea rutinas diarias o semanales.", "repeat"],
   [
     "AiAssistant",
-    "Ayuda con IA",
-    "Solicita sugerencias estructuradas para revisar.",
-    "creation-outline",
+    "Asistente",
+    "Habla o escribe para organizar tus actividades y eventos.",
+    "robot",
   ],
   ["Notifications", "Notificaciones", "Revisa avisos y configura anticipaciones.", "bell-outline"],
   ["Preferences", "Preferencias", "Define duración de sesiones, jornada y avisos.", "tune-variant"],

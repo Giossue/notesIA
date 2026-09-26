@@ -9,6 +9,7 @@ import {
   BellRing,
   BookOpen,
   BookOpenText,
+  Bot,
   Briefcase,
   Calculator,
   Calendar,
@@ -80,6 +81,8 @@ import {
   Undo2,
   User,
   UserRoundCheck,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react-native";
 import type { ComponentProps, ReactNode } from "react";
@@ -137,6 +140,9 @@ const icons: Record<string, Entry> = {
   play: Play,
   stop: Square,
   microphone: Mic,
+  robot: Bot,
+  "volume-high": Volume2,
+  "volume-off": VolumeX,
   logout: LogOut,
   eye: Eye,
   "eye-outline": Eye,

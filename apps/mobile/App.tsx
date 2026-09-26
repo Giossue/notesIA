@@ -26,7 +26,7 @@ import { AccountScreen } from "@/features/account/AccountScreen";
 import { ActivityFormScreen } from "@/features/activities/ActivityFormScreen";
 import { ActivityListScreen } from "@/features/activities/ActivityListScreen";
 import { AgendaScreen } from "@/features/activities/AgendaScreen";
-import { AiAssistantScreen } from "@/features/ai/AiAssistantScreen";
+import { AssistantChatScreen } from "@/features/ai/AssistantChatScreen";
 import { HeroStatus } from "@/features/auth/AuthHero";
 import { AuthScreen } from "@/features/auth/AuthScreen";
 import { AvailabilityScreen } from "@/features/availability/AvailabilityScreen";
@@ -189,7 +189,7 @@ function Main() {
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Preferences" component={PreferencesScreen} />
             <Stack.Screen name="Privacy" component={PrivacyScreen} />
-            <Stack.Screen name="AiAssistant" component={AiAssistantScreen} />
+            <Stack.Screen name="AiAssistant" component={AssistantChatScreen} />
             <Stack.Screen name="Account" component={AccountScreen} />
             <Stack.Screen name="OfflineChanges" component={OfflineChangesScreen} />
           </Stack.Navigator>

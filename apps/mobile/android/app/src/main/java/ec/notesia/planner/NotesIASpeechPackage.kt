@@ -11,6 +11,7 @@ class NotesIASpeechPackage : ReactPackage {
           NotesIAConfigModule(reactContext),
           NotesIASpeechModule(reactContext),
           NotesIASplashModule(reactContext),
+          NotesIATtsModule(reactContext),
       )
 
   override fun createViewManagers(

@@ -1,4 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
+import { resetAssistantChat } from "@/core/assistant/chat-store";
 
 const isPrivateQuery = (query: { queryKey: readonly unknown[] }) => query.queryKey[0] !== "session";
 
@@ -12,5 +13,6 @@ export async function clearPrivateCache(
   await queryClient.cancelQueries({ predicate: isPrivateQuery });
   queryClient.removeQueries({ predicate: isPrivateQuery });
   queryClient.getMutationCache().clear();
+  resetAssistantChat();
   await clearLocal();
 }
