@@ -132,10 +132,6 @@ function AlertsForm({
           </Text>
         )}
       </FormSection>
-      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-        Para dejar de recibir avisos, desactiva las notificaciones de NotesIA en los ajustes del
-        teléfono.
-      </Text>
       {offline && (
         <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
       )}
