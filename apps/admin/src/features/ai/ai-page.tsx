@@ -1,31 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  adminAiProviderUpdateSchema,
-  adminAiRouteUpdateSchema,
-  aiProviderSchema,
-  aiUseCaseSchema,
-} from "@notesia/contracts";
+import { adminAiProviderUpdateSchema, aiProviderSchema } from "@notesia/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, CircleHelp, Coins, DollarSign, PlugZap, Route, Shuffle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
 import { DataTable } from "@/components/data-table";
 import { Page, PageHeader } from "@/components/page-header";
-import { RowActions } from "@/components/row-actions";
 import { StatCard, StatGrid } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -58,12 +43,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  type AdminAiProvider,
-  type AdminAiRoute,
-  type AdminAiRouteUpdate,
-  adminApi,
-} from "@/lib/admin-api";
+import { type AdminAiProvider, type AdminAiRoute, adminApi } from "@/lib/admin-api";
 import {
   fallbackReasonLabels,
   label,
@@ -74,20 +54,12 @@ import {
 import { aiProvidersQuery, aiRoutesQuery, auditQueryKey, systemHealthQuery } from "@/lib/query";
 
 type Provider = z.infer<typeof aiProviderSchema>;
-type UseCase = z.infer<typeof aiUseCaseSchema>;
 const providers = aiProviderSchema.options;
-const useCases = aiUseCaseSchema.options;
 
 const providerFormSchema = adminAiProviderUpdateSchema.safeExtend({
   confirmation: z.literal("GUARDAR"),
 });
 type ProviderFormValues = z.infer<typeof providerFormSchema>;
-
-const routeFormSchema = adminAiRouteUpdateSchema.safeExtend({
-  useCase: aiUseCaseSchema,
-  confirmation: z.literal("GUARDAR"),
-});
-type RouteFormValues = z.infer<typeof routeFormSchema>;
 
 function BooleanField({
   id,
@@ -112,25 +84,6 @@ function BooleanField({
         {description ? <FieldDescription>{description}</FieldDescription> : null}
       </FieldContent>
     </Field>
-  );
-}
-
-function ProviderSelect({ value, change }: { value: Provider; change: (value: Provider) => void }) {
-  return (
-    <Select value={value} onValueChange={change}>
-      <SelectTrigger className="w-full">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {providers.map((provider) => (
-            <SelectItem key={provider} value={provider}>
-              {providerLabels[provider]}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
   );
 }
 
@@ -225,171 +178,203 @@ function ProvidersPanel() {
   if (query.isError) return <PageError error={query.error} retry={() => query.refetch()} />;
   return (
     <div className="grid gap-4 lg:grid-cols-3">
-      {providers.map((provider) => (
-        <ProviderCard
-          key={provider}
-          provider={provider}
-          current={query.data.find((item) => item.provider === provider)}
-        />
-      ))}
+      {providers
+        .filter((provider) => provider !== "deepseek")
+        .map((provider) => (
+          <ProviderCard
+            key={provider}
+            provider={provider}
+            current={query.data.find((item) => item.provider === provider)}
+          />
+        ))}
     </div>
   );
 }
 
-function emptyRoute(): RouteFormValues {
-  return {
-    useCase: "extract_activity",
-    provider: "openai",
-    modelId: "",
-    timeoutMs: 10_000,
-    maxOutputTokens: 512,
-    dailyBudgetTokens: 100_000,
-    inputPriceUsdPerMillion: "0",
-    outputPriceUsdPerMillion: "0",
-    alternate: null,
-    enabled: false,
-    capabilityReviewed: false,
-    costReviewed: false,
-    privacyReviewed: false,
-    confirmation: "GUARDAR",
-  };
-}
-
-function editRoute(route: AdminAiRoute): RouteFormValues {
-  return {
-    ...route,
-    inputPriceUsdPerMillion: route.inputPriceUsdPerMillion ?? "0",
-    outputPriceUsdPerMillion: route.outputPriceUsdPerMillion ?? "0",
-    alternate: route.alternate
-      ? {
-          ...route.alternate,
-          inputPriceUsdPerMillion: route.alternate.inputPriceUsdPerMillion ?? "0",
-          outputPriceUsdPerMillion: route.alternate.outputPriceUsdPerMillion ?? "0",
-        }
-      : null,
-    capabilityReviewed: false,
-    costReviewed: false,
-    privacyReviewed: false,
-    confirmation: "GUARDAR",
-  };
-}
-
-function TestRouteDialog({
-  useCase,
-  open,
-  setOpen,
-}: {
-  useCase: UseCase;
-  open: boolean;
-  setOpen: (open: boolean) => void;
-}) {
-  const queryClient = useQueryClient();
-  const form = useForm<{ confirmation: "PROBAR" }>({
-    resolver: zodResolver(z.object({ confirmation: z.literal("PROBAR") })),
-    defaultValues: { confirmation: "PROBAR" },
-  });
-  const mutation = useMutation({
-    mutationFn: () => adminApi.testAiRoute(useCase),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: auditQueryKey }),
-        queryClient.invalidateQueries({ queryKey: systemHealthQuery.queryKey }),
-      ]);
+/** Modelos sugeridos para el asistente, con su precio por millón de tokens (USD). */
+const assistantModels: Record<
+  Provider,
+  Array<{ id: string; name: string; hint: string; input: string; output: string }>
+> = {
+  anthropic: [
+    {
+      id: "claude-haiku-4-5",
+      name: "Claude Haiku 4.5",
+      hint: "Rápido y económico · recomendado",
+      input: "1",
+      output: "5",
     },
+    {
+      id: "claude-sonnet-5",
+      name: "Claude Sonnet 5",
+      hint: "Más preciso, algo más lento",
+      input: "2",
+      output: "10",
+    },
+  ],
+  openai: [],
+  deepseek: [],
+};
+const CUSTOM_MODEL = "custom";
+// Valores fijos: cada mensaje puede usar dos llamadas cortas a la IA.
+const ASSISTANT_TIMEOUT_MS = 30_000;
+const ASSISTANT_MAX_OUTPUT_TOKENS = 2048;
+
+const assistantFormSchema = z
+  .object({
+    provider: aiProviderSchema,
+    model: z.string().min(1, "Elige un modelo"),
+    customModelId: z.string(),
+    inputPrice: z.string(),
+    outputPrice: z.string(),
+    dailyBudgetUsd: z
+      .string()
+      .regex(/^\d+(?:\.\d{1,2})?$/, "Escribe un monto en dólares, por ejemplo 2 o 2.50"),
+    enabled: z.boolean(),
+  })
+  .superRefine((value, context) => {
+    if (value.model !== CUSTOM_MODEL) return;
+    if (!/^[A-Za-z0-9._:/-]{3,120}$/.test(value.customModelId.trim()))
+      context.addIssue({
+        code: "custom",
+        path: ["customModelId"],
+        message: "Escribe el ID del modelo",
+      });
+    for (const key of ["inputPrice", "outputPrice"] as const)
+      if (!/^\d+(?:\.\d{1,6})?$/.test(value[key]) || Number(value[key]) <= 0)
+        context.addIssue({ code: "custom", path: [key], message: "Escribe el precio en dólares" });
   });
-  // Al abrir desde el menú, el formulario parte de los datos actuales de la fila.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: solo al abrir
-  useEffect(() => {
-    if (!open) return;
-    mutation.reset();
-    form.reset({ confirmation: "PROBAR" });
-  }, [open]);
-  return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Probar ruta de IA</AlertDialogTitle>
-          <AlertDialogDescription>
-            La API usará exclusivamente un dato sintético y validará la salida estructurada
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        {mutation.isSuccess ? (
-          <Alert>
-            <AlertTitle>Conexión verificada</AlertTitle>
-            <AlertDescription>La ruta respondió con una salida válida</AlertDescription>
-          </Alert>
-        ) : (
-          <form onSubmit={form.handleSubmit(() => mutation.mutate())}>
-            <FieldGroup className="gap-4">
-              <AlertDialogFooter>
-                <AlertDialogCancel type="button">Cancelar</AlertDialogCancel>
-                <Button type="submit" disabled={mutation.isPending}>
-                  {mutation.isPending ? <Spinner data-icon="inline-start" /> : null}
-                  Ejecutar prueba
-                </Button>
-              </AlertDialogFooter>
-            </FieldGroup>
-          </form>
-        )}
-      </AlertDialogContent>
-    </AlertDialog>
-  );
+type AssistantFormValues = z.infer<typeof assistantFormSchema>;
+
+/** Precio que usa el tope diario: el mayor de entrada y salida, para no pasarse. */
+const topPrice = (input: string, output: string) =>
+  Math.max(Number(input), Number(output), 0.000001);
+
+function assistantDefaults(route?: AdminAiRoute): AssistantFormValues {
+  if (!route)
+    return {
+      provider: "anthropic",
+      model: "claude-haiku-4-5",
+      customModelId: "",
+      inputPrice: "",
+      outputPrice: "",
+      dailyBudgetUsd: "2",
+      enabled: true,
+    };
+  const known = assistantModels[route.provider].find((item) => item.id === route.modelId);
+  const input = route.inputPriceUsdPerMillion ?? known?.input ?? "0";
+  const output = route.outputPriceUsdPerMillion ?? known?.output ?? "0";
+  return {
+    provider: route.provider,
+    model: known ? known.id : CUSTOM_MODEL,
+    customModelId: known ? "" : route.modelId,
+    inputPrice: known ? "" : input,
+    outputPrice: known ? "" : output,
+    dailyBudgetUsd: ((route.dailyBudgetTokens * topPrice(input, output)) / 1_000_000)
+      .toFixed(2)
+      .replace(/\.00$/, ""),
+    enabled: route.enabled,
+  };
 }
 
-function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear: () => void }) {
+function AssistantPanel() {
+  const routes = useQuery(aiRoutesQuery);
+  const providersQuery = useQuery(aiProvidersQuery);
+  if (routes.isPending || providersQuery.isPending) return <PageLoading />;
+  if (routes.isError) return <PageError error={routes.error} retry={() => routes.refetch()} />;
+  if (providersQuery.isError)
+    return <PageError error={providersQuery.error} retry={() => providersQuery.refetch()} />;
+  const route = routes.data.find((item) => item.useCase === "assistant_chat");
+  const connected = providersQuery.data.filter((item) => item.enabled).map((item) => item.provider);
+  return <AssistantEditor key={route ? "saved" : "new"} route={route} connected={connected} />;
+}
+
+function AssistantEditor({ route, connected }: { route?: AdminAiRoute; connected: Provider[] }) {
   const queryClient = useQueryClient();
-  const form = useForm<RouteFormValues>({
-    resolver: zodResolver(routeFormSchema),
-    defaultValues: emptyRoute(),
+  const form = useForm<AssistantFormValues>({
+    resolver: zodResolver(assistantFormSchema),
+    defaultValues: assistantDefaults(route),
   });
-  useEffect(() => form.reset(selected ? editRoute(selected) : emptyRoute()), [selected, form]);
-  const alternate = form.watch("alternate");
-  const mutation = useMutation({
-    mutationFn: ({ useCase, confirmation: _confirmation, ...values }: RouteFormValues) =>
-      adminApi.updateAiRoute(useCase, values as AdminAiRouteUpdate),
-    onSuccess: async (saved) => {
-      form.reset(editRoute(saved));
+  const provider = form.watch("provider");
+  const model = form.watch("model");
+  const options = assistantModels[provider];
+  const save = useMutation({
+    mutationFn: (values: AssistantFormValues) => {
+      const known = options.find((item) => item.id === values.model);
+      const input = known ? known.input : values.inputPrice;
+      const output = known ? known.output : values.outputPrice;
+      const tokens = Math.round(
+        (Number(values.dailyBudgetUsd) * 1_000_000) / topPrice(input, output),
+      );
+      return adminApi.updateAiRoute("assistant_chat", {
+        provider: values.provider,
+        modelId: known ? known.id : values.customModelId.trim(),
+        timeoutMs: ASSISTANT_TIMEOUT_MS,
+        maxOutputTokens: ASSISTANT_MAX_OUTPUT_TOKENS,
+        dailyBudgetTokens: Math.min(10_000_000, Math.max(100, tokens)),
+        inputPriceUsdPerMillion: input,
+        outputPriceUsdPerMillion: output,
+        alternate: null,
+        enabled: values.enabled,
+      });
+    },
+    onSuccess: async () => {
+      test.reset();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: aiRoutesQuery.queryKey }),
         queryClient.invalidateQueries({ queryKey: auditQueryKey }),
       ]);
     },
   });
+  const test = useMutation({
+    mutationFn: () => adminApi.testAiRoute("assistant_chat"),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: auditQueryKey }),
+  });
+  const providerChoices = providers.filter((item) => item !== "deepseek");
   return (
     <Card>
       <CardHeader>
-        <CardTitle>
-          {selected ? `Editar: ${useCaseLabels[selected.useCase]}` : "Configurar ruta"}
-        </CardTitle>
+        <CardTitle>Asistente de IA</CardTitle>
         <CardDescription>
-          Define un modelo concreto, límites, precios y revisiones para un solo caso de uso
+          El chat de la app donde los estudiantes escriben o hablan para organizar sus actividades
         </CardDescription>
       </CardHeader>
       <form
         className="flex flex-col gap-(--card-spacing)"
-        onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
+        onSubmit={form.handleSubmit((values) => save.mutate(values))}
       >
         <CardContent>
           <FieldGroup>
-            <Field data-invalid={Boolean(form.formState.errors.useCase)}>
-              <FieldLabel>Caso de uso</FieldLabel>
+            {!connected.includes(provider) && (
+              <Alert>
+                <AlertTitle>Falta la API key de {providerLabels[provider]}</AlertTitle>
+                <AlertDescription>
+                  Guárdala y habilítala en la pestaña Proveedores para que el asistente funcione
+                </AlertDescription>
+              </Alert>
+            )}
+            <Field>
+              <FieldLabel htmlFor="assistant-provider">Proveedor</FieldLabel>
               <Controller
                 control={form.control}
-                name="useCase"
+                name="provider"
                 render={({ field }) => (
                   <Select
                     value={field.value}
-                    onValueChange={field.onChange}
-                    disabled={Boolean(selected)}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      const first = assistantModels[value as Provider][0];
+                      form.setValue("model", first ? first.id : CUSTOM_MODEL);
+                    }}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger id="assistant-provider" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        {useCases.map((useCase) => (
-                          <SelectItem key={useCase} value={useCase}>
-                            {useCaseLabels[useCase]}
+                        {providerChoices.map((item) => (
+                          <SelectItem key={item} value={item}>
+                            {providerLabels[item]}
                           </SelectItem>
                         ))}
                       </SelectGroup>
@@ -397,331 +382,127 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
                   </Select>
                 )}
               />
-              <FieldError errors={[form.formState.errors.useCase]} />
             </Field>
-            <Field data-invalid={Boolean(form.formState.errors.provider)}>
-              <FieldLabel>Proveedor principal</FieldLabel>
+            <Field data-invalid={Boolean(form.formState.errors.model)}>
+              <FieldLabel htmlFor="assistant-model">Modelo</FieldLabel>
               <Controller
                 control={form.control}
-                name="provider"
+                name="model"
                 render={({ field }) => (
-                  <ProviderSelect value={field.value} change={field.onChange} />
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="assistant-model" className="w-full">
+                      <SelectValue placeholder="Elige un modelo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {options.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>
+                            {item.name} · {item.hint}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value={CUSTOM_MODEL}>Otro modelo</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 )}
               />
-              <FieldError errors={[form.formState.errors.provider]} />
+              <FieldError errors={[form.formState.errors.model]} />
             </Field>
-            <Field data-invalid={Boolean(form.formState.errors.modelId)}>
-              <FieldLabel htmlFor="route-model">ID exacto del modelo</FieldLabel>
+            {model === CUSTOM_MODEL && (
+              <>
+                <Field data-invalid={Boolean(form.formState.errors.customModelId)}>
+                  <FieldLabel htmlFor="assistant-model-id">ID del modelo</FieldLabel>
+                  <Input
+                    id="assistant-model-id"
+                    placeholder="Tal como lo indica el proveedor"
+                    aria-invalid={Boolean(form.formState.errors.customModelId)}
+                    {...form.register("customModelId")}
+                  />
+                  <FieldError errors={[form.formState.errors.customModelId]} />
+                </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field data-invalid={Boolean(form.formState.errors.inputPrice)}>
+                    <FieldLabel htmlFor="assistant-input-price">
+                      Precio de entrada (USD por millón de tokens)
+                    </FieldLabel>
+                    <Input
+                      id="assistant-input-price"
+                      inputMode="decimal"
+                      {...form.register("inputPrice")}
+                    />
+                    <FieldError errors={[form.formState.errors.inputPrice]} />
+                  </Field>
+                  <Field data-invalid={Boolean(form.formState.errors.outputPrice)}>
+                    <FieldLabel htmlFor="assistant-output-price">
+                      Precio de salida (USD por millón de tokens)
+                    </FieldLabel>
+                    <Input
+                      id="assistant-output-price"
+                      inputMode="decimal"
+                      {...form.register("outputPrice")}
+                    />
+                    <FieldError errors={[form.formState.errors.outputPrice]} />
+                  </Field>
+                </div>
+              </>
+            )}
+            <Field data-invalid={Boolean(form.formState.errors.dailyBudgetUsd)}>
+              <FieldLabel htmlFor="assistant-budget">Límite de gasto diario (USD)</FieldLabel>
               <Input
-                id="route-model"
-                aria-invalid={Boolean(form.formState.errors.modelId)}
-                {...form.register("modelId")}
+                id="assistant-budget"
+                inputMode="decimal"
+                aria-invalid={Boolean(form.formState.errors.dailyBudgetUsd)}
+                {...form.register("dailyBudgetUsd")}
               />
               <FieldDescription>
-                Usa una versión fija del modelo, no una terminada en «latest»
+                Al llegar al límite, el asistente se pausa hasta el día siguiente
               </FieldDescription>
-              <FieldError errors={[form.formState.errors.modelId]} />
+              <FieldError errors={[form.formState.errors.dailyBudgetUsd]} />
             </Field>
-            <div className="grid gap-4 md:grid-cols-3">
-              <Field data-invalid={Boolean(form.formState.errors.timeoutMs)}>
-                <FieldLabel htmlFor="route-timeout">Tiempo máximo de espera (ms)</FieldLabel>
-                <Input
-                  id="route-timeout"
-                  type="number"
-                  min={1000}
-                  max={30000}
-                  aria-invalid={Boolean(form.formState.errors.timeoutMs)}
-                  {...form.register("timeoutMs", { valueAsNumber: true })}
-                />
-                <FieldError errors={[form.formState.errors.timeoutMs]} />
-              </Field>
-              <Field data-invalid={Boolean(form.formState.errors.maxOutputTokens)}>
-                <FieldLabel htmlFor="route-output">Máximo de tokens de respuesta</FieldLabel>
-                <Input
-                  id="route-output"
-                  type="number"
-                  min={64}
-                  max={2048}
-                  aria-invalid={Boolean(form.formState.errors.maxOutputTokens)}
-                  {...form.register("maxOutputTokens", { valueAsNumber: true })}
-                />
-                <FieldError errors={[form.formState.errors.maxOutputTokens]} />
-              </Field>
-              <Field data-invalid={Boolean(form.formState.errors.dailyBudgetTokens)}>
-                <FieldLabel htmlFor="route-budget">Presupuesto diario de tokens</FieldLabel>
-                <Input
-                  id="route-budget"
-                  type="number"
-                  min={100}
-                  max={10000000}
-                  aria-invalid={Boolean(form.formState.errors.dailyBudgetTokens)}
-                  {...form.register("dailyBudgetTokens", { valueAsNumber: true })}
-                />
-                <FieldError errors={[form.formState.errors.dailyBudgetTokens]} />
-              </Field>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field data-invalid={Boolean(form.formState.errors.inputPriceUsdPerMillion)}>
-                <FieldLabel htmlFor="route-input-price">
-                  Precio por millón de tokens de entrada (USD)
-                </FieldLabel>
-                <Input
-                  id="route-input-price"
-                  inputMode="decimal"
-                  aria-invalid={Boolean(form.formState.errors.inputPriceUsdPerMillion)}
-                  {...form.register("inputPriceUsdPerMillion")}
-                />
-                <FieldError errors={[form.formState.errors.inputPriceUsdPerMillion]} />
-              </Field>
-              <Field data-invalid={Boolean(form.formState.errors.outputPriceUsdPerMillion)}>
-                <FieldLabel htmlFor="route-output-price">
-                  Precio por millón de tokens de respuesta (USD)
-                </FieldLabel>
-                <Input
-                  id="route-output-price"
-                  inputMode="decimal"
-                  aria-invalid={Boolean(form.formState.errors.outputPriceUsdPerMillion)}
-                  {...form.register("outputPriceUsdPerMillion")}
-                />
-                <FieldError errors={[form.formState.errors.outputPriceUsdPerMillion]} />
-              </Field>
-            </div>
             <Controller
               control={form.control}
               name="enabled"
               render={({ field }) => (
                 <BooleanField
-                  id="route-enabled"
+                  id="assistant-enabled"
                   checked={field.value}
                   change={field.onChange}
-                  title="Habilitar esta ruta"
+                  title="Activar asistente"
+                  description="Desactívalo para que la app deje de usar la IA"
                 />
               )}
             />
-            <BooleanField
-              id="alternate-enabled"
-              checked={alternate !== null && alternate !== undefined}
-              change={(checked) =>
-                form.setValue(
-                  "alternate",
-                  checked
-                    ? {
-                        provider: form.getValues("provider") === "openai" ? "anthropic" : "openai",
-                        modelId: "",
-                        timeoutMs: 10_000,
-                        maxOutputTokens: 512,
-                        inputPriceUsdPerMillion: "0",
-                        outputPriceUsdPerMillion: "0",
-                      }
-                    : null,
-                  { shouldValidate: true },
-                )
-              }
-              title="Configurar proveedor alterno"
-              description="Se usa solo para fallos controlados del principal"
-            />
-            {alternate ? (
-              <FieldGroup>
-                <Field data-invalid={Boolean(form.formState.errors.alternate?.provider)}>
-                  <FieldLabel>Proveedor alterno</FieldLabel>
-                  <Controller
-                    control={form.control}
-                    name="alternate.provider"
-                    render={({ field }) => (
-                      <ProviderSelect value={field.value ?? "openai"} change={field.onChange} />
-                    )}
-                  />
-                  <FieldError errors={[form.formState.errors.alternate?.provider]} />
-                </Field>
-                <Field data-invalid={Boolean(form.formState.errors.alternate?.modelId)}>
-                  <FieldLabel htmlFor="alternate-model">ID exacto del modelo alterno</FieldLabel>
-                  <Input
-                    id="alternate-model"
-                    aria-invalid={Boolean(form.formState.errors.alternate?.modelId)}
-                    {...form.register("alternate.modelId")}
-                  />
-                  <FieldError errors={[form.formState.errors.alternate?.modelId]} />
-                </Field>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field data-invalid={Boolean(form.formState.errors.alternate?.timeoutMs)}>
-                    <FieldLabel htmlFor="alternate-timeout">
-                      Tiempo máximo de espera (ms)
-                    </FieldLabel>
-                    <Input
-                      id="alternate-timeout"
-                      type="number"
-                      min={1000}
-                      max={30000}
-                      aria-invalid={Boolean(form.formState.errors.alternate?.timeoutMs)}
-                      {...form.register("alternate.timeoutMs", { valueAsNumber: true })}
-                    />
-                    <FieldError errors={[form.formState.errors.alternate?.timeoutMs]} />
-                  </Field>
-                  <Field data-invalid={Boolean(form.formState.errors.alternate?.maxOutputTokens)}>
-                    <FieldLabel htmlFor="alternate-output">
-                      Máximo de tokens de respuesta
-                    </FieldLabel>
-                    <Input
-                      id="alternate-output"
-                      type="number"
-                      min={64}
-                      max={2048}
-                      aria-invalid={Boolean(form.formState.errors.alternate?.maxOutputTokens)}
-                      {...form.register("alternate.maxOutputTokens", { valueAsNumber: true })}
-                    />
-                    <FieldError errors={[form.formState.errors.alternate?.maxOutputTokens]} />
-                  </Field>
-                  <Field
-                    data-invalid={Boolean(form.formState.errors.alternate?.inputPriceUsdPerMillion)}
-                  >
-                    <FieldLabel htmlFor="alternate-input-price">
-                      Precio por millón de tokens de entrada (USD)
-                    </FieldLabel>
-                    <Input
-                      id="alternate-input-price"
-                      inputMode="decimal"
-                      aria-invalid={Boolean(
-                        form.formState.errors.alternate?.inputPriceUsdPerMillion,
-                      )}
-                      {...form.register("alternate.inputPriceUsdPerMillion")}
-                    />
-                    <FieldError
-                      errors={[form.formState.errors.alternate?.inputPriceUsdPerMillion]}
-                    />
-                  </Field>
-                  <Field
-                    data-invalid={Boolean(
-                      form.formState.errors.alternate?.outputPriceUsdPerMillion,
-                    )}
-                  >
-                    <FieldLabel htmlFor="alternate-output-price">
-                      Precio por millón de tokens de respuesta (USD)
-                    </FieldLabel>
-                    <Input
-                      id="alternate-output-price"
-                      inputMode="decimal"
-                      aria-invalid={Boolean(
-                        form.formState.errors.alternate?.outputPriceUsdPerMillion,
-                      )}
-                      {...form.register("alternate.outputPriceUsdPerMillion")}
-                    />
-                    <FieldError
-                      errors={[form.formState.errors.alternate?.outputPriceUsdPerMillion]}
-                    />
-                  </Field>
-                </div>
-              </FieldGroup>
-            ) : null}
-            <Controller
-              control={form.control}
-              name="capabilityReviewed"
-              render={({ field }) => (
-                <BooleanField
-                  id="capability-reviewed"
-                  checked={field.value}
-                  change={field.onChange}
-                  title="Capacidad revisada"
-                />
-              )}
-            />
-            <Controller
-              control={form.control}
-              name="costReviewed"
-              render={({ field }) => (
-                <BooleanField
-                  id="cost-reviewed"
-                  checked={field.value}
-                  change={field.onChange}
-                  title="Coste revisado"
-                />
-              )}
-            />
-            <Controller
-              control={form.control}
-              name="privacyReviewed"
-              render={({ field }) => (
-                <BooleanField
-                  id="privacy-reviewed"
-                  checked={field.value}
-                  change={field.onChange}
-                  title="Privacidad revisada"
-                />
-              )}
-            />
-            <FieldError errors={[form.formState.errors.root]} />
+            {test.isSuccess && (
+              <Alert>
+                <AlertTitle>El asistente respondió bien</AlertTitle>
+                <AlertDescription>La conexión y el modelo funcionan</AlertDescription>
+              </Alert>
+            )}
+            {test.isError && (
+              <Alert variant="destructive">
+                <AlertTitle>La prueba falló</AlertTitle>
+                <AlertDescription>{test.error.message}</AlertDescription>
+              </Alert>
+            )}
           </FieldGroup>
         </CardContent>
         <CardFooter className="flex gap-2">
-          <Button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? <Spinner data-icon="inline-start" /> : null}
-            Guardar ruta
+          <Button type="submit" disabled={save.isPending}>
+            {save.isPending ? <Spinner data-icon="inline-start" /> : null}
+            Guardar
           </Button>
-          {selected ? (
-            <Button type="button" variant="outline" onClick={clear}>
-              Nueva ruta
-            </Button>
-          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!route || test.isPending || form.formState.isDirty}
+            onClick={() => test.mutate()}
+          >
+            {test.isPending ? <Spinner data-icon="inline-start" /> : null}
+            Probar
+          </Button>
         </CardFooter>
       </form>
     </Card>
-  );
-}
-
-function RouteActions({ route, edit }: { route: AdminAiRoute; edit: () => void }) {
-  const [testing, setTesting] = useState(false);
-  return (
-    <RowActions
-      actions={[
-        { label: "Editar", select: edit },
-        { label: "Probar", select: () => setTesting(true) },
-      ]}
-    >
-      <TestRouteDialog useCase={route.useCase} open={testing} setOpen={setTesting} />
-    </RowActions>
-  );
-}
-
-function RoutesPanel() {
-  const query = useQuery(aiRoutesQuery);
-  const [selected, setSelected] = useState<AdminAiRoute | null>(null);
-  if (query.isPending) return <PageLoading />;
-  if (query.isError) return <PageError error={query.error} retry={() => query.refetch()} />;
-  return (
-    <div className="flex flex-col gap-4">
-      <RouteEditor selected={selected} clear={() => setSelected(null)} />
-      {query.data.length === 0 ? (
-        <EmptyResult message="No hay rutas configuradas" />
-      ) : (
-        <DataTable columns={["Caso", "Principal", "Alterno", "Estado", "Acciones"]}>
-          {query.data.map((route) => (
-            <TableRow key={route.useCase}>
-              <TableCell className="font-medium">{useCaseLabels[route.useCase]}</TableCell>
-              <TableCell>
-                {providerLabels[route.provider]} / <code className="text-xs">{route.modelId}</code>
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {route.alternate ? (
-                  <>
-                    {providerLabels[route.alternate.provider]} /{" "}
-                    <code className="text-xs">{route.alternate.modelId}</code>
-                  </>
-                ) : (
-                  "sin alterno"
-                )}
-              </TableCell>
-              <TableCell>
-                <StatusBadge tone={route.enabled ? "success" : "neutral"}>
-                  {route.enabled ? "habilitada" : "deshabilitada"}
-                </StatusBadge>
-              </TableCell>
-              <TableCell className="w-12 text-right">
-                <RouteActions route={route} edit={() => setSelected(route)} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </DataTable>
-      )}
-    </div>
   );
 }
 
@@ -785,7 +566,7 @@ function AiOverview() {
   const providersQuery = useQuery(aiProvidersQuery);
   const routes = useQuery(aiRoutesQuery);
   const enabledProviders = providersQuery.data?.filter((item) => item.enabled).length;
-  const enabledRoutes = routes.data?.filter((item) => item.enabled).length;
+  const assistant = routes.data?.find((item) => item.useCase === "assistant_chat");
   const pending = <Skeleton className="h-8 w-20" />;
   return (
     <StatGrid>
@@ -813,13 +594,9 @@ function AiOverview() {
       />
       <StatCard
         icon={Route}
-        label="Rutas habilitadas"
-        value={
-          enabledRoutes === undefined || !routes.data
-            ? pending
-            : `${enabledRoutes} de ${routes.data.length}`
-        }
-        footer="Casos de uso con modelo activo"
+        label="Asistente"
+        value={!routes.data ? pending : assistant?.enabled ? "Activo" : "Inactivo"}
+        footer={assistant ? assistant.modelId : "Sin configurar"}
       />
     </StatGrid>
   );
@@ -954,20 +731,20 @@ export function AiPage() {
     <Page>
       <PageHeader
         title="Configuración de IA"
-        description="Conexiones, modelos por caso de uso, prueba sintética y consumo"
+        description="API keys de los proveedores, el asistente de la app y su consumo"
       />
       <AiOverview />
       <Tabs defaultValue="providers">
         <TabsList>
           <TabsTrigger value="providers">Proveedores</TabsTrigger>
-          <TabsTrigger value="routes">Rutas</TabsTrigger>
+          <TabsTrigger value="assistant">Asistente</TabsTrigger>
           <TabsTrigger value="usage">Uso</TabsTrigger>
         </TabsList>
         <TabsContent value="providers">
           <ProvidersPanel />
         </TabsContent>
-        <TabsContent value="routes">
-          <RoutesPanel />
+        <TabsContent value="assistant">
+          <AssistantPanel />
         </TabsContent>
         <TabsContent value="usage">
           <UsagePanel />

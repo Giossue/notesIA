@@ -226,10 +226,7 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
       const body = adminAiRouteUpdateSchema.safeParse(await readJson(c.req.raw));
       if (!useCase.success || !body.success)
         return error(422, "VALIDATION_FAILED", "Ruta de IA inválida.");
-      const { capabilityReviewed, costReviewed, privacyReviewed, ...configuration } = body.data;
-      void capabilityReviewed;
-      void costReviewed;
-      void privacyReviewed;
+      const configuration = body.data;
       const saved = await ai.upsertRoute(access.userId as string, {
         useCase: useCase.data,
         ...configuration,

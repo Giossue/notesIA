@@ -100,6 +100,9 @@ export async function generateWithProvider(
       messages: [{ role: "user", content: message }],
       max_tokens: route.maxOutputTokens,
       output_config: { format: { type: "json_schema", schema: jsonSchema } },
+      // Sonnet 5 piensa por defecto: gastaría el tope de tokens antes del JSON y
+      // tardaría más. Estas respuestas son cortas y no lo necesitan.
+      ...(route.modelId.startsWith("claude-sonnet-5") ? { thinking: { type: "disabled" } } : {}),
     };
   } else {
     url = "https://api.deepseek.com/chat/completions";

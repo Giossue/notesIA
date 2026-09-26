@@ -670,9 +670,6 @@ test("only an administrator can publish documents and each action is audited", a
     inputPriceUsdPerMillion: "0.25",
     outputPriceUsdPerMillion: "1.25",
     enabled: true,
-    capabilityReviewed: true,
-    costReviewed: true,
-    privacyReviewed: true,
   };
   const routePath = "/v1/admin/ai/routes/extract_activity";
   expect(
@@ -680,7 +677,7 @@ test("only an administrator can publish documents and each action is audited", a
       await app.request(routePath, {
         method: "PUT",
         headers,
-        body: JSON.stringify({ ...route, privacyReviewed: false }),
+        body: JSON.stringify({ ...route, timeoutMs: 50 }),
       })
     ).status,
   ).toBe(422);

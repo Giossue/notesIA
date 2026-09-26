@@ -284,10 +284,10 @@ test("an authenticated administrator can open every functional section", async (
   await page.getByRole("link", { name: "IA" }).click();
   await expect(page.getByRole("heading", { name: "Configuración de IA" })).toBeVisible();
   await expect(
-    page.getByText("Conexión configurada; la clave guardada nunca se muestra"),
+    page.getByText("Conexión configurada; la API key guardada nunca se muestra"),
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Rutas" }).click();
-  await expect(page.getByText("gpt-5-mini-2026-08-01")).toBeVisible();
+  await page.getByRole("tab", { name: "Asistente" }).click();
+  await expect(page.getByText("Asistente de IA")).toBeVisible();
   await page.getByRole("tab", { name: "Uso" }).click();
   await expect(page.getByRole("cell", { name: "success" })).toBeVisible();
 

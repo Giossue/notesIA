@@ -4148,12 +4148,6 @@ components:
             - type: "null"
         enabled:
           type: boolean
-        capabilityReviewed:
-          type: boolean
-        costReviewed:
-          type: boolean
-        privacyReviewed:
-          type: boolean
       required:
         - provider
         - modelId
@@ -4163,9 +4157,6 @@ components:
         - inputPriceUsdPerMillion
         - outputPriceUsdPerMillion
         - enabled
-        - capabilityReviewed
-        - costReviewed
-        - privacyReviewed
       additionalProperties: false
     AdminAiUsage:
       type: object

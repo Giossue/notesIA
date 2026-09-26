@@ -333,14 +333,7 @@ export const adminAiRouteUpdateSchema = z
     outputPriceUsdPerMillion: aiPriceSchema,
     alternate: adminAiAlternateUpdateSchema.nullable().optional(),
     enabled: z.boolean(),
-    capabilityReviewed: z.boolean(),
-    costReviewed: z.boolean(),
-    privacyReviewed: z.boolean(),
   })
-  .refine(
-    (value) =>
-      !value.enabled || (value.capabilityReviewed && value.costReviewed && value.privacyReviewed),
-  )
   .refine((value) => !value.alternate || value.alternate.provider !== value.provider, {
     path: ["alternate", "provider"],
   });
