@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { label, queueLabels } from "@/lib/labels";
 import { systemHealthQuery } from "@/lib/query";
 
 export function SystemHealthPage() {
@@ -32,18 +33,22 @@ export function SystemHealthPage() {
         <StatCard
           icon={Database}
           label="Base de datos"
-          value={<StatusBadge tone="success">{database}</StatusBadge>}
-          footer="Estado de la conexión principal."
+          value={
+            <StatusBadge tone="success">
+              {database === "ready" ? "Disponible" : database}
+            </StatusBadge>
+          }
+          footer="Estado de la conexión principal"
         />
         <StatCard
           icon={Cpu}
-          label="Worker"
+          label="Procesos en segundo plano"
           value={
             <StatusBadge tone={worker.seenRecently ? "success" : "danger"}>
-              Worker {worker.seenRecently ? "activo" : "sin señal reciente"}
+              {worker.seenRecently ? "Activos" : "Sin señal reciente"}
             </StatusBadge>
           }
-          footer="Procesamiento en segundo plano."
+          footer="Envío de correos, notificaciones y tareas programadas"
         />
         <StatCard
           icon={Bell}
@@ -54,12 +59,12 @@ export function SystemHealthPage() {
               {alerts.length} alertas
             </StatusBadge>
           }
-          footer="Avisos pendientes de atención."
+          footer="Avisos pendientes de atención"
         />
         <StatCard
           icon={BrainCircuit}
           label={`IA, últimos ${ai.windowMinutes} minutos`}
-          value={`USD ${ai.knownCostUsd}`}
+          value={`$${ai.knownCostUsd}`}
           footer={`Sin coste calculado: ${ai.uncostedRequests}`}
         />
       </StatGrid>
@@ -73,7 +78,7 @@ export function SystemHealthPage() {
         <DataTable columns={["Cola", "Pendientes", "Listos", "En proceso", "Agotados"]}>
           {queues.map(([name, queue]) => (
             <TableRow key={name}>
-              <TableCell className="font-medium">{name}</TableCell>
+              <TableCell className="font-medium">{label(queueLabels, name)}</TableCell>
               <TableCell className="tabular-nums">{queue.pending}</TableCell>
               <TableCell className="tabular-nums">{queue.ready}</TableCell>
               <TableCell className="tabular-nums">{queue.inFlight}</TableCell>

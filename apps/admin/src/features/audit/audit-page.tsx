@@ -6,6 +6,7 @@ import { Page, PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { adminApi } from "@/lib/admin-api";
+import { auditActionLabels, label } from "@/lib/labels";
 import { auditQueryKey } from "@/lib/query";
 
 export function AuditPage() {
@@ -27,14 +28,14 @@ export function AuditPage() {
       {records.length === 0 ? (
         <EmptyResult message="Todavía no hay acciones administrativas" />
       ) : (
-        <DataTable columns={["Fecha", "Acción", "Actor", "Objetivo"]}>
+        <DataTable columns={["Fecha", "Acción", "Realizada por", "Afectado"]}>
           {records.map((record) => (
             <TableRow key={record.id}>
               <TableCell className="text-muted-foreground">
                 {new Date(record.recordedAt).toLocaleString()}
               </TableCell>
               <TableCell>
-                <StatusBadge>{record.action}</StatusBadge>
+                <StatusBadge>{label(auditActionLabels, record.action)}</StatusBadge>
               </TableCell>
               <TableCell>
                 <code className="text-muted-foreground text-xs">{record.actorId}</code>

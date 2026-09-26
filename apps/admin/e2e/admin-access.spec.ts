@@ -93,7 +93,7 @@ test("an administrator can sign in, enroll TOTP and reach system health", async 
   await page.getByRole("button", { name: "Configurar autenticador" }).click();
   await expect(page.getByText("backup-one")).toBeVisible();
   await page.getByRole("checkbox").check();
-  await page.getByLabel("Primer código TOTP").fill("123456");
+  await page.getByLabel("Primer código de la app").fill("123456");
   await page.getByRole("button", { name: "Activar segundo factor" }).click();
 
   await expect(page.getByRole("heading", { name: "Salud del sistema" })).toBeVisible();

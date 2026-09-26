@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { type AdminUser, adminApi } from "@/lib/admin-api";
+import { roleLabel } from "@/lib/labels";
 import { rolesQueryKey, usersQueryKey } from "@/lib/query";
 
 type SuspensionValues = z.infer<typeof adminUserSuspensionSchema>;
@@ -157,7 +158,7 @@ export function UsersPage() {
                 </div>
               </TableCell>
               <TableCell>
-                <StatusBadge>{user.role ?? "estudiante"}</StatusBadge>
+                <StatusBadge>{roleLabel(user.role)}</StatusBadge>
               </TableCell>
               <TableCell>
                 <StatusBadge tone={user.suspendedAt ? "danger" : "success"}>

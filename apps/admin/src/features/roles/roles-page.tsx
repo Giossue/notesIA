@@ -44,9 +44,10 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { type AdminRole, adminApi } from "@/lib/admin-api";
+import { roleLabel } from "@/lib/labels";
 import { rolesQueryKey, usersQueryKey } from "@/lib/query";
 
-const newRoleSchema = adminRoleUpdateSchema.safeExtend({ userId: z.uuid("UUID inválido.") });
+const newRoleSchema = adminRoleUpdateSchema.safeExtend({ userId: z.uuid("Elige una cuenta") });
 type NewRoleValues = z.infer<typeof newRoleSchema>;
 type RoleUpdateValues = z.infer<typeof adminRoleUpdateSchema>;
 type RoleRemoveValues = z.infer<typeof adminRoleRemoveSchema>;
@@ -76,6 +77,21 @@ function RoleSelect({
 function AssignRoleDialog() {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+  // Cuentas que todavía no tienen rol; se cargan todas al abrir el diálogo.
+  const users = useInfiniteQuery({
+    queryKey: usersQueryKey,
+    queryFn: ({ pageParam }) => adminApi.users(pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    enabled: open,
+  });
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = users;
+  useEffect(() => {
+    if (open && hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [open, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const candidates = (users.data?.pages.flatMap((page) => page.items) ?? []).filter(
+    (user) => user.role === null && user.suspendedAt === null,
+  );
   const form = useForm<NewRoleValues>({
     resolver: zodResolver(newRoleSchema),
     defaultValues: {
@@ -114,18 +130,36 @@ function AssignRoleDialog() {
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Asignar un rol</DialogTitle>
-          <DialogDescription>
-            Usa versión 0 para una primera asignación. El UUID aparece en la lista de usuarios
-          </DialogDescription>
+          <DialogDescription>Elige la cuenta y el rol que tendrá en el panel</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
           <FieldGroup className="gap-4">
             <Field data-invalid={Boolean(form.formState.errors.userId)}>
-              <FieldLabel htmlFor="role-user-id">UUID del usuario</FieldLabel>
-              <Input
-                id="role-user-id"
-                aria-invalid={Boolean(form.formState.errors.userId)}
-                {...form.register("userId")}
+              <FieldLabel>Cuenta</FieldLabel>
+              <Controller
+                control={form.control}
+                name="userId"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger
+                      className="w-full"
+                      aria-invalid={Boolean(form.formState.errors.userId)}
+                    >
+                      <SelectValue
+                        placeholder={users.isPending ? "Cargando cuentas…" : "Elige una cuenta"}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {candidates.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.name} · {user.email}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
               />
               <FieldError errors={[form.formState.errors.userId]} />
             </Field>
@@ -137,17 +171,6 @@ function AssignRoleDialog() {
                 render={({ field }) => <RoleSelect value={field.value} change={field.onChange} />}
               />
               <FieldError errors={[form.formState.errors.role]} />
-            </Field>
-            <Field data-invalid={Boolean(form.formState.errors.version)}>
-              <FieldLabel htmlFor="new-role-version">Versión actual del rol</FieldLabel>
-              <Input
-                id="new-role-version"
-                type="number"
-                min={0}
-                aria-invalid={Boolean(form.formState.errors.version)}
-                {...form.register("version", { valueAsNumber: true })}
-              />
-              <FieldError errors={[form.formState.errors.version]} />
             </Field>
             <Field data-invalid={Boolean(form.formState.errors.password)}>
               <FieldLabel htmlFor="assign-password">Contraseña actual</FieldLabel>
@@ -362,7 +385,7 @@ export function RolesPage() {
       {roles.length === 0 ? (
         <EmptyResult message="No hay roles asignados" />
       ) : (
-        <DataTable columns={["Cuenta", "Rol", "Versión", "Actualizado", "Acciones"]}>
+        <DataTable columns={["Cuenta", "Rol", "Actualizado", "Acciones"]}>
           {roles.map((role) => (
             <TableRow key={role.userId}>
               <TableCell>
@@ -372,9 +395,8 @@ export function RolesPage() {
                 </div>
               </TableCell>
               <TableCell>
-                <StatusBadge>{role.role}</StatusBadge>
+                <StatusBadge>{roleLabel(role.role)}</StatusBadge>
               </TableCell>
-              <TableCell className="tabular-nums">{role.version}</TableCell>
               <TableCell className="text-muted-foreground">
                 {new Date(role.updatedAt).toLocaleString()}
               </TableCell>

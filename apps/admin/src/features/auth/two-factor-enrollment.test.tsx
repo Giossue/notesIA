@@ -36,7 +36,7 @@ test("enrolls TOTP only after showing backup codes and recording acknowledgement
 
   expect(await screen.findByText("ABCDEFGHIJKLMNOP")).toBeInTheDocument();
   expect(screen.getByText("backup-one")).toBeInTheDocument();
-  await user.type(screen.getByLabelText("Primer código TOTP"), "123456");
+  await user.type(screen.getByLabelText("Primer código de la app"), "123456");
   await user.click(screen.getByRole("button", { name: "Activar segundo factor" }));
   expect(await screen.findByText("Guarda los códigos antes de continuar.")).toBeInTheDocument();
 

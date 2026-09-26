@@ -64,6 +64,13 @@ import {
   type AdminAiRouteUpdate,
   adminApi,
 } from "@/lib/admin-api";
+import {
+  fallbackReasonLabels,
+  label,
+  providerLabels,
+  usageStatusLabels,
+  useCaseLabels,
+} from "@/lib/labels";
 import { aiProvidersQuery, aiRoutesQuery, auditQueryKey, systemHealthQuery } from "@/lib/query";
 
 type Provider = z.infer<typeof aiProviderSchema>;
@@ -118,7 +125,7 @@ function ProviderSelect({ value, change }: { value: Provider; change: (value: Pr
         <SelectGroup>
           {providers.map((provider) => (
             <SelectItem key={provider} value={provider}>
-              {provider}
+              {providerLabels[provider]}
             </SelectItem>
           ))}
         </SelectGroup>
@@ -162,7 +169,7 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{provider}</CardTitle>
+        <CardTitle>{providerLabels[provider]}</CardTitle>
         <CardDescription>
           {current
             ? "Conexión configurada; la clave guardada nunca se muestra"
@@ -361,7 +368,9 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{selected ? `Editar ${selected.useCase}` : "Configurar ruta"}</CardTitle>
+        <CardTitle>
+          {selected ? `Editar: ${useCaseLabels[selected.useCase]}` : "Configurar ruta"}
+        </CardTitle>
         <CardDescription>
           Define un modelo concreto, límites, precios y revisiones para un solo caso de uso
         </CardDescription>
@@ -390,7 +399,7 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
                       <SelectGroup>
                         {useCases.map((useCase) => (
                           <SelectItem key={useCase} value={useCase}>
-                            {useCase}
+                            {useCaseLabels[useCase]}
                           </SelectItem>
                         ))}
                       </SelectGroup>
@@ -419,13 +428,13 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
                 {...form.register("modelId")}
               />
               <FieldDescription>
-                No se aceptan identificadores terminados en latest
+                Usa una versión fija del modelo, no una terminada en «latest»
               </FieldDescription>
               <FieldError errors={[form.formState.errors.modelId]} />
             </Field>
             <div className="grid gap-4 md:grid-cols-3">
               <Field data-invalid={Boolean(form.formState.errors.timeoutMs)}>
-                <FieldLabel htmlFor="route-timeout">Timeout ms</FieldLabel>
+                <FieldLabel htmlFor="route-timeout">Tiempo máximo de espera (ms)</FieldLabel>
                 <Input
                   id="route-timeout"
                   type="number"
@@ -437,7 +446,7 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
                 <FieldError errors={[form.formState.errors.timeoutMs]} />
               </Field>
               <Field data-invalid={Boolean(form.formState.errors.maxOutputTokens)}>
-                <FieldLabel htmlFor="route-output">Máximo de salida</FieldLabel>
+                <FieldLabel htmlFor="route-output">Máximo de tokens de respuesta</FieldLabel>
                 <Input
                   id="route-output"
                   type="number"
@@ -449,7 +458,7 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
                 <FieldError errors={[form.formState.errors.maxOutputTokens]} />
               </Field>
               <Field data-invalid={Boolean(form.formState.errors.dailyBudgetTokens)}>
-                <FieldLabel htmlFor="route-budget">Presupuesto diario</FieldLabel>
+                <FieldLabel htmlFor="route-budget">Presupuesto diario de tokens</FieldLabel>
                 <Input
                   id="route-budget"
                   type="number"
@@ -463,7 +472,9 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <Field data-invalid={Boolean(form.formState.errors.inputPriceUsdPerMillion)}>
-                <FieldLabel htmlFor="route-input-price">USD por millón de entrada</FieldLabel>
+                <FieldLabel htmlFor="route-input-price">
+                  Precio por millón de tokens de entrada (USD)
+                </FieldLabel>
                 <Input
                   id="route-input-price"
                   inputMode="decimal"
@@ -473,7 +484,9 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
                 <FieldError errors={[form.formState.errors.inputPriceUsdPerMillion]} />
               </Field>
               <Field data-invalid={Boolean(form.formState.errors.outputPriceUsdPerMillion)}>
-                <FieldLabel htmlFor="route-output-price">USD por millón de salida</FieldLabel>
+                <FieldLabel htmlFor="route-output-price">
+                  Precio por millón de tokens de respuesta (USD)
+                </FieldLabel>
                 <Input
                   id="route-output-price"
                   inputMode="decimal"
@@ -541,7 +554,9 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
                 </Field>
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field data-invalid={Boolean(form.formState.errors.alternate?.timeoutMs)}>
-                    <FieldLabel htmlFor="alternate-timeout">Timeout ms</FieldLabel>
+                    <FieldLabel htmlFor="alternate-timeout">
+                      Tiempo máximo de espera (ms)
+                    </FieldLabel>
                     <Input
                       id="alternate-timeout"
                       type="number"
@@ -553,7 +568,9 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
                     <FieldError errors={[form.formState.errors.alternate?.timeoutMs]} />
                   </Field>
                   <Field data-invalid={Boolean(form.formState.errors.alternate?.maxOutputTokens)}>
-                    <FieldLabel htmlFor="alternate-output">Máximo de salida</FieldLabel>
+                    <FieldLabel htmlFor="alternate-output">
+                      Máximo de tokens de respuesta
+                    </FieldLabel>
                     <Input
                       id="alternate-output"
                       type="number"
@@ -567,7 +584,9 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
                   <Field
                     data-invalid={Boolean(form.formState.errors.alternate?.inputPriceUsdPerMillion)}
                   >
-                    <FieldLabel htmlFor="alternate-input-price">USD entrada</FieldLabel>
+                    <FieldLabel htmlFor="alternate-input-price">
+                      Precio por millón de tokens de entrada (USD)
+                    </FieldLabel>
                     <Input
                       id="alternate-input-price"
                       inputMode="decimal"
@@ -585,7 +604,9 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
                       form.formState.errors.alternate?.outputPriceUsdPerMillion,
                     )}
                   >
-                    <FieldLabel htmlFor="alternate-output-price">USD salida</FieldLabel>
+                    <FieldLabel htmlFor="alternate-output-price">
+                      Precio por millón de tokens de respuesta (USD)
+                    </FieldLabel>
                     <Input
                       id="alternate-output-price"
                       inputMode="decimal"
@@ -695,14 +716,14 @@ function RoutesPanel() {
         <DataTable columns={["Caso", "Principal", "Alterno", "Estado", "Acciones"]}>
           {query.data.map((route) => (
             <TableRow key={route.useCase}>
-              <TableCell className="font-medium">{route.useCase}</TableCell>
+              <TableCell className="font-medium">{useCaseLabels[route.useCase]}</TableCell>
               <TableCell>
-                {route.provider} / <code className="text-xs">{route.modelId}</code>
+                {providerLabels[route.provider]} / <code className="text-xs">{route.modelId}</code>
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {route.alternate ? (
                   <>
-                    {route.alternate.provider} /{" "}
+                    {providerLabels[route.alternate.provider]} /{" "}
                     <code className="text-xs">{route.alternate.modelId}</code>
                   </>
                 ) : (
@@ -761,20 +782,20 @@ function UsageSummary({ usage }: { usage: AiUsage }) {
         icon={Activity}
         label="Solicitudes"
         value={requests}
-        footer="En el rango consultado."
+        footer="En el rango consultado"
       />
-      <StatCard icon={Coins} label="Tokens" value={tokens} footer="Entrada más salida." />
+      <StatCard icon={Coins} label="Tokens" value={tokens} footer="Entrada más salida" />
       <StatCard
         icon={DollarSign}
         label="Coste conocido"
         value={`USD ${sumUsd(usage.items.map((item) => item.knownCostUsd))}`}
-        footer="Solo solicitudes con precio configurado."
+        footer="Solo solicitudes con precio configurado"
       />
       <StatCard
         icon={Shuffle}
-        label="Fallbacks"
+        label="Respaldos"
         value={fallbacks}
-        footer="Solicitudes resueltas por el proveedor alterno."
+        footer="Solicitudes resueltas por el proveedor alterno"
       />
     </StatGrid>
   );
@@ -795,13 +816,13 @@ function AiOverview() {
           health.data ? `Coste, últimos ${health.data.ai.windowMinutes} minutos` : "Coste reciente"
         }
         value={health.data ? `USD ${health.data.ai.knownCostUsd}` : pending}
-        footer="Coste conocido de la ventana de salud."
+        footer="Coste conocido de la ventana de salud"
       />
       <StatCard
         icon={CircleHelp}
         label="Sin coste calculado"
         value={health.data ? health.data.ai.uncostedRequests : pending}
-        footer="Solicitudes sin precio configurado."
+        footer="Solicitudes sin precio configurado"
       />
       <StatCard
         icon={PlugZap}
@@ -809,7 +830,7 @@ function AiOverview() {
         value={
           enabledProviders === undefined ? pending : `${enabledProviders} de ${providers.length}`
         }
-        footer="Conexiones activas con clave guardada."
+        footer="Conexiones activas con clave guardada"
       />
       <StatCard
         icon={Route}
@@ -819,7 +840,7 @@ function AiOverview() {
             ? pending
             : `${enabledRoutes} de ${routes.data.length}`
         }
-        footer="Casos de uso con modelo activo."
+        footer="Casos de uso con modelo activo"
       />
     </StatGrid>
   );
@@ -885,21 +906,21 @@ function UsagePanel() {
           ) : (
             <DataTable
               columns={[
-                "Caso",
+                "Caso de uso",
                 "Proveedor",
                 "Estado",
                 "Solicitudes",
                 "Tokens",
                 "Coste USD",
-                "p95 ms",
+                "Tiempo p95 (ms)",
               ]}
             >
               {query.data.items.map((item) => (
                 <TableRow key={`${item.useCase}-${item.provider}-${item.status}`}>
-                  <TableCell className="font-medium">{item.useCase}</TableCell>
-                  <TableCell>{item.provider}</TableCell>
+                  <TableCell className="font-medium">{useCaseLabels[item.useCase]}</TableCell>
+                  <TableCell>{providerLabels[item.provider]}</TableCell>
                   <TableCell>
-                    <StatusBadge>{item.status}</StatusBadge>
+                    <StatusBadge>{usageStatusLabels[item.status]}</StatusBadge>
                   </TableCell>
                   <TableCell className="tabular-nums">{item.requests}</TableCell>
                   <TableCell className="tabular-nums">
@@ -913,7 +934,7 @@ function UsagePanel() {
           )}
           <Card>
             <CardHeader>
-              <CardTitle>Fallbacks y transiciones</CardTitle>
+              <CardTitle>Respaldos y cambios de proveedor</CardTitle>
               <CardDescription>
                 Motivos agregados; no contienen contenido de usuarios
               </CardDescription>
@@ -921,20 +942,22 @@ function UsagePanel() {
             <CardContent>
               {query.data.fallbacks.length + query.data.transitions.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  Sin fallbacks ni transiciones en el rango
+                  Sin respaldos ni cambios de proveedor en el rango
                 </p>
               ) : null}
               <ul className="flex flex-col gap-1 text-sm">
                 {query.data.fallbacks.map((item) => (
                   <li key={`${item.useCase}-${item.reason}`}>
-                    {item.useCase}: {item.reason} ({item.requests})
+                    {useCaseLabels[item.useCase]}: {label(fallbackReasonLabels, item.reason)} (
+                    {item.requests})
                   </li>
                 ))}
                 {query.data.transitions.map((item) => (
                   <li
                     key={`${item.useCase}-${item.fromProvider}-${item.toProvider}-${item.reason}`}
                   >
-                    {item.useCase}: {item.fromProvider} → {item.toProvider}, {item.reason} (
+                    {useCaseLabels[item.useCase]}: {providerLabels[item.fromProvider]} →{" "}
+                    {providerLabels[item.toProvider]}, {label(fallbackReasonLabels, item.reason)} (
                     {item.requests})
                   </li>
                 ))}
