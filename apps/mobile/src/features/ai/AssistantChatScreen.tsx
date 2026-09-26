@@ -2,7 +2,7 @@ import type { AssistantAction } from "@notesia/contracts";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { type RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Icon, IconButton, Text, useTheme } from "react-native-paper";
@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { v4 as uuidv4 } from "uuid";
 import { sendAssistantMessage } from "@/core/api/ai";
 import { OfflineQueuedError } from "@/core/api/client";
+import { getProfile } from "@/core/api/profile";
 import {
   addChatMessage,
   type ChatAction,
@@ -31,6 +32,7 @@ import type { RootStackParamList } from "@/navigation/types";
 import { userMessage } from "@/shared/errors";
 import { Button, Card, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
+import { UserAvatar } from "@/shared/UserAvatar";
 import { applyAssistantAction, describeAction } from "./assistant-actions";
 import { PlanWeekCard } from "./PlanWeekCard";
 
@@ -270,6 +272,24 @@ function Welcome({ onPick, disabled }: { onPick(text: string): void; disabled: b
 function MessageBubble({ message }: { message: ChatMessage }) {
   const theme = useTheme();
   const mine = message.role === "user";
+  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
+  const avatar = mine ? (
+    <UserAvatar avatar={profile.data?.avatar} size={30} />
+  ) : (
+    <View style={[styles.botAvatar, { backgroundColor: theme.colors.primaryContainer }]}>
+      <Icon source="robot" size={18} color={theme.colors.primary} />
+    </View>
+  );
+  return (
+    <View style={[styles.messageRow, mine && styles.messageRowMine]}>
+      {avatar}
+      <MessageBody message={message} mine={mine} />
+    </View>
+  );
+}
+
+function MessageBody({ message, mine }: { message: ChatMessage; mine: boolean }) {
+  const theme = useTheme();
   return (
     <View style={[styles.messageBlock, mine ? styles.mine : styles.theirs]}>
       <View
@@ -454,9 +474,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-  messageBlock: { gap: 6, marginBottom: 12, maxWidth: "88%" },
-  mine: { alignSelf: "flex-end", alignItems: "flex-end" },
-  theirs: { alignSelf: "flex-start" },
+  messageRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 12 },
+  messageRowMine: { flexDirection: "row-reverse" },
+  botAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  messageBlock: { gap: 6, flexShrink: 1, maxWidth: "82%" },
+  mine: { alignItems: "flex-end" },
+  theirs: { flex: 1, alignItems: "flex-start" },
   bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
   thinking: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8 },
   card: { borderRadius: layout.cardRadius, alignSelf: "stretch" },

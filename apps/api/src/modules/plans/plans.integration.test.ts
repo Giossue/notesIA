@@ -499,8 +499,9 @@ test("preview, edit, apply and history require owner and fresh source revision",
   expect((await explainRisk(cookieA, { level: "high", remainingMinutes: 1 })).status).toBe(422);
   expect((await explainRisk(cookieB, riskRef)).status).toBe(404);
   const ownerRisk = await explainRisk(cookieA, riskRef);
-  expect(ownerRisk.status).toBe(403);
-  expect(await ownerRisk.json()).toMatchObject({ code: "AI_CONSENT_REQUIRED" });
+  // Sin documento de IA aparte basta lo aceptado al registrarse; sin proveedor, queda manual.
+  expect(ownerRisk.status).toBe(200);
+  expect(await ownerRisk.json()).toMatchObject({ kind: "manual" });
   const blockId = draft.blocks[0]?.id ?? "";
   expect(
     (await app.request(`/v1/plans/${input.id}`, { headers: { cookie: cookieB } })).status,
@@ -588,7 +589,7 @@ test("preview, edit, apply and history require owner and fresh source revision",
     });
   expect((await explainReplan(cookieA, { movedBlocks: 999 })).status).toBe(422);
   expect((await explainReplan(cookieB, { planId: nextInput.id })).status).toBe(404);
-  expect((await explainReplan(cookieA, { planId: nextInput.id })).status).toBe(403);
+  expect((await explainReplan(cookieA, { planId: nextInput.id })).status).toBe(200);
   expect(
     (
       await app.request(`/v1/plans/${nextInput.id}/apply`, {

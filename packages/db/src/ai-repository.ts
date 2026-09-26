@@ -142,7 +142,16 @@ export function createAiRepository(pool: Pool) {
         unmeasuredRequests: safeTotal(row.unmeasuredRequests),
       }));
     },
+    /**
+     * Sin documento de IA publicado, el uso de IA queda cubierto por los términos
+     * y la privacidad que se aceptan al registrarse (la API ya exige esos).
+     */
     async hasCurrentConsent(userId: string) {
+      const published = await pool.query(
+        `SELECT 1 FROM dominio.documentos_privacidad
+         WHERE tipo = 'ai' AND publicado_en IS NOT NULL LIMIT 1`,
+      );
+      if (published.rowCount === 0) return true;
       const result = await pool.query(
         `SELECT 1 FROM dominio.consentimientos c
          JOIN dominio.documentos_privacidad d ON d.id = c.documento_id
