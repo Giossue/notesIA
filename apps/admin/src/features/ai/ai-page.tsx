@@ -141,7 +141,6 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
     defaultValues: {
       apiKey: "",
       enabled: current?.enabled ?? false,
-      password: "",
       confirmation: "GUARDAR",
     },
   });
@@ -152,7 +151,7 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
         apiKey: values.apiKey || undefined,
       }),
     onSuccess: async (result) => {
-      form.reset({ apiKey: "", enabled: result.enabled, password: "", confirmation: "GUARDAR" });
+      form.reset({ apiKey: "", enabled: result.enabled, confirmation: "GUARDAR" });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: aiProvidersQuery.queryKey }),
         queryClient.invalidateQueries({ queryKey: auditQueryKey }),
@@ -161,7 +160,7 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
   });
   const submit = (values: ProviderFormValues) => {
     if (!current && !values.apiKey) {
-      form.setError("apiKey", { message: "La primera configuración requiere una clave." });
+      form.setError("apiKey", { message: "Escribe la API key del proveedor." });
       return;
     }
     mutation.mutate(values);
@@ -172,7 +171,7 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
         <CardTitle>{providerLabels[provider]}</CardTitle>
         <CardDescription>
           {current
-            ? "Conexión configurada; la clave guardada nunca se muestra"
+            ? "Conexión configurada; la API key guardada nunca se muestra"
             : "Sin conexión configurada"}
         </CardDescription>
       </CardHeader>
@@ -180,12 +179,16 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
         <CardContent>
           <FieldGroup>
             <Field data-invalid={Boolean(form.formState.errors.apiKey)}>
-              <FieldLabel htmlFor={`api-key-${provider}`}>Clave nueva</FieldLabel>
+              <FieldLabel htmlFor={`api-key-${provider}`}>API key</FieldLabel>
               <Input
                 id={`api-key-${provider}`}
                 type="password"
                 autoComplete="new-password"
-                placeholder={current ? "Déjalo vacío para conservar la actual" : undefined}
+                placeholder={
+                  current
+                    ? "Déjala vacía para conservar la actual"
+                    : "Pega la API key del proveedor"
+                }
                 aria-invalid={Boolean(form.formState.errors.apiKey)}
                 {...form.register("apiKey")}
               />
@@ -203,17 +206,6 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
                 />
               )}
             />
-            <Field data-invalid={Boolean(form.formState.errors.password)}>
-              <FieldLabel htmlFor={`provider-password-${provider}`}>Contraseña actual</FieldLabel>
-              <Input
-                id={`provider-password-${provider}`}
-                type="password"
-                autoComplete="current-password"
-                aria-invalid={Boolean(form.formState.errors.password)}
-                {...form.register("password")}
-              />
-              <FieldError errors={[form.formState.errors.password]} />
-            </Field>
           </FieldGroup>
         </CardContent>
         <CardFooter>
@@ -259,7 +251,6 @@ function emptyRoute(): RouteFormValues {
     capabilityReviewed: false,
     costReviewed: false,
     privacyReviewed: false,
-    password: "",
     confirmation: "GUARDAR",
   };
 }
@@ -279,7 +270,6 @@ function editRoute(route: AdminAiRoute): RouteFormValues {
     capabilityReviewed: false,
     costReviewed: false,
     privacyReviewed: false,
-    password: "",
     confirmation: "GUARDAR",
   };
 }
@@ -658,17 +648,6 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
                 />
               )}
             />
-            <Field data-invalid={Boolean(form.formState.errors.password)}>
-              <FieldLabel htmlFor="route-password">Contraseña actual</FieldLabel>
-              <Input
-                id="route-password"
-                type="password"
-                autoComplete="current-password"
-                aria-invalid={Boolean(form.formState.errors.password)}
-                {...form.register("password")}
-              />
-              <FieldError errors={[form.formState.errors.password]} />
-            </Field>
             <FieldError errors={[form.formState.errors.root]} />
           </FieldGroup>
         </CardContent>
@@ -830,7 +809,7 @@ function AiOverview() {
         value={
           enabledProviders === undefined ? pending : `${enabledProviders} de ${providers.length}`
         }
-        footer="Conexiones activas con clave guardada"
+        footer="Conexiones activas con API key guardada"
       />
       <StatCard
         icon={Route}

@@ -648,7 +648,7 @@ test("only an administrator can publish documents and each action is audited", a
   const provider = await app.request("/v1/admin/ai/providers/openai", {
     method: "PUT",
     headers,
-    body: JSON.stringify({ apiKey: aiKey, enabled: true, password: "PrivacyIntegration2026!" }),
+    body: JSON.stringify({ apiKey: aiKey, enabled: true }),
   });
   expect(provider.status).toBe(200);
   const providers = await app.request("/v1/admin/ai/providers", {
@@ -673,7 +673,6 @@ test("only an administrator can publish documents and each action is audited", a
     capabilityReviewed: true,
     costReviewed: true,
     privacyReviewed: true,
-    password: "PrivacyIntegration2026!",
   };
   const routePath = "/v1/admin/ai/routes/extract_activity";
   expect(
@@ -907,7 +906,6 @@ test("only an administrator can publish documents and each action is audited", a
         body: JSON.stringify({
           apiKey: `sk-test-${crypto.randomUUID()}`,
           enabled: true,
-          password: "PrivacyIntegration2026!",
         }),
       })
     ).status,

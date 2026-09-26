@@ -297,7 +297,6 @@ export type AdminSystemHealth = z.infer<typeof adminSystemHealthSchema>;
 export const adminAiProviderUpdateSchema = z.strictObject({
   apiKey: z.string().min(8).max(512).regex(/^\S+$/).optional(),
   enabled: z.boolean(),
-  password: z.string().min(1).max(1024),
 });
 export const adminAiProviderSchema = z.object({
   id: z.uuid(),
@@ -337,7 +336,6 @@ export const adminAiRouteUpdateSchema = z
     capabilityReviewed: z.boolean(),
     costReviewed: z.boolean(),
     privacyReviewed: z.boolean(),
-    password: z.string().min(1).max(1024),
   })
   .refine(
     (value) =>

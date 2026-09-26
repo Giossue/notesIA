@@ -198,8 +198,6 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
         return error(422, "VALIDATION_FAILED", "Configuración inválida.");
       if (!dependencies.aiKeyCipher)
         return error(503, "SERVICE_UNAVAILABLE", "Falta la clave de cifrado de IA.");
-      if (!(await dependencies.verifyPassword(c.req.raw.headers, body.data.password)))
-        return error(403, "REAUTH_REQUIRED", "Vuelve a confirmar tu contraseña.");
       const encrypted = body.data.apiKey
         ? dependencies.aiKeyCipher.encrypt(provider.data, body.data.apiKey)
         : null;
@@ -228,14 +226,10 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
       const body = adminAiRouteUpdateSchema.safeParse(await readJson(c.req.raw));
       if (!useCase.success || !body.success)
         return error(422, "VALIDATION_FAILED", "Ruta de IA inválida.");
-      if (!(await dependencies.verifyPassword(c.req.raw.headers, body.data.password)))
-        return error(403, "REAUTH_REQUIRED", "Vuelve a confirmar tu contraseña.");
-      const { capabilityReviewed, costReviewed, privacyReviewed, password, ...configuration } =
-        body.data;
+      const { capabilityReviewed, costReviewed, privacyReviewed, ...configuration } = body.data;
       void capabilityReviewed;
       void costReviewed;
       void privacyReviewed;
-      void password;
       const saved = await ai.upsertRoute(access.userId as string, {
         useCase: useCase.data,
         ...configuration,

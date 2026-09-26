@@ -4073,14 +4073,8 @@ components:
           writeOnly: true
         enabled:
           type: boolean
-        password:
-          type: string
-          minLength: 1
-          maxLength: 1024
-          writeOnly: true
       required:
         - enabled
-        - password
       additionalProperties: false
     AdminAiRouteUpdateInput:
       type: object
@@ -4160,11 +4154,6 @@ components:
           type: boolean
         privacyReviewed:
           type: boolean
-        password:
-          type: string
-          minLength: 1
-          maxLength: 1024
-          writeOnly: true
       required:
         - provider
         - modelId
@@ -4177,7 +4166,6 @@ components:
         - capabilityReviewed
         - costReviewed
         - privacyReviewed
-        - password
       additionalProperties: false
     AdminAiUsage:
       type: object
