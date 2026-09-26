@@ -744,7 +744,7 @@ function RoutesPanel() {
                   {route.enabled ? "habilitada" : "deshabilitada"}
                 </Badge>
               </TableCell>
-              <TableCell>
+              <TableCell className="w-12 text-right">
                 <RouteActions route={route} edit={() => setSelected(route)} />
               </TableCell>
             </TableRow>

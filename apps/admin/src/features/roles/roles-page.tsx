@@ -410,7 +410,7 @@ export function RolesPage() {
               <TableCell className="text-muted-foreground">
                 {new Date(role.updatedAt).toLocaleString()}
               </TableCell>
-              <TableCell>
+              <TableCell className="w-12 text-right">
                 <RoleActions role={role} />
               </TableCell>
             </TableRow>

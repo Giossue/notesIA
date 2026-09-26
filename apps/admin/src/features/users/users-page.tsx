@@ -177,7 +177,7 @@ export function UsersPage() {
               <TableCell className="text-muted-foreground">
                 {new Date(user.createdAt).toLocaleString()}
               </TableCell>
-              <TableCell>
+              <TableCell className="w-12 text-right">
                 <UserActions user={user} />
               </TableCell>
             </TableRow>

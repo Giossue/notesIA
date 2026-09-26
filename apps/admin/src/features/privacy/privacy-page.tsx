@@ -2,13 +2,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { adminDocumentCreateSchema, adminPublishSchema } from "@notesia/contracts";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FilePlus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
 import { DataTable } from "@/components/data-table";
 import { LoadMore } from "@/components/load-more";
 import { Page, PageHeader } from "@/components/page-header";
+import { RowActions } from "@/components/row-actions";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -17,7 +18,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -190,8 +190,15 @@ function CreateDocumentDialog() {
   );
 }
 
-function PublishAction({ document }: { document: AdminDocument }) {
-  const [open, setOpen] = useState(false);
+function PublishDialog({
+  document,
+  open,
+  setOpen,
+}: {
+  document: AdminDocument;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
   const queryClient = useQueryClient();
   const form = useForm<PublishValues>({
     resolver: zodResolver(adminPublishSchema),
@@ -204,17 +211,13 @@ function PublishAction({ document }: { document: AdminDocument }) {
       await queryClient.invalidateQueries({ queryKey: documentsQueryKey });
     },
   });
+  // Al abrir desde el menú, la confirmación empieza vacía.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: solo al abrir
+  useEffect(() => {
+    if (open) form.reset({ confirmation: "" as never });
+  }, [open]);
   return (
-    <AlertDialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (next) form.reset({ confirmation: "" as never });
-      }}
-    >
-      <AlertDialogTrigger asChild>
-        <Button size="sm">Publicar</Button>
-      </AlertDialogTrigger>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Publicar documento</AlertDialogTitle>
@@ -249,6 +252,61 @@ function PublishAction({ document }: { document: AdminDocument }) {
   );
 }
 
+function documentName(document: AdminDocument) {
+  return `${document.type} · ${document.language} · v${document.version}`;
+}
+
+function DocumentDialog({
+  document,
+  open,
+  setOpen,
+}: {
+  document: AdminDocument;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{documentName(document)}</DialogTitle>
+          <DialogDescription>
+            {document.publishedAt
+              ? `Publicado el ${new Date(document.publishedAt).toLocaleString()}`
+              : "Borrador sin publicar"}
+          </DialogDescription>
+        </DialogHeader>
+        <pre className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-md border bg-muted/40 p-4 font-sans text-sm">
+          {document.content}
+        </pre>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cerrar</Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DocumentActions({ document }: { document: AdminDocument }) {
+  const [open, setOpen] = useState<"view" | "publish" | null>(null);
+  const toggle = (dialog: "view" | "publish") => (next: boolean) => setOpen(next ? dialog : null);
+  return (
+    <RowActions
+      actions={[
+        { label: "Ver texto", select: () => setOpen("view") },
+        ...(document.publishedAt ? [] : [{ label: "Publicar", select: () => setOpen("publish") }]),
+      ]}
+    >
+      <DocumentDialog document={document} open={open === "view"} setOpen={toggle("view")} />
+      {document.publishedAt ? null : (
+        <PublishDialog document={document} open={open === "publish"} setOpen={toggle("publish")} />
+      )}
+    </RowActions>
+  );
+}
+
 export function PrivacyPage() {
   const query = useInfiniteQuery({
     queryKey: documentsQueryKey,
@@ -269,12 +327,10 @@ export function PrivacyPage() {
       {documents.length === 0 ? (
         <EmptyResult message="No hay documentos creados" />
       ) : (
-        <DataTable columns={["Documento", "Estado", "Creado", "Contenido", "Acción"]}>
+        <DataTable columns={["Documento", "Estado", "Creado", "Publicado", ""]}>
           {documents.map((document) => (
             <TableRow key={document.id}>
-              <TableCell className="font-medium">
-                {document.type} · {document.language} · v{document.version}
-              </TableCell>
+              <TableCell className="font-medium">{documentName(document)}</TableCell>
               <TableCell>
                 <Badge variant={document.publishedAt ? "secondary" : "outline"}>
                   {document.publishedAt ? "publicado" : "borrador"}
@@ -283,22 +339,11 @@ export function PrivacyPage() {
               <TableCell className="text-muted-foreground">
                 {new Date(document.createdAt).toLocaleString()}
               </TableCell>
-              <TableCell>
-                <details>
-                  <summary className="cursor-pointer text-sm underline-offset-4 hover:underline">
-                    Ver texto
-                  </summary>
-                  <pre className="mt-2 max-h-64 max-w-xl overflow-y-auto whitespace-pre-wrap rounded-md border bg-muted/40 p-3 font-sans text-xs">
-                    {document.content}
-                  </pre>
-                </details>
+              <TableCell className="text-muted-foreground">
+                {document.publishedAt ? new Date(document.publishedAt).toLocaleString() : "—"}
               </TableCell>
-              <TableCell>
-                {document.publishedAt ? (
-                  new Date(document.publishedAt).toLocaleString()
-                ) : (
-                  <PublishAction document={document} />
-                )}
+              <TableCell className="w-12 text-right">
+                <DocumentActions document={document} />
               </TableCell>
             </TableRow>
           ))}
