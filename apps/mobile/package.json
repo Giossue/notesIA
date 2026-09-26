@@ -49,7 +49,7 @@
   },
   "scripts": {
     "start": "react-native start --port 8082",
-    "android": "react-native run-android --port 8082 --no-packager --active-arch-only",
+    "android": "react-native run-android --port 8082 --no-packager --active-arch-only --appIdSuffix dev",
     "ios": "react-native run-ios --port 8082 --no-packager",
     "test:ui": "jest --runInBand"
   },

@@ -161,6 +161,8 @@ android {
     }
     buildTypes {
         debug {
+            // "NotesIA Dev": se instala junto a la app de producción sin reemplazarla.
+            applicationIdSuffix ".dev"
             signingConfig signingConfigs.debug
             buildConfigField "String", "NOTESIA_API_BASE_URL", javaString(debugApiBaseUrl)
         }

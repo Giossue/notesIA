@@ -1,0 +1,4 @@
+<resources>
+    <!-- Nombre de la app de desarrollo, para distinguirla de la de producción. -->
+    <string name="app_name">NotesIA Dev</string>
+</resources>
