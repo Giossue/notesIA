@@ -29,7 +29,7 @@ ReactDOM.createRoot(root).render(
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
-        <Toaster position="top-center" richColors />
+        <Toaster position="top-center" />
       </QueryClientProvider>
     </ThemeProvider>
   </React.StrictMode>,
