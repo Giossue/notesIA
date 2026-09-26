@@ -72,7 +72,7 @@ export function EventFormScreen({ id, date }: { id?: string; date?: string }) {
   return (
     <ScreenLayout
       keyboardShouldPersistTaps="handled"
-      header={{ title: id ? "Evento fijo" : "Nuevo evento fijo" }}
+      header={{ title: id ? "Evento" : "Nuevo evento" }}
     >
       {(profile.isPending || (id && event.isPending)) && (
         <ActivityIndicator accessibilityLabel="Cargando evento" />

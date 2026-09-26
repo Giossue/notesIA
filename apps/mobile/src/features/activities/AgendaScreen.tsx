@@ -131,7 +131,7 @@ export function AgendaScreen() {
         label: kind.label,
         color: kind.color,
         title: item.title,
-        meta: item.description?.trim() || "Evento fijo",
+        meta: item.description?.trim() || "Evento",
         metaIcon: kind.icon,
         open: () => navigation.navigate("EventForm", { id: item.id }),
       };
@@ -288,7 +288,7 @@ export function AgendaScreen() {
         title: "Agenda",
         right: {
           icon: "calendar-month-outline",
-          label: "Ver mis eventos fijos",
+          label: "Ver mis eventos",
           onPress: () => navigation.navigate("Events"),
         },
       }}

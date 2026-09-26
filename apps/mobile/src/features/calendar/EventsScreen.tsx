@@ -40,7 +40,7 @@ export function EventsScreen() {
 
   return (
     <ScreenLayout
-      header={{ title: "Eventos fijos" }}
+      header={{ title: "Mis eventos" }}
       fab={{ label: "Nuevo evento", onPress: () => navigation.navigate("EventForm", {}) }}
     >
       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
@@ -68,7 +68,7 @@ export function EventsScreen() {
       )}
       {!events.isPending && !events.isError && items.length === 0 && (
         <EmptyState
-          message={archived ? "No tienes eventos archivados." : "Aún no tienes eventos fijos."}
+          message={archived ? "No tienes eventos archivados." : "Aún no tienes eventos."}
         />
       )}
       {items.map((item) => (
