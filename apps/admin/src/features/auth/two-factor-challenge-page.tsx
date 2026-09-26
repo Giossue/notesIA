@@ -7,7 +7,12 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSeparator,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { authApi } from "@/lib/auth-api";
@@ -36,10 +41,22 @@ function TotpForm({ complete }: { complete: () => Promise<void> }) {
             control={form.control}
             name="code"
             render={({ field }) => (
-              <InputOTP id="totp-code" maxLength={6} inputMode="numeric" {...field}>
+              <InputOTP
+                id="totp-code"
+                maxLength={6}
+                inputMode="numeric"
+                containerClassName="justify-center"
+                {...field}
+              >
                 <InputOTPGroup>
-                  {otpSlotKeys.map((key, index) => (
+                  {otpSlotKeys.slice(0, 3).map((key, index) => (
                     <InputOTPSlot index={index} key={key} />
+                  ))}
+                </InputOTPGroup>
+                <InputOTPSeparator />
+                <InputOTPGroup>
+                  {otpSlotKeys.slice(3).map((key, index) => (
+                    <InputOTPSlot index={index + 3} key={key} />
                   ))}
                 </InputOTPGroup>
               </InputOTP>

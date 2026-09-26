@@ -17,7 +17,12 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSeparator,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { Spinner } from "@/components/ui/spinner";
 import { authApi, type TwoFactorSetup } from "@/lib/auth-api";
 import { AuthHeading } from "./auth-layout";
@@ -162,10 +167,22 @@ export function TwoFactorEnrollment() {
               control={verificationForm.control}
               name="code"
               render={({ field }) => (
-                <InputOTP id="enrollment-code" maxLength={6} inputMode="numeric" {...field}>
+                <InputOTP
+                  id="enrollment-code"
+                  maxLength={6}
+                  inputMode="numeric"
+                  containerClassName="justify-center"
+                  {...field}
+                >
                   <InputOTPGroup>
-                    {otpSlotKeys.map((key, index) => (
+                    {otpSlotKeys.slice(0, 3).map((key, index) => (
                       <InputOTPSlot index={index} key={key} />
+                    ))}
+                  </InputOTPGroup>
+                  <InputOTPSeparator />
+                  <InputOTPGroup>
+                    {otpSlotKeys.slice(3).map((key, index) => (
+                      <InputOTPSlot index={index + 3} key={key} />
                     ))}
                   </InputOTPGroup>
                 </InputOTP>
