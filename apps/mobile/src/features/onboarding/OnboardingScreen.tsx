@@ -56,13 +56,6 @@ export function OnboardingScreen({
     setDays((current) =>
       current.map((slots, index) => (index === weekday ? change(slots) : slots)),
     );
-  const fillWeekdayAfternoons = () =>
-    setDays(
-      weekdays.map((_, index) =>
-        index < 5 ? [{ key: uuidv4(), start: "15:00", end: "19:00" }] : [],
-      ),
-    );
-
   const { finish, progress } = useSaveWeek(timeZone, today);
   const saved = progress.saved;
   const total = progress.total;
@@ -75,9 +68,6 @@ export function OnboardingScreen({
         title="¿Cuándo puedes estudiar?"
         text="Marca las horas libres de cada día que quieres dedicar a estudiar. La app solo pondrá sesiones de estudio en esos horarios."
       />
-      <Button mode="outlined" icon="auto-fix" onPress={fillWeekdayAfternoons}>
-        Tardes de lunes a viernes (15:00–19:00)
-      </Button>
       <WeeklyHoursEditor days={days} onChangeDay={updateDay} emptyText="Sin estudio este día." />
       <FormSection title="Máximo de estudio al día">
         <Tabs value={daily} onValueChange={setDaily} buttons={[...dailyChoices]} />

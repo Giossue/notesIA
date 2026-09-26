@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Icon,
   IconButton,
+  Portal,
   ProgressBar,
   Text,
   useTheme,
@@ -25,7 +26,7 @@ import { speak, stopSpeaking } from "@/core/speech/tts";
 import { layout } from "@/core/theme/layout";
 import { dailyChoices } from "@/features/availability/WeeklyHours";
 import { userMessage } from "@/shared/errors";
-import { Button, Card, TextInput } from "@/shared/paper";
+import { Button, Card, Dialog, TextInput } from "@/shared/paper";
 import { useHideSplash } from "@/shared/splash";
 import { fromDraft, type WeekSetup } from "./save-week";
 import { useLocalToday, useSaveWeek } from "./useSaveWeek";
@@ -78,6 +79,9 @@ export function OnboardingAgentScreen({
   const [listening, setListening] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const [aiDown, setAiDown] = useState<string | null>(null);
+  // El resumen aparece recién cuando el agente considera que ya no falta nada.
+  const [complete, setComplete] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const spokeLast = useRef(false);
   const nextId = useRef(1);
   const scroller = useRef<ScrollView>(null);
@@ -95,6 +99,7 @@ export function OnboardingAgentScreen({
         return;
       }
       setDraft(result.draft);
+      setComplete(result.complete);
       add({ role: "assistant", text: result.reply });
       if (spokeLast.current) speak(result.reply);
     },
@@ -208,7 +213,27 @@ export function OnboardingAgentScreen({
             </Card.Content>
           </Card>
         )}
-        <WeekSummary draft={draft} />
+        {complete && (
+          <Card
+            mode="contained"
+            style={[styles.readyCard, { backgroundColor: theme.colors.primaryContainer }]}
+            onPress={() => setReviewing(true)}
+            accessibilityLabel="Revisar tu semana"
+          >
+            <Card.Content style={styles.readyRow}>
+              <Icon source="calendar-check" size={28} color={theme.colors.primary} />
+              <View style={styles.flex}>
+                <Text variant="titleMedium" style={styles.bold}>
+                  Tu semana está lista
+                </Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  Toca para revisarla antes de guardar
+                </Text>
+              </View>
+              <Icon source="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
+            </Card.Content>
+          </Card>
+        )}
       </ScrollView>
 
       <View
@@ -259,6 +284,7 @@ export function OnboardingAgentScreen({
               spokeLast.current = false;
             }}
             style={styles.input}
+            outlineStyle={styles.inputOutline}
             accessibilityLabel="Mensaje para el asistente"
           />
           <IconButton
@@ -279,11 +305,34 @@ export function OnboardingAgentScreen({
           {finish.isError ? "Reintentar" : "Guardar y empezar"}
         </Button>
       </View>
+      <Portal>
+        <Dialog visible={reviewing} onDismiss={() => setReviewing(false)}>
+          <Dialog.Title>Tu semana</Dialog.Title>
+          <Dialog.ScrollArea style={styles.dialogScroll}>
+            <ScrollView persistentScrollbar contentContainerStyle={styles.dialogContent}>
+              <WeekSummary draft={draft} />
+            </ScrollView>
+          </Dialog.ScrollArea>
+          <Dialog.Actions>
+            <Button onPress={() => setReviewing(false)}>Seguir ajustando</Button>
+            <Button
+              mode="contained"
+              disabled={!canSave}
+              onPress={() => {
+                setReviewing(false);
+                finish.mutate(fromDraft(draft, defaultUntil));
+              }}
+            >
+              Guardar
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </SafeAreaView>
   );
 }
 
-/** Resumen en vivo de lo que el agente lleva armado. */
+/** Resumen de lo que el agente lleva armado. */
 function WeekSummary({ draft }: { draft: OnboardingDraft }) {
   const theme = useTheme();
   const muted = { color: theme.colors.onSurfaceVariant };
@@ -295,54 +344,49 @@ function WeekSummary({ draft }: { draft: OnboardingDraft }) {
     .filter((day) => day.slots.length > 0);
   const daily = dailyChoices.find((choice) => Number(choice.value) === draft.maxDailyMinutes);
   return (
-    <Card mode="outlined" style={styles.summary}>
-      <Card.Content style={styles.group}>
-        <Text variant="titleMedium" style={styles.bold}>
-          Tu semana
+    <View style={styles.group}>
+      <Text variant="labelLarge">Horario de estudio</Text>
+      {byDay.length === 0 ? (
+        <Text variant="bodySmall" style={muted}>
+          Aún nada.
         </Text>
-        <Text variant="labelLarge">Horario de estudio</Text>
-        {byDay.length === 0 ? (
-          <Text variant="bodySmall" style={muted}>
-            Aún nada.
+      ) : (
+        byDay.map((day) => (
+          <Text key={day.label} variant="bodyMedium">
+            {day.label}: {day.slots.map((slot) => `${slot.start}–${slot.end}`).join(", ")}
           </Text>
-        ) : (
-          byDay.map((day) => (
-            <Text key={day.label} variant="bodyMedium">
-              {day.label}: {day.slots.map((slot) => `${slot.start}–${slot.end}`).join(", ")}
+        ))
+      )}
+      <Text variant="bodyMedium" style={muted}>
+        Máximo al día:{" "}
+        {draft.maxDailyMinutes === null
+          ? "sin definir (3 h)"
+          : (daily?.label ?? `${Math.round(draft.maxDailyMinutes / 60)} h`)}
+      </Text>
+      <Text variant="labelLarge">Compromisos fijos</Text>
+      {draft.commitments.length === 0 ? (
+        <Text variant="bodySmall" style={muted}>
+          Ninguno por ahora.
+        </Text>
+      ) : (
+        draft.commitments.map((item) => (
+          <View key={`${item.title}-${item.start}-${item.weekdays.join("")}`}>
+            <Text variant="bodyMedium">
+              {item.title} · {kindLabels[item.kind]}
             </Text>
-          ))
-        )}
-        <Text variant="bodyMedium" style={muted}>
-          Máximo al día:{" "}
-          {draft.maxDailyMinutes === null
-            ? "sin definir (3 h)"
-            : (daily?.label ?? `${Math.round(draft.maxDailyMinutes / 60)} h`)}
-        </Text>
-        <Text variant="labelLarge">Compromisos fijos</Text>
-        {draft.commitments.length === 0 ? (
-          <Text variant="bodySmall" style={muted}>
-            Ninguno por ahora.
-          </Text>
-        ) : (
-          draft.commitments.map((item) => (
-            <View key={`${item.title}-${item.start}-${item.weekdays.join("")}`}>
-              <Text variant="bodyMedium">
-                {item.title} · {kindLabels[item.kind]}
+            <Text variant="bodySmall" style={muted}>
+              {item.weekdays.map((day) => letters[day - 1]).join(" ")} · {item.start}–{item.end}
+              {item.until ? ` · hasta ${item.until}` : ""}
+            </Text>
+            {!item.until && (
+              <Text variant="bodySmall" style={{ color: theme.colors.error }}>
+                Falta hasta qué fecha se repite.
               </Text>
-              <Text variant="bodySmall" style={muted}>
-                {item.weekdays.map((day) => letters[day - 1]).join(" ")} · {item.start}–{item.end}
-                {item.until ? ` · hasta ${item.until}` : ""}
-              </Text>
-              {!item.until && (
-                <Text variant="bodySmall" style={{ color: theme.colors.error }}>
-                  Falta hasta qué fecha se repite.
-                </Text>
-              )}
-            </View>
-          ))
-        )}
-      </Card.Content>
-    </Card>
+            )}
+          </View>
+        ))
+      )}
+    </View>
   );
 }
 
@@ -368,7 +412,6 @@ const styles = StyleSheet.create({
   },
   mine: { alignSelf: "flex-end" },
   thinking: { flexDirection: "row", alignItems: "center", gap: 8 },
-  summary: { borderRadius: layout.cardRadius, marginTop: 8 },
   composer: {
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 8,
@@ -377,5 +420,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   row: { flexDirection: "row", alignItems: "center", gap: 2 },
-  input: { flex: 1, maxHeight: 120 },
+  input: { flex: 1, maxHeight: 120, textAlignVertical: "center" },
+  inputOutline: { borderRadius: 22 },
+  readyCard: { borderRadius: layout.cardRadius, marginTop: 8 },
+  readyRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  dialogScroll: { maxHeight: 440, paddingHorizontal: 0 },
+  dialogContent: { paddingHorizontal: 24, paddingVertical: 8 },
 });
