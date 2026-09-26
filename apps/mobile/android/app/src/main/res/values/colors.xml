@@ -1,0 +1,4 @@
+<resources>
+    <!-- Color del ícono de los avisos push: el azul principal de la app. -->
+    <color name="notification">#3468E1</color>
+</resources>

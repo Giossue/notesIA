@@ -62,6 +62,7 @@ export { createPushTokenCipher, type PushTokenCipher } from "./push-crypto";
 export {
   createPushDeliveryRepository,
   type PushDeliveryRepository,
+  type PushNotification,
   type PushSender,
 } from "./push-delivery-repository";
 export {

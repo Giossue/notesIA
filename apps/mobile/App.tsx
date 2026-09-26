@@ -33,6 +33,7 @@ import { EventFormScreen } from "@/features/calendar/EventFormScreen";
 import { EventsScreen } from "@/features/calendar/EventsScreen";
 import { HomeScreen } from "@/features/home/HomeScreen";
 import { NotificationsScreen } from "@/features/notifications/NotificationsScreen";
+import { PushPermissionPrompt } from "@/features/notifications/PushPermissionPrompt";
 import { OfflineChangesScreen } from "@/features/offline/OfflineChangesScreen";
 import { PlanningScreen } from "@/features/planning/PlanningScreen";
 import { PreferencesScreen } from "@/features/preferences/PreferencesScreen";
@@ -45,6 +46,7 @@ import { ActivitySeriesFormScreen } from "@/features/series/ActivitySeriesFormSc
 import { ActivitySeriesScreen } from "@/features/series/ActivitySeriesScreen";
 import { TimeTrackingScreen } from "@/features/time/TimeTrackingScreen";
 import { ToolsScreen } from "@/features/tools/ToolsScreen";
+import { flushPendingNavigation, navigationRef } from "@/navigation/navigation-ref";
 import type { RootStackParamList, TabParams } from "@/navigation/types";
 import { userMessage } from "@/shared/errors";
 import { Button } from "@/shared/paper";
@@ -72,8 +74,10 @@ const queryClient: QueryClient = new QueryClient({
   // Todo error de una acción (guardar, borrar, completar…) se avisa una sola vez,
   // como toast. Las pantallas solo marcan campos; no repiten el mensaje.
   mutationCache: new MutationCache({
-    onError: (error) => {
+    onError: (error, _variables, _context, mutation) => {
       if (isConsentRequired(error)) refreshConsent();
+      // La pantalla ya explica el error por su cuenta.
+      else if (mutation.meta?.silent) return;
       else if (error instanceof OfflineQueuedError) showToast(error.message, "info");
       else showToast(userMessage(error));
     },
@@ -138,8 +142,9 @@ function Main() {
   return (
     <ConsentGate>
       <PushRegistrationProvider>
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
           <TimeZoneSync />
+          <PushPermissionPrompt />
           <Stack.Navigator
             screenOptions={{
               headerShown: false,

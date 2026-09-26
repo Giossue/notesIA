@@ -20,11 +20,23 @@ async function firebaseMessaging() {
   return { messaging: messagingModule.getMessaging(), module: messagingModule };
 }
 
+/**
+ * El usuario negó el permiso y marcó no volver a preguntar (o lo negó dos veces):
+ * Android ya no muestra el diálogo y solo se puede activar desde sus Ajustes.
+ */
+export class PushPermissionBlockedError extends Error {
+  constructor() {
+    super("Las notificaciones están desactivadas para esta app. Actívalas en los Ajustes.");
+  }
+}
+
 async function requestNotificationPermission() {
   if (Platform.OS === "android" && Platform.Version >= 33) {
     const result = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
     );
+    if (result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN)
+      throw new PushPermissionBlockedError();
     if (result !== PermissionsAndroid.RESULTS.GRANTED)
       throw new Error("Debes permitir notificaciones en Android para activar los avisos push.");
   }
@@ -78,20 +90,70 @@ export async function disableCurrentPushDevice() {
   if (removalError) throw removalError;
 }
 
-export async function subscribeToPushEvents(onMessage: () => void) {
-  const id = await getLocalPushDeviceId();
-  if (!id) return () => {};
+/** Lo que trae un aviso push: texto y a qué se refiere, para abrirlo. */
+export type PushEvent = {
+  title?: string;
+  body?: string;
+  notificationId?: string;
+  type?: string;
+  activityId?: string;
+  planId?: string;
+};
+
+type RemoteMessage = {
+  notification?: { title?: string; body?: string };
+  data?: Record<string, unknown>;
+};
+
+function toPushEvent(message: RemoteMessage | null | undefined): PushEvent | null {
+  if (!message) return null;
+  const text = (key: string) => {
+    const value = message.data?.[key];
+    return typeof value === "string" ? value : undefined;
+  };
+  return {
+    title: message.notification?.title,
+    body: message.notification?.body,
+    notificationId: text("notificationId"),
+    type: text("type"),
+    activityId: text("activityId"),
+    planId: text("planId"),
+  };
+}
+
+/**
+ * Escucha los avisos: `onMessage` con la app abierta (Android no los muestra
+ * solo en ese caso) y `onOpen` cuando el usuario toca uno en la bandeja,
+ * también si la app estaba cerrada.
+ */
+export async function subscribeToPushEvents(handlers: {
+  onMessage(event: PushEvent): void;
+  onOpen(event: PushEvent): void;
+}) {
   const { messaging, module } = await firebaseMessaging();
+  const opened = toPushEvent(await module.getInitialNotification(messaging));
+  if (opened) handlers.onOpen(opened);
+  const unsubscribeOpened = module.onNotificationOpenedApp(messaging, (message) => {
+    const event = toPushEvent(message);
+    if (event) handlers.onOpen(event);
+  });
+  const unsubscribeMessage = module.onMessage(messaging, (message) => {
+    const event = toPushEvent(message);
+    if (event) handlers.onMessage(event);
+  });
   const unsubscribeRefresh = module.onTokenRefresh(messaging, (token) => {
-    void registerPushDevice({
-      id,
-      platform: Platform.OS === "ios" ? "ios" : "android",
-      token,
+    void getLocalPushDeviceId().then((id) => {
+      if (!id) return;
+      void registerPushDevice({
+        id,
+        platform: Platform.OS === "ios" ? "ios" : "android",
+        token,
+      });
     });
   });
-  const unsubscribeMessage = module.onMessage(messaging, onMessage);
   return () => {
-    unsubscribeRefresh();
+    unsubscribeOpened();
     unsubscribeMessage();
+    unsubscribeRefresh();
   };
 }

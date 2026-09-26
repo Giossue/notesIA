@@ -1,0 +1,6 @@
+{
+  "react-native": {
+    "messaging_android_notification_channel_id": "avisos",
+    "messaging_android_notification_color": "@color/notification"
+  }
+}

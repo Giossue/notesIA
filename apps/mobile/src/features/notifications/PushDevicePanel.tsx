@@ -1,13 +1,14 @@
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Linking, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Portal, Text, useTheme } from "react-native-paper";
 import { listPushDevices, removePushDevice } from "@/core/api/push-devices";
 import {
   disableCurrentPushDevice,
   enablePushDevice,
   getLocalPushDeviceId,
+  PushPermissionBlockedError,
 } from "@/core/push/push-registration";
 import { layout } from "@/core/theme/layout";
 import { userMessage } from "@/shared/errors";
@@ -24,7 +25,12 @@ export function PushDevicePanel() {
     void queryClient.invalidateQueries({ queryKey: ["push-devices"] });
     void queryClient.invalidateQueries({ queryKey: ["local-push-device"] });
   };
-  const enable = useMutation({ mutationFn: enablePushDevice, onSuccess: refresh });
+  const enable = useMutation({
+    mutationFn: enablePushDevice,
+    onSuccess: refresh,
+    // El error se explica abajo, con el botón a Ajustes si hace falta.
+    meta: { silent: true },
+  });
   const remove = useMutation({
     mutationFn: async (id: string) => {
       if (id === localId.data) await disableCurrentPushDevice();
@@ -77,6 +83,11 @@ export function PushDevicePanel() {
       )}
       {(enable.isError || remove.isError) && (
         <Text accessibilityRole="alert">{enable.error?.message ?? remove.error?.message}</Text>
+      )}
+      {enable.error instanceof PushPermissionBlockedError && (
+        <Button mode="outlined" icon="open-in-new" onPress={() => void Linking.openSettings()}>
+          Abrir ajustes
+        </Button>
       )}
       <Portal>
         <Dialog visible={removeId !== null} onDismiss={() => setRemoveId(null)}>

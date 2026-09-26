@@ -9,6 +9,10 @@ type DeliveryClaim = {
   deviceId: string;
   notificationId: string;
   notificationType: string;
+  activityId: string | null;
+  planId: string | null;
+  activityTitle: string | null;
+  referenceAt: Date | null;
   attempts: number;
   traceId: string | null;
   sourceSpanId: string | null;
@@ -21,10 +25,19 @@ type DeliveryState = {
   notificationsEnabled: boolean;
   pushNotificationsEnabled: boolean;
 };
+/** Lo que necesita el envío para escribir el aviso con su contenido real. */
+export type PushNotification = {
+  id: string;
+  type: string;
+  activityId: string | null;
+  planId: string | null;
+  activityTitle: string | null;
+  referenceAt: Date | null;
+  timeZone: string;
+};
 export type PushSender = (
   token: string,
-  notificationId: string,
-  type: string,
+  notification: PushNotification,
 ) => Promise<"sent" | "unregistered">;
 
 export function createPushDeliveryRepository(pool: Pool, cipher: PushTokenCipher) {
@@ -43,10 +56,13 @@ export function createPushDeliveryRepository(pool: Pool, cipher: PushTokenCipher
          )
          SELECT c.id, c.usuario_id AS "userId", c.dispositivo_id AS "deviceId",
            c.notificacion_id AS "notificationId", n.tipo AS "notificationType",
+           n.actividad_id AS "activityId", n.plan_id AS "planId",
+           a.titulo AS "activityTitle", n.referencia_en AS "referenceAt",
            c.intentos AS attempts, c.traza_id AS "traceId",
            c.span_origen_id AS "sourceSpanId"
          FROM claimed c
-         JOIN dominio.notificaciones n ON n.usuario_id = c.usuario_id AND n.id = c.notificacion_id`,
+         JOIN dominio.notificaciones n ON n.usuario_id = c.usuario_id AND n.id = c.notificacion_id
+         LEFT JOIN dominio.actividades a ON a.usuario_id = n.usuario_id AND a.id = n.actividad_id`,
       );
       const row = claimed.rows[0];
       if (!row) return { kind: "empty" as const };
@@ -95,7 +111,15 @@ export function createPushDeliveryRepository(pool: Pool, cipher: PushTokenCipher
               return { kind: "deferred" as const };
             }
             const token = cipher.decrypt(row.userId, row.deviceId, state.encryptedToken);
-            const sent = await sender(token, row.notificationId, row.notificationType);
+            const sent = await sender(token, {
+              id: row.notificationId,
+              type: row.notificationType,
+              activityId: row.activityId,
+              planId: row.planId,
+              activityTitle: row.activityTitle,
+              referenceAt: row.referenceAt,
+              timeZone: state.timeZone,
+            });
             if (sent === "unregistered") {
               const removed = await pool.query(
                 `DELETE FROM dominio.dispositivos_push
