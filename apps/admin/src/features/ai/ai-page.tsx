@@ -169,7 +169,7 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
             : "Sin conexión configurada"}
         </CardDescription>
       </CardHeader>
-      <form onSubmit={form.handleSubmit(submit)}>
+      <form className="flex flex-col gap-(--card-spacing)" onSubmit={form.handleSubmit(submit)}>
         <CardContent>
           <FieldGroup>
             <Field data-invalid={Boolean(form.formState.errors.apiKey)}>
@@ -386,7 +386,10 @@ function RouteEditor({ selected, clear }: { selected: AdminAiRoute | null; clear
           Define un modelo concreto, límites, precios y revisiones para un solo caso de uso
         </CardDescription>
       </CardHeader>
-      <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+      <form
+        className="flex flex-col gap-(--card-spacing)"
+        onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
+      >
         <CardContent>
           <FieldGroup>
             <Field data-invalid={Boolean(form.formState.errors.useCase)}>
@@ -863,7 +866,7 @@ function UsagePanel() {
             La fecha final es exclusiva y el máximo permitido es 31 días
           </CardDescription>
         </CardHeader>
-        <form onSubmit={form.handleSubmit(setRange)}>
+        <form className="flex flex-col gap-(--card-spacing)" onSubmit={form.handleSubmit(setRange)}>
           <CardContent>
             <FieldGroup className="grid gap-4 sm:grid-cols-2">
               <Field data-invalid={Boolean(form.formState.errors.from)}>
