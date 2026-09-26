@@ -3,7 +3,7 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, HelperText, Switch, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, HelperText, Text, useTheme } from "react-native-paper";
 import { z } from "zod";
 import { getPreferences, updatePreferences } from "@/core/api/preferences";
 import { getProfile } from "@/core/api/profile";
@@ -136,8 +136,9 @@ function PreferencesForm({ value }: { value: Awaited<ReturnType<typeof getPrefer
         minSessionMinutes: Number(values.minSessionMinutes),
         maxSessionMinutes: Number(values.maxSessionMinutes),
         maxDailyMinutes: Number(values.maxDailyMinutes),
-        notificationsEnabled: values.notificationsEnabled,
-        pushNotificationsEnabled: values.pushNotificationsEnabled,
+        // Los avisos se controlan con el permiso de notificaciones del teléfono.
+        notificationsEnabled: true,
+        pushNotificationsEnabled: true,
         quietStartMinute: clockToMinute(values.quietStart),
         quietEndMinute: clockToMinute(values.quietEnd),
         version: value.version,
@@ -196,28 +197,6 @@ function PreferencesForm({ value }: { value: Awaited<ReturnType<typeof getPrefer
           </HelperText>
         </View>
       ))}
-      <Controller
-        control={control}
-        name="notificationsEnabled"
-        render={({ field }) => (
-          <SwitchRow
-            label="Permitir notificaciones"
-            value={field.value}
-            onChange={field.onChange}
-          />
-        )}
-      />
-      <Controller
-        control={control}
-        name="pushNotificationsEnabled"
-        render={({ field }) => (
-          <SwitchRow
-            label="Avisos en el teléfono (push)"
-            value={field.value}
-            onChange={field.onChange}
-          />
-        )}
-      />
       {offline && (
         <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
       )}
@@ -231,23 +210,6 @@ function PreferencesForm({ value }: { value: Awaited<ReturnType<typeof getPrefer
       >
         Guardar preferencias
       </Button>
-    </View>
-  );
-}
-
-function SwitchRow({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: boolean;
-  onChange(value: boolean): void;
-}) {
-  return (
-    <View style={styles.switchRow}>
-      <Text>{label}</Text>
-      <Switch value={value} onValueChange={onChange} accessibilityLabel={label} />
     </View>
   );
 }
