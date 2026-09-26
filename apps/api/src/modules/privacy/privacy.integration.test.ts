@@ -1421,7 +1421,7 @@ test("sign up requires the current terms and a new version blocks the app until 
     rateLimitEnabled: false,
     requireSignupConsent: true,
   });
-  const nextVersion = async (type: "terms" | "privacy") =>
+  const nextVersion = async (type: "terms" | "privacy" | "ai") =>
     (
       await seed.query<{ version: number }>(
         `SELECT coalesce(max(version), 0)::integer + 1 AS version
@@ -1429,7 +1429,7 @@ test("sign up requires the current terms and a new version blocks the app until 
         [type],
       )
     ).rows[0]?.version;
-  const publish = async (type: "terms" | "privacy") => {
+  const publish = async (type: "terms" | "privacy" | "ai") => {
     const id = crypto.randomUUID();
     await seed.query(
       `INSERT INTO dominio.documentos_privacidad (id, tipo, version, idioma, contenido, publicado_en)
@@ -1440,6 +1440,7 @@ test("sign up requires the current terms and a new version blocks the app until 
   };
   const terms = await publish("terms");
   const privacy = await publish("privacy");
+  const ai = await publish("ai");
   const signUp = (email: string, acceptedDocuments?: string[]) =>
     withConsent.handler(
       new Request("http://127.0.0.1:3000/v1/auth/sign-up/email", {
@@ -1464,7 +1465,7 @@ test("sign up requires the current terms and a new version blocks the app until 
   ).toBe(0);
 
   const email = `consent-ok-${crypto.randomUUID()}@example.test`;
-  const accepted = await signUp(email, [terms, privacy]);
+  const accepted = await signUp(email, [terms, privacy, ai]);
   expect(accepted.status).toBe(200);
   const cookie = accepted.headers.get("set-cookie")?.split(";")[0] ?? "";
   const recorded = await seed.query<{ documentId: string }>(
@@ -1473,7 +1474,7 @@ test("sign up requires the current terms and a new version blocks the app until 
      WHERE u.correo = $1 AND c.decision = 'accepted'`,
     [email],
   );
-  expect(recorded.rows.map((row) => row.documentId).sort()).toEqual([terms, privacy].sort());
+  expect(recorded.rows.map((row) => row.documentId).sort()).toEqual([terms, privacy, ai].sort());
   // Aceptado todo, la API deja pasar (la ruta no existe en esta app de prueba).
   expect((await app.request("/v1/activities", { headers: { cookie } })).status).toBe(404);
 

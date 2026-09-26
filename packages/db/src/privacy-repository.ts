@@ -59,11 +59,11 @@ export function createPrivacyRepository(pool: Pool) {
       );
       return result.rows;
     },
-    /** Ids de la versión vigente de términos y privacidad: los que exige usar la app. */
+    /** Ids de la versión vigente de términos, privacidad e IA: los que exige usar la app. */
     async requiredDocumentIds(language: PrivacyLanguage) {
       const result = await pool.query<{ id: string }>(
         `SELECT DISTINCT ON (tipo) id FROM dominio.documentos_privacidad
-         WHERE idioma = $1 AND publicado_en IS NOT NULL AND tipo IN ('terms', 'privacy')
+         WHERE idioma = $1 AND publicado_en IS NOT NULL AND tipo IN ('terms', 'privacy', 'ai')
          ORDER BY tipo, version DESC`,
         [language],
       );
@@ -75,7 +75,7 @@ export function createPrivacyRepository(pool: Pool) {
         `SELECT EXISTS (
            SELECT 1 FROM (
              SELECT DISTINCT ON (tipo) id, tipo FROM dominio.documentos_privacidad
-             WHERE idioma = $2 AND publicado_en IS NOT NULL AND tipo IN ('terms', 'privacy')
+             WHERE idioma = $2 AND publicado_en IS NOT NULL AND tipo IN ('terms', 'privacy', 'ai')
              ORDER BY tipo, version DESC
            ) vigente
            WHERE NOT EXISTS (

@@ -9,7 +9,7 @@ import { ActivityIndicator, Icon, IconButton, Text, useTheme } from "react-nativ
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { v4 as uuidv4 } from "uuid";
 import { sendAssistantMessage } from "@/core/api/ai";
-import { ApiError, OfflineQueuedError } from "@/core/api/client";
+import { OfflineQueuedError } from "@/core/api/client";
 import {
   addChatMessage,
   type ChatAction,
@@ -85,15 +85,12 @@ export function AssistantChatScreen() {
       if (voiceEnabled) speak(result.reply);
     },
     onError: (error) => {
-      const consent = error instanceof ApiError && error.code === "AI_CONSENT_REQUIRED";
       addChatMessage({
         id: uuidv4(),
         role: "assistant",
-        text: consent
-          ? "Para usar el asistente necesitas aceptar el consentimiento de IA."
-          : userMessage(error),
+        text: userMessage(error),
         actions: [],
-        notice: consent ? "consent" : "error",
+        notice: "error",
       });
     },
     // Los errores se muestran dentro del chat, no como toast.
@@ -258,7 +255,6 @@ function Welcome({ onPick, disabled }: { onPick(text: string): void; disabled: b
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const theme = useTheme();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const mine = message.role === "user";
   return (
     <View style={[styles.messageBlock, mine ? styles.mine : styles.theirs]}>
@@ -285,15 +281,6 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         >
           {message.text}
         </Text>
-        {message.notice === "consent" && (
-          <Button
-            mode="text"
-            icon="shield-check-outline"
-            onPress={() => navigation.navigate("Privacy")}
-          >
-            Ir a Privacidad
-          </Button>
-        )}
       </View>
       {!mine && message.actions.length > 0 && (
         <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>

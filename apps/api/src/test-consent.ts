@@ -1,14 +1,14 @@
 type Request = (path: string, init?: RequestInit) => Response | Promise<Response>;
 
 /**
- * Para tests: acepta con la cookie dada la versión vigente de términos y
- * privacidad. Sin eso, la API bloquea la app con CONSENT_REQUIRED en cuanto la
+ * Para tests: acepta con la cookie dada la versión vigente de términos,
+ * privacidad e IA. Sin eso, la API bloquea la app con CONSENT_REQUIRED en cuanto la
  * base de pruebas tiene documentos publicados.
  */
 export async function acceptCurrentDocuments(request: Request, cookie: string) {
   const response = await request("/v1/privacy/documents?language=es");
   const documents = (await response.json()) as Array<{ id: string; type: string }>;
-  for (const document of documents.filter(({ type }) => type !== "ai")) {
+  for (const document of documents) {
     const accepted = await request("/v1/me/consents", {
       method: "POST",
       headers: { cookie, "content-type": "application/json" },

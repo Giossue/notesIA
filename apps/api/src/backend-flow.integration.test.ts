@@ -134,7 +134,7 @@ afterAll(async () => {
   await admin.end();
 });
 
-test("a student can consent, plan, work, see risk, revoke AI and keep manual planning", async () => {
+test("a student can consent, plan, work, see risk and revoking AI blocks the app", async () => {
   const registration = await app.request("/v1/auth/sign-up/email", {
     method: "POST",
     headers: { "content-type": "application/json", origin: "http://127.0.0.1:3000" },
@@ -274,12 +274,12 @@ test("a student can consent, plan, work, see risk, revoke AI and keep manual pla
   const revoked = await post("/v1/me/consents/ai/revoke", {});
   expect(revoked.status).toBe(200);
   expect((await revoked.json()).decision).toBe("revoked");
-  expect((await suggestion()).status).toBe(403);
-  const manualPreview = await post("/v1/plans/preview", {
+  // El documento de IA es obligatorio como los términos: revocarlo bloquea la app.
+  const blocked = await post("/v1/plans/preview", {
     id: crypto.randomUUID(),
     from: "2026-09-28",
     through: "2026-09-29",
   });
-  expect(manualPreview.status).toBe(201);
-  expect(await manualPreview.json()).toMatchObject({ risk: [{ remainingMinutes: 90 }] });
+  expect(blocked.status).toBe(403);
+  expect(await blocked.json()).toMatchObject({ code: "CONSENT_REQUIRED" });
 });

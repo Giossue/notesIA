@@ -13,8 +13,8 @@ export type ChatMessage = {
   role: "user" | "assistant";
   text: string;
   actions: ChatAction[];
-  /** Aviso en vez de respuesta: falta el consentimiento de IA o falló la solicitud. */
-  notice?: "consent" | "error";
+  /** Aviso en vez de respuesta: falló la solicitud. */
+  notice?: "error";
 };
 
 /**

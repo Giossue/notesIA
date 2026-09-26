@@ -14,12 +14,12 @@ export const legalNames = {
 
 const articles = { terms: "los ", privacy: "la ", ai: "el " } as const;
 
-/** Documentos que hay que aceptar para usar la app; el de IA es aparte y opcional. */
+const order = { terms: 0, privacy: 1, ai: 2 } as const;
+
+/** Documentos que hay que aceptar para usar la app, incluido el de IA. */
 export const requiredDocuments = (documents: PrivacyDocument[]) =>
-  documents
-    .filter((document) => document.type !== "ai")
-    // "los Términos de uso y la Política de privacidad".
-    .sort((a, b) => (a.type === "terms" ? -1 : b.type === "terms" ? 1 : 0));
+  // "los Términos de uso, la Política de privacidad y el Consentimiento de IA".
+  [...documents].sort((a, b) => order[a.type] - order[b.type]);
 
 /** Casilla "Acepto los … y la …" con cada nombre como enlace a su texto completo. */
 export function LegalConsentCheckbox({
