@@ -63,6 +63,12 @@ test("the avatar is chosen at sign-up, can change later and only accepts known i
   const cookie = registration.headers.get("set-cookie")?.split(";")[0] ?? "";
   const profile = await app.request("/v1/me", { headers: { cookie } });
   expect(await profile.json()).toMatchObject({ avatar: chosen, version: 1 });
+  // El avatar vive solo en el perfil; usuarios.avatar queda nulo tras el registro.
+  const stored = await pool.query<{ avatar: string | null }>(
+    "SELECT avatar FROM autenticacion.usuarios WHERE correo = $1",
+    [avatarEmail],
+  );
+  expect(stored.rows).toEqual([{ avatar: null }]);
 
   const invalid = await app.request("/v1/me/profile", {
     method: "PATCH",
@@ -81,7 +87,7 @@ test("the avatar is chosen at sign-up, can change later and only accepts known i
     method: "PATCH",
     headers: { cookie, "content-type": "application/json" },
     body: JSON.stringify({
-      displayName: "Con avatar",
+      displayName: "Avatar renombrado",
       language: "es",
       timeZone: "America/Guayaquil",
       avatar: defaultAvatarId,
@@ -90,4 +96,10 @@ test("the avatar is chosen at sign-up, can change later and only accepts known i
   });
   expect(changed.status).toBe(200);
   expect(await changed.json()).toMatchObject({ avatar: defaultAvatarId, version: 2 });
+  // El nombre del perfil se replica a usuarios.nombre en la misma transacción.
+  const renamed = await pool.query<{ nombre: string }>(
+    "SELECT nombre FROM autenticacion.usuarios WHERE correo = $1",
+    [avatarEmail],
+  );
+  expect(renamed.rows).toEqual([{ nombre: "Avatar renombrado" }]);
 });

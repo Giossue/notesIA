@@ -26,7 +26,7 @@ El DDL de referencia se encuentra en `database/schema.sql`.
 | `credenciales_autenticacion` | Hash de contraseña de referencia. |
 | `sesiones_autenticacion` | Sesiones revocables. |
 | `roles_usuario` | `student` y `admin`. |
-| `perfiles_usuario` | Nombre mínimo, idioma y zona. |
+| `perfiles_usuario` | Fuente de verdad del nombre visible, avatar, idioma y zona. |
 | `preferencias_usuario` | Jornada, sesiones, notificaciones e IA. |
 
 > Better Auth genera sus propias tablas. Sus nombres se renombran vía configuración (`modelName`/`fields`) a `autenticacion.usuarios`, `autenticacion.cuentas`, `autenticacion.verificaciones` y `autenticacion.almacen_seguro`, sustituyendo las tablas de autenticación de referencia y manteniendo `usuarios.id` como frontera del dominio o adaptando las FK mediante ADR.
@@ -35,8 +35,6 @@ El DDL de referencia se encuentra en `database/schema.sql`.
 
 | Tabla | Función |
 |---|---|
-| `periodos_academicos` | Retirada del producto; se conserva solo para exportar o eliminar datos existentes. |
-| `materias` | Retirada del producto; se conserva solo para exportar o eliminar datos existentes. |
 | `eventos_calendario` | Clases y compromisos fijos. |
 
 ### Actividades
@@ -94,11 +92,7 @@ erDiagram
     usuarios ||--|| perfiles_usuario : tiene
     usuarios ||--|| preferencias_usuario : configura
     usuarios ||--o{ roles_usuario : posee
-    usuarios ||--o{ periodos_academicos : crea
-    periodos_academicos ||--o{ materias : agrupa
-    usuarios ||--o{ materias : crea
     usuarios ||--o{ actividades : gestiona
-    materias ||--o{ actividades : clasifica
     actividades ||--o{ subtareas : contiene
     actividades ||--o{ registros_tiempo : mide
     usuarios ||--o{ eventos_calendario : reserva
@@ -106,6 +100,7 @@ erDiagram
     usuarios ||--o{ excepciones_disponibilidad : modifica
     usuarios ||--o{ planes : genera
     planes ||--o{ bloques_plan : contiene
+    planes |o--o{ planes : deriva
     actividades ||--o{ bloques_plan : distribuye
     actividades ||--o{ evaluaciones_riesgo : evalua
     usuarios ||--o{ recomendaciones_ia : recibe
@@ -119,7 +114,6 @@ erDiagram
 ### `actividades`
 
 - `tipo`: `academic_task`, `exam`, `personal`, `routine`.
-- `materia_id`: heredado; la aplicación ya no lo lee ni escribe (queda nulo en filas nuevas).
 - `inicio_minimo`: no planificar antes.
 - `fecha_limite`: fecha límite.
 - `minutos_estimados`: estimación confirmada.
@@ -131,6 +125,24 @@ erDiagram
 
 El tiempo real se obtiene de `registros_tiempo`; no se acepta como dato autoritativo de IA.
 
+### `registros_tiempo`
+
+`duracion_segundos` es una columna generada (`GENERATED ALWAYS ... STORED`): `greatest(1, floor(termina_en - inicia_en))` en segundos, nula mientras la sesión sigue abierta. La aplicación nunca la escribe.
+
+### Perfil, nombre y avatar
+
+- `perfiles_usuario` es la fuente de verdad de `nombre` y `avatar`.
+- `usuarios.nombre` existe porque Better Auth lo exige; dos triggers lo mantienen igual a `perfiles_usuario.nombre` en ambas direcciones dentro de la misma transacción (con `IS DISTINCT FROM` para evitar ciclos).
+- `usuarios.avatar` solo transporta el avatar elegido al registrarse (campo adicional de Better Auth). `crear_perfil_usuario` lo copia al perfil y lo deja en `NULL`; ningún código lo escribe después.
+- `usuarios.imagen` es columna de Better Auth; la aplicación no la usa ni la escribe.
+- `usuarios.segundo_factor_habilitado` lo gestiona el plugin `twoFactor` de Better Auth; no se deriva de `segundos_factores` porque el plugin crea la fila sin verificar antes de habilitar y el método OTP habilita sin fila.
+
+### Snapshots deliberados
+
+- `segundos_factores.codigos_respaldo`: formato propio de Better Auth.
+- `riesgos_plan.razones` (`text[]`): snapshot del motor.
+- columnas de costo de `uso_ia`: snapshot contable del precio vigente.
+
 ### `reglas_disponibilidad`
 
 Una fila no cruza medianoche. Se divide cuando hace falta. Las excepciones tienen prioridad.
@@ -141,6 +153,8 @@ Una fila no cruza medianoche. Se divide cuando hace falta. Las excepciones tiene
 - `active`: versión aplicada;
 - `superseded`: reemplazada;
 - `rejected`/`expired`: no aplicable.
+
+`plan_base_id` referencia otro plan del mismo usuario; al borrar el plan base queda en `NULL` (`ON DELETE SET NULL (plan_base_id)`).
 
 Un índice parcial permite solo un plan activo por usuario.
 
@@ -195,6 +209,8 @@ El modelo se almacena como string configurable. No se hardcodea “latest”.
 - `termina_en > inicia_en`;
 - plazo no anterior a inicio mínimo;
 - una cuenta activa por correo;
+- una cuenta de proveedor por `(proveedor_id, cuenta_id)`;
+- `transiciones_ia` se borra en cascada con sus `uso_ia`;
 - una ruta IA por caso;
 - un plan activo por usuario;
 - sin solapamiento de bloques activos;
@@ -205,8 +221,6 @@ El modelo se almacena como string configurable. No se hardcodea “latest”.
 Usan `eliminado_en`:
 
 - usuarios;
-- periodos_academicos;
-- materias;
 - eventos_calendario;
 - actividades;
 - reglas/excepciones de disponibilidad.

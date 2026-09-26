@@ -61,9 +61,7 @@ export function createTimeEntryRepository(pool: Pool) {
     async stop(userId: string, id: string, version: number, mutationId: string, now: Date) {
       const result = await pool.query<Entry>(
         `update dominio.registros_tiempo
-         set termina_en = $5, duracion_segundos = greatest(1,
-           floor(extract(epoch from ($5::timestamptz - inicia_en)))::integer),
-           ultima_mutacion_cierre = $4, version = version + 1
+         set termina_en = $5, ultima_mutacion_cierre = $4, version = version + 1
          where usuario_id = $1 and id = $2 and version = $3 and termina_en is null
            and inicia_en < $5
          returning ${columns}`,
@@ -80,10 +78,10 @@ export function createTimeEntryRepository(pool: Pool) {
       const startsAt = new Date(endsAt.getTime() - minutes * 60000);
       const result = await pool.query<Entry>(
         `insert into dominio.registros_tiempo
-         (id, usuario_id, actividad_id, origen, inicia_en, termina_en, duracion_segundos)
-         values ($1,$2,$3,'manual',$4,$5,$6)
+         (id, usuario_id, actividad_id, origen, inicia_en, termina_en)
+         values ($1,$2,$3,'manual',$4,$5)
          on conflict do nothing returning ${columns}`,
-        [id, userId, activityId, startsAt, endsAt, minutes * 60],
+        [id, userId, activityId, startsAt, endsAt],
       );
       if (result.rows[0]) return { kind: "created" as const, row: result.rows[0] };
       const existing = await this.get(userId, id);

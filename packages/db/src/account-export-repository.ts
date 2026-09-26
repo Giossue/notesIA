@@ -39,23 +39,8 @@ const sections = [
     WHERE usuario_id = $1 ORDER BY usuario_id LIMIT $2 OFFSET $3`,
   },
   {
-    name: "academicPeriods",
-    sql: `SELECT id, nombre AS name, inicia_el AS "startsOn",
-    termina_el AS "endsOn", version, archivado_en AS "archivedAt",
-    actualizado_en AS "updatedAt" FROM dominio.periodos_academicos
-    WHERE usuario_id = $1 ORDER BY id LIMIT $2 OFFSET $3`,
-  },
-  {
-    name: "subjects",
-    sql: `SELECT id, periodo_id AS "periodId", nombre AS name,
-    color AS "colorToken", version, creado_en AS "createdAt",
-    actualizado_en AS "updatedAt", archivado_en AS "archivedAt",
-    eliminado_en AS "deletedAt" FROM dominio.materias
-    WHERE usuario_id = $1 ORDER BY id LIMIT $2 OFFSET $3`,
-  },
-  {
     name: "activitySeries",
-    sql: `SELECT id, materia_id AS "subjectId", tipo AS kind, titulo AS title,
+    sql: `SELECT id, tipo AS kind, titulo AS title,
     descripcion AS description, prioridad AS priority,
     minutos_estimados AS "estimatedMinutes", frecuencia AS frequency,
     inicia_el AS "startOn", hasta_el AS "throughOn",
@@ -65,7 +50,7 @@ const sections = [
   },
   {
     name: "activities",
-    sql: `SELECT id, materia_id AS "subjectId", tipo AS kind,
+    sql: `SELECT id, tipo AS kind,
     titulo AS title, descripcion AS description, estado AS status, prioridad AS priority,
     serie_id AS "seriesId", ocurre_el AS "occursOn",
     inicio_minimo AS "startAfterAt", fecha_limite AS "deadlineAt",
@@ -93,7 +78,7 @@ const sections = [
   },
   {
     name: "calendarEvents",
-    sql: `SELECT id, materia_id AS "subjectId", tipo AS kind,
+    sql: `SELECT id, tipo AS kind,
     titulo AS title, descripcion AS description, inicia_en AS "startsAt",
     termina_en AS "endsAt", zona_horaria AS "timeZone", bloqueado AS "isLocked",
     archivado_en AS "archivedAt", version, creado_en AS "createdAt",

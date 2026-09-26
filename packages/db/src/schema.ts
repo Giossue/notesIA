@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -281,7 +282,10 @@ export const timeEntries = domainSchema.table("registros_tiempo", {
   source: text("origen", { enum: ["timer", "manual"] }).notNull(),
   startsAt: timestamp("inicia_en", { withTimezone: true }).notNull(),
   endsAt: timestamp("termina_en", { withTimezone: true }),
-  durationSeconds: integer("duracion_segundos"),
+  // Columna generada en la base a partir de inicia_en y termina_en.
+  durationSeconds: integer("duracion_segundos").generatedAlwaysAs(
+    sql`case when termina_en is null then null else greatest(1, floor(extract(epoch from (termina_en - inicia_en))))::integer end`,
+  ),
   lastStopMutationId: uuid("ultima_mutacion_cierre"),
   version: integer("version").notNull().default(1),
   createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),

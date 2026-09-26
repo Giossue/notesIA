@@ -1,0 +1,12 @@
+# Nunca enviar secretos ni artefactos locales al contexto de Docker.
+.env
+.env.*
+!.env.example
+**/node_modules
+**/dist
+.git
+apps/mobile/android
+apps/mobile/ios
+apps/mobile/vendor
+temp
+*.log

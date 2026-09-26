@@ -141,11 +141,11 @@ test("time entry cursor preserves PostgreSQL microseconds across pages", async (
     await seed.query(
       `insert into dominio.registros_tiempo
        (id, usuario_id, actividad_id, origen, inicia_en, termina_en,
-        duracion_segundos, creado_en)
+        creado_en)
        values ($1,$2,$3,'manual',
          '2026-09-24T11:00:00Z'::timestamptz + $5::integer * interval '1 minute',
          '2026-09-24T11:01:00Z'::timestamptz + $5::integer * interval '1 minute',
-         60,$4::timestamptz)`,
+         $4::timestamptz)`,
       [crypto.randomUUID(), owner, activity, preciseTime(index), index],
     );
   }

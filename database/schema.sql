@@ -149,47 +149,9 @@ ALTER TABLE sesiones_autenticacion
   ADD CONSTRAINT sesiones_autenticacion_dispositivo_fk
   FOREIGN KEY (dispositivo_id) REFERENCES dispositivos(id) ON DELETE SET NULL;
 
-CREATE TABLE periodos_academicos (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  usuario_id uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  nombre varchar(120) NOT NULL,
-  inicia_el date,
-  termina_el date,
-  actual boolean NOT NULL DEFAULT false,
-  creado_en timestamptz NOT NULL DEFAULT now(),
-  actualizado_en timestamptz NOT NULL DEFAULT now(),
-  eliminado_en timestamptz,
-  version integer NOT NULL DEFAULT 1 CHECK (version > 0),
-  CHECK (termina_el IS NULL OR inicia_el IS NULL OR termina_el >= inicia_el)
-);
-CREATE UNIQUE INDEX periodos_academicos_actual_uq
-  ON periodos_academicos (usuario_id)
-  WHERE actual = true AND eliminado_en IS NULL;
-
-CREATE TABLE materias (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  usuario_id uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  periodo_academico_id uuid REFERENCES periodos_academicos(id) ON DELETE SET NULL,
-  nombre varchar(160) NOT NULL,
-  color varchar(40),
-  nombre_docente varchar(160),
-  notas text,
-  creado_en timestamptz NOT NULL DEFAULT now(),
-  actualizado_en timestamptz NOT NULL DEFAULT now(),
-  eliminado_en timestamptz,
-  version integer NOT NULL DEFAULT 1 CHECK (version > 0)
-);
-CREATE INDEX materias_usuario_periodo_idx
-  ON materias (usuario_id, periodo_academico_id) WHERE eliminado_en IS NULL;
--- normalizar_nombre: minúsculas, sin tildes (unaccent) y espacios simples.
-CREATE UNIQUE INDEX materias_usuario_nombre_activo_uq
-  ON materias (usuario_id, normalizar_nombre(nombre))
-  WHERE archivado_en IS NULL AND eliminado_en IS NULL;
-
 CREATE TABLE eventos_calendario (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   usuario_id uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  materia_id uuid REFERENCES materias(id) ON DELETE SET NULL,
   tipo tipo_evento_calendario NOT NULL DEFAULT 'other',
   titulo varchar(200) NOT NULL,
   descripcion text,
@@ -213,7 +175,6 @@ CREATE INDEX eventos_calendario_usuario_tiempo_idx
 CREATE TABLE actividades (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   usuario_id uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  materia_id uuid REFERENCES materias(id) ON DELETE SET NULL,
   recurrencia_padre_id uuid REFERENCES actividades(id) ON DELETE SET NULL,
   tipo tipo_actividad NOT NULL,
   titulo varchar(240) NOT NULL,
@@ -239,9 +200,6 @@ CREATE TABLE actividades (
 );
 CREATE INDEX actividades_usuario_estado_fecha_limite_idx
   ON actividades (usuario_id, estado, fecha_limite)
-  WHERE eliminado_en IS NULL;
-CREATE INDEX actividades_materia_idx
-  ON actividades (materia_id, fecha_limite)
   WHERE eliminado_en IS NULL;
 CREATE INDEX actividades_sincronizacion_idx
   ON actividades (usuario_id, actualizado_en);
@@ -691,14 +649,6 @@ FOR EACH ROW EXECUTE FUNCTION establecer_actualizado_en_y_version('plain');
 CREATE TRIGGER dispositivos_actualizado_trg
 BEFORE UPDATE ON dispositivos
 FOR EACH ROW EXECUTE FUNCTION establecer_actualizado_en_y_version('plain');
-
-CREATE TRIGGER periodos_academicos_actualizado_trg
-BEFORE UPDATE ON periodos_academicos
-FOR EACH ROW EXECUTE FUNCTION establecer_actualizado_en_y_version('versioned');
-
-CREATE TRIGGER materias_actualizado_trg
-BEFORE UPDATE ON materias
-FOR EACH ROW EXECUTE FUNCTION establecer_actualizado_en_y_version('versioned');
 
 CREATE TRIGGER eventos_calendario_actualizado_trg
 BEFORE UPDATE ON eventos_calendario

@@ -16,6 +16,7 @@
     "dev:worker": "bun --watch apps/worker/src/index.ts",
     "dev:mobile": "cd apps/mobile && bun run start",
     "db:migrate:local": "bun packages/db/scripts/migrate-local.ts notesia_dev",
+    "db:migrate:remote": "bun packages/db/scripts/migrate-remote.ts",
     "db:test:migrations:local": "bun packages/db/scripts/test-migrations-local.ts",
     "db:backup:local": "bun packages/db/scripts/backup-local.ts",
     "db:test:restore:local": "bun packages/db/scripts/test-restore-local.ts",

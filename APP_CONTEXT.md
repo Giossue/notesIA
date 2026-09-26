@@ -78,7 +78,7 @@ El estudiante puede tener toda la información registrada y aun así no saber si
 
 ### Organización académica
 
-- materias y periodos académicos fueron retirados del producto (sus tablas se conservan solo para exportar o eliminar datos existentes);
+- materias y periodos académicos fueron retirados del producto (sus tablas y columnas se eliminaron en la migración 0052);
 - clases y compromisos fijos;
 - actividades académicas, exámenes, personales y rutinas;
 - subtareas;

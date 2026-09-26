@@ -1254,11 +1254,12 @@ test("deletion request, cancellation and due purge isolate users and revoke sess
   const idB = users.rows.find((row) => row.email === emailB)?.id;
   expect(idA).toBeTruthy();
   expect(idB).toBeTruthy();
-  const subjectA = crypto.randomUUID();
-  const subjectB = crypto.randomUUID();
+  const ruleA = crypto.randomUUID();
+  const ruleB = crypto.randomUUID();
   await seed.query(
-    `INSERT INTO dominio.materias (id, usuario_id, nombre) VALUES ($1,$2,'Privada A'),($3,$4,'Privada B')`,
-    [subjectA, idA, subjectB, idB],
+    `INSERT INTO dominio.reglas_disponibilidad (id, usuario_id, dia_semana, minuto_inicio, minuto_fin)
+     VALUES ($1,$2,1,480,540),($3,$4,1,480,540)`,
+    [ruleA, idA, ruleB, idB],
   );
   await seed.query(
     `INSERT INTO dominio.auditoria_admin (id, actor_id, accion, objetivo_id)
@@ -1344,9 +1345,13 @@ test("deletion request, cancellation and due purge isolate users and revoke sess
   );
   expect(after.rows).toEqual([{ id: idB as string }]);
   expect(
-    (await seed.query(`SELECT id FROM dominio.materias WHERE id IN ($1,$2)`, [subjectA, subjectB]))
-      .rows,
-  ).toEqual([{ id: subjectB }]);
+    (
+      await seed.query(`SELECT id FROM dominio.reglas_disponibilidad WHERE id IN ($1,$2)`, [
+        ruleA,
+        ruleB,
+      ])
+    ).rows,
+  ).toEqual([{ id: ruleB }]);
   expect(
     (
       await seed.query(`SELECT usuario_id FROM dominio.perfiles_usuario WHERE usuario_id = $1`, [

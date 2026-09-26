@@ -141,7 +141,8 @@ describe("Better Auth with encrypted PostgreSQL sessions", () => {
       "SELECT nombre AS name FROM autenticacion.usuarios WHERE correo = $1",
       [email],
     );
-    expect(accountName.rows[0]?.name).toBe("Auth Test");
+    // update-user está bloqueado; usuarios.nombre refleja el nombre del perfil (trigger).
+    expect(accountName.rows[0]?.name).toBe("Nombre nuevo");
 
     const bypassDeletion = await app.request("/v1/auth/delete-user", {
       method: "POST",
