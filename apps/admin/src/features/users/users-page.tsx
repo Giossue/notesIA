@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { adminUserSuspensionSchema } from "@notesia/contracts";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type ReactNode, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
@@ -21,8 +21,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { type AdminUser, adminApi } from "@/lib/admin-api";
@@ -117,19 +126,145 @@ function SuspensionDialog({
 
 function UserActions({ user }: { user: AdminUser }) {
   const [open, setOpen] = useState(false);
+  const [viewing, setViewing] = useState(false);
   const suspended = user.suspendedAt === null;
+  // A un administrador no se lo suspende: primero se le quita el rol.
+  const canSuspend = !(suspended && user.role === "admin");
   return (
     <RowActions
       actions={[
-        {
-          label: suspended ? "Suspender" : "Reactivar",
-          destructive: suspended,
-          select: () => setOpen(true),
-        },
+        { label: "Ver", select: () => setViewing(true) },
+        ...(canSuspend
+          ? [
+              {
+                label: suspended ? "Suspender" : "Reactivar",
+                destructive: suspended,
+                select: () => setOpen(true),
+              },
+            ]
+          : []),
       ]}
     >
       <SuspensionDialog user={user} open={open} setOpen={setOpen} />
+      <UserDetailDialog user={user} open={viewing} setOpen={setViewing} />
     </RowActions>
+  );
+}
+
+function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b py-2 last:border-b-0">
+      <dt className="text-muted-foreground text-sm">{label}</dt>
+      <dd className="text-right text-sm">{children}</dd>
+    </div>
+  );
+}
+
+const yesNo = (value: boolean) => (
+  <StatusBadge tone={value ? "success" : "neutral"}>{value ? "Sí" : "No"}</StatusBadge>
+);
+
+function UserDetailDialog({
+  user,
+  open,
+  setOpen,
+}: {
+  user: AdminUser;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
+  const detail = useQuery({
+    queryKey: [...usersQueryKey, "detail", user.id],
+    queryFn: () => adminApi.userDetail(user.id),
+    enabled: open,
+  });
+  const data = detail.data;
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{user.name}</DialogTitle>
+          <DialogDescription>{user.email}</DialogDescription>
+        </DialogHeader>
+        {!data ? (
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: 6 }, (_, index) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: marcadores de carga
+              <Skeleton key={index} className="h-6 w-full" />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <section>
+              <h3 className="mb-1 font-medium text-sm">Cuenta</h3>
+              <dl>
+                <DetailRow label="ID">
+                  <code className="text-xs">{data.id}</code>
+                </DetailRow>
+                <DetailRow label="Rol">
+                  <StatusBadge>{roleLabel(data.role)}</StatusBadge>
+                </DetailRow>
+                <DetailRow label="Estado">
+                  <StatusBadge tone={data.suspendedAt ? "danger" : "success"}>
+                    {data.suspendedAt
+                      ? `suspendida el ${new Date(data.suspendedAt).toLocaleString()}`
+                      : "activa"}
+                  </StatusBadge>
+                </DetailRow>
+                <DetailRow label="Correo verificado">{yesNo(data.emailVerified)}</DetailRow>
+                <DetailRow label="Verificación en dos pasos">
+                  {yesNo(data.twoFactorEnabled)}
+                </DetailRow>
+                <DetailRow label="Creada">{new Date(data.createdAt).toLocaleString()}</DetailRow>
+                <DetailRow label="Última actualización">
+                  {new Date(data.updatedAt).toLocaleString()}
+                </DetailRow>
+                {data.deletionRequestedAt && (
+                  <DetailRow label="Eliminación solicitada">
+                    <StatusBadge tone="danger">
+                      {new Date(data.deletionRequestedAt).toLocaleString()}
+                    </StatusBadge>
+                  </DetailRow>
+                )}
+              </dl>
+            </section>
+            {data.profile && (
+              <section>
+                <h3 className="mb-1 font-medium text-sm">Perfil</h3>
+                <dl>
+                  <DetailRow label="Nombre visible">{data.profile.displayName}</DetailRow>
+                  <DetailRow label="Zona horaria">{data.profile.timeZone}</DetailRow>
+                  <DetailRow label="Configuración inicial">
+                    {data.profile.onboardingCompleted ? "Completada" : "Pendiente"}
+                  </DetailRow>
+                </dl>
+              </section>
+            )}
+            <section>
+              <h3 className="mb-1 font-medium text-sm">Uso de la app</h3>
+              <dl>
+                <DetailRow label="Actividades">
+                  {data.counts.activities} ({data.counts.completedActivities} completadas)
+                </DetailRow>
+                <DetailRow label="Compromisos">{data.counts.commitments}</DetailRow>
+                <DetailRow label="Tramos de horario de estudio">{data.counts.studyHours}</DetailRow>
+                <DetailRow label="Racha actual">
+                  {data.counts.streakDays} {data.counts.streakDays === 1 ? "día" : "días"}
+                </DetailRow>
+                <DetailRow label="Dispositivos con notificaciones">
+                  {data.counts.pushDevices}
+                </DetailRow>
+              </dl>
+            </section>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cerrar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

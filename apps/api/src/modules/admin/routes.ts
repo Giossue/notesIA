@@ -17,6 +17,7 @@ import {
   adminRoleSchema,
   adminRoleUpdateSchema,
   adminSystemHealthSchema,
+  adminUserDetailSchema,
   adminUserPageSchema,
   adminUserSchema,
   adminUserStateSchema,
@@ -27,6 +28,7 @@ import {
   type Problem,
 } from "@notesia/contracts";
 import type { AdminDocument, AdminRateLimiter, AdminRepository, AiRepository } from "@notesia/db";
+import { computeStreak, todayInTimeZone } from "@notesia/domain";
 import { evaluateHealthAlerts, type HealthAlertPolicy } from "@notesia/observability";
 import type { Hono } from "hono";
 import { z } from "zod";
@@ -347,6 +349,51 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
     );
   });
 
+  app.get("/v1/admin/users/:userId", async (c) => {
+    const access = await authorize(c.req.raw.headers, c.req.method, dependencies);
+    if (access.response) return access.response;
+    const userId = z.uuid().safeParse(c.req.param("userId"));
+    if (!userId.success) return error(404, "NOT_FOUND", "Cuenta no encontrada.");
+    const row = await dependencies.admin.userDetail(userId.data);
+    if (!row) return error(404, "NOT_FOUND", "Cuenta no encontrada.");
+    const today = row.timeZone
+      ? todayInTimeZone(new Date().toISOString(), row.timeZone)
+      : new Date().toISOString().slice(0, 10);
+    return c.json(
+      adminUserDetailSchema.parse({
+        id: row.id,
+        email: row.email,
+        name: row.name,
+        role: row.role,
+        suspendedAt: row.suspendedAt?.toISOString() ?? null,
+        version: row.version,
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
+        emailVerified: row.emailVerified,
+        twoFactorEnabled: row.twoFactorEnabled,
+        profile: row.hasProfile
+          ? {
+              displayName: row.displayName ?? "",
+              timeZone: row.timeZone ?? "",
+              avatar: row.avatar ?? "",
+              onboardingCompleted: row.onboardingCompletedAt !== null,
+            }
+          : null,
+        counts: {
+          activities: row.activities,
+          completedActivities: row.completedActivities,
+          commitments: row.commitments,
+          studyHours: row.studyHours,
+          pushDevices: row.pushDevices,
+          streakDays: computeStreak(row.streakDays, today).current,
+        },
+        deletionRequestedAt: row.deletionRequestedAt?.toISOString() ?? null,
+      }),
+      200,
+      { "Cache-Control": "no-store" },
+    );
+  });
+
   app.put("/v1/admin/users/:userId/suspension", async (c) => {
     const access = await authorize(c.req.raw.headers, c.req.method, dependencies);
     if (access.response) return access.response;
@@ -369,8 +416,12 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
       return error(409, "VERSION_CONFLICT", "La cuenta cambió; actualiza la lista.");
     if (result.kind === "self_change")
       return error(403, "FORBIDDEN", "No puedes suspender tu propia cuenta.");
-    if (result.kind === "last_admin")
-      return error(409, "LAST_ADMIN", "Debe quedar al menos un administrador activo.");
+    if (result.kind === "admin_target")
+      return error(
+        403,
+        "FORBIDDEN",
+        "No se puede suspender a un administrador. Quítale el rol primero.",
+      );
     return c.json(
       adminUserStateSchema.parse({
         userId: userId.data,
@@ -529,7 +580,21 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
     return c.json(
       adminAuditPageSchema.parse({
         items: page.map((row) =>
-          adminAuditSchema.parse({ ...row, recordedAt: row.recordedAt.toISOString() }),
+          adminAuditSchema.parse({
+            id: row.id,
+            actorId: row.actorId,
+            action: row.action,
+            targetId: row.targetId,
+            actorEmail: row.actorEmail,
+            target: row.targetEmail
+              ? { kind: "user", email: row.targetEmail }
+              : row.documentType && row.documentVersion
+                ? { kind: "document", type: row.documentType, version: row.documentVersion }
+                : row.provider
+                  ? { kind: "provider", provider: row.provider }
+                  : null,
+            recordedAt: row.recordedAt.toISOString(),
+          }),
         ),
         nextCursor:
           rows.length > 20 && last

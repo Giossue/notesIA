@@ -1186,6 +1186,29 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /admin/users/{userId}:
+    get:
+      operationId: getAdminUsersByUserId
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserDetail"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /admin/users/{userId}/suspension:
     put:
       operationId: putAdminUsersByUserIdSuspension
@@ -4472,6 +4495,60 @@ components:
                 type: string
                 format: uuid
                 pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              actorEmail:
+                type:
+                  - string
+                  - "null"
+              target:
+                anyOf:
+                  - oneOf:
+                      - type: object
+                        properties:
+                          kind:
+                            type: string
+                            const: user
+                          email:
+                            type: string
+                        required:
+                          - kind
+                          - email
+                        additionalProperties: false
+                      - type: object
+                        properties:
+                          kind:
+                            type: string
+                            const: document
+                          type:
+                            type: string
+                            enum:
+                              - terms
+                              - privacy
+                              - ai
+                          version:
+                            type: integer
+                            exclusiveMinimum: 0
+                            maximum: 9007199254740991
+                        required:
+                          - kind
+                          - type
+                          - version
+                        additionalProperties: false
+                      - type: object
+                        properties:
+                          kind:
+                            type: string
+                            const: provider
+                          provider:
+                            type: string
+                            enum:
+                              - openai
+                              - anthropic
+                              - deepseek
+                        required:
+                          - kind
+                          - provider
+                        additionalProperties: false
+                  - type: "null"
               recordedAt:
                 type: string
                 format: date-time
@@ -4481,6 +4558,8 @@ components:
               - actorId
               - action
               - targetId
+              - actorEmail
+              - target
               - recordedAt
             additionalProperties: false
         nextCursor:
@@ -5038,6 +5117,123 @@ components:
         - worker
         - ai
         - alerts
+      additionalProperties: false
+    AdminUserDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        email:
+          type: string
+          format: email
+          pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+        name:
+          type: string
+        role:
+          anyOf:
+            - type: string
+              enum:
+                - admin
+                - support
+            - type: "null"
+        suspendedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            - type: "null"
+        version:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 9007199254740991
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+        emailVerified:
+          type: boolean
+        twoFactorEnabled:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+        profile:
+          anyOf:
+            - type: object
+              properties:
+                displayName:
+                  type: string
+                timeZone:
+                  type: string
+                avatar:
+                  type: string
+                onboardingCompleted:
+                  type: boolean
+              required:
+                - displayName
+                - timeZone
+                - avatar
+                - onboardingCompleted
+              additionalProperties: false
+            - type: "null"
+        counts:
+          type: object
+          properties:
+            activities:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            completedActivities:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            commitments:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            studyHours:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            pushDevices:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            streakDays:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+          required:
+            - activities
+            - completedActivities
+            - commitments
+            - studyHours
+            - pushDevices
+            - streakDays
+          additionalProperties: false
+        deletionRequestedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            - type: "null"
+      required:
+        - id
+        - email
+        - name
+        - role
+        - suspendedAt
+        - version
+        - createdAt
+        - emailVerified
+        - twoFactorEnabled
+        - updatedAt
+        - profile
+        - counts
+        - deletionRequestedAt
       additionalProperties: false
     AdminUserPage:
       type: object

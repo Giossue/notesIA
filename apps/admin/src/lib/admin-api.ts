@@ -15,6 +15,7 @@ import {
   adminRoleRemoveSchema,
   adminRoleUpdateSchema,
   adminSystemHealthSchema,
+  adminUserDetailSchema,
   adminUserPageSchema,
   adminUserStateSchema,
   adminUserSuspensionSchema,
@@ -34,6 +35,8 @@ function withCursor(path: `/v1/${string}`, cursor?: string | null) {
   return cursor ? (`${path}?cursor=${encodeURIComponent(cursor)}` as `/v1/${string}`) : path;
 }
 
+export type AdminAudit = z.infer<typeof adminAuditPageSchema>["items"][number];
+export type AdminUserDetail = z.infer<typeof adminUserDetailSchema>;
 export type AdminUser = z.infer<typeof adminUserPageSchema>["items"][number];
 export type AdminRole = z.infer<typeof adminRolePageSchema>["items"][number];
 export type AdminDocument = z.infer<typeof adminDocumentSchema>;
@@ -45,6 +48,7 @@ export const adminApi = {
   systemHealth: () => apiRequest("/v1/admin/system-health", adminSystemHealthSchema),
   users: (cursor?: string | null) =>
     apiRequest(withCursor("/v1/admin/users", cursor), adminUserPageSchema),
+  userDetail: (userId: string) => apiRequest(`/v1/admin/users/${userId}`, adminUserDetailSchema),
   setSuspension: (userId: string, input: z.infer<typeof adminUserSuspensionSchema>) =>
     apiRequest(`/v1/admin/users/${userId}/suspension`, adminUserStateSchema, {
       method: "PUT",

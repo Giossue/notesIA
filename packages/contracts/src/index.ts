@@ -145,6 +145,23 @@ export const adminAuditSchema = z.object({
     "account.reactivated",
   ]),
   targetId: z.uuid(),
+  /** Correo de quien hizo la acción (null si la cuenta ya no existe). */
+  actorEmail: z.string().nullable(),
+  /** Qué se afectó: una cuenta (su correo), un documento legal o un proveedor de IA. */
+  target: z
+    .discriminatedUnion("kind", [
+      z.object({ kind: z.literal("user"), email: z.string() }),
+      z.object({
+        kind: z.literal("document"),
+        type: z.enum(["terms", "privacy", "ai"]),
+        version: z.number().int().positive(),
+      }),
+      z.object({
+        kind: z.literal("provider"),
+        provider: z.enum(["openai", "anthropic", "deepseek"]),
+      }),
+    ])
+    .nullable(),
   recordedAt: z.iso.datetime(),
 });
 export const adminAuditPageSchema = z.object({
@@ -420,6 +437,30 @@ export const adminUserSchema = z.object({
   version: z.number().int().positive(),
   createdAt: z.iso.datetime(),
 });
+/** Ficha completa de una cuenta para el panel. */
+export const adminUserDetailSchema = adminUserSchema.extend({
+  emailVerified: z.boolean(),
+  twoFactorEnabled: z.boolean(),
+  updatedAt: z.iso.datetime(),
+  profile: z
+    .object({
+      displayName: z.string(),
+      timeZone: z.string(),
+      avatar: z.string(),
+      onboardingCompleted: z.boolean(),
+    })
+    .nullable(),
+  counts: z.object({
+    activities: z.number().int().nonnegative(),
+    completedActivities: z.number().int().nonnegative(),
+    commitments: z.number().int().nonnegative(),
+    studyHours: z.number().int().nonnegative(),
+    pushDevices: z.number().int().nonnegative(),
+    streakDays: z.number().int().nonnegative(),
+  }),
+  deletionRequestedAt: z.iso.datetime().nullable(),
+});
+export type AdminUserDetail = z.infer<typeof adminUserDetailSchema>;
 export const adminUserPageSchema = z.object({
   items: z.array(adminUserSchema),
   nextCursor: z.string().nullable(),

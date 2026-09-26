@@ -608,6 +608,24 @@ test("only an administrator can publish documents and each action is audited", a
     version: 3,
     suspendedAt: null,
   });
+  const detail = await app.request(`/v1/admin/users/${targetId}`, {
+    headers: { cookie: adminCookie },
+  });
+  expect(detail.status).toBe(200);
+  expect(await detail.json()).toMatchObject({
+    id: targetId,
+    email: targetEmail,
+    suspendedAt: null,
+    counts: { activities: 0, streakDays: 0 },
+  });
+  // A un administrador no se lo suspende: primero hay que quitarle el rol.
+  await seed.query(
+    "INSERT INTO autenticacion.roles_usuario (usuario_id, rol) VALUES ($1, 'admin')",
+    [targetId],
+  );
+  const adminTarget = await suspend(suspendPath, { ...suspendBody, version: 3 });
+  expect(adminTarget.status).toBe(403);
+  await seed.query("DELETE FROM autenticacion.roles_usuario WHERE usuario_id = $1", [targetId]);
   expect(await storage.get(orphanSessionKey)).toBeNull();
   await expect(
     storage.set(

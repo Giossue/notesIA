@@ -5,9 +5,29 @@ import { LoadMore } from "@/components/load-more";
 import { Page, PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { adminApi } from "@/lib/admin-api";
-import { auditActionLabels, label } from "@/lib/labels";
+import { type AdminAudit, adminApi } from "@/lib/admin-api";
+import { auditActionLabels, label, providerLabels } from "@/lib/labels";
 import { auditQueryKey } from "@/lib/query";
+
+const documentLabels = {
+  terms: "Términos de uso",
+  privacy: "Política de privacidad",
+  ai: "Consentimiento de IA",
+} as const;
+
+/** Lo afectado: el correo de la cuenta, el documento legal o el proveedor de IA. */
+function AuditTarget({ record }: { record: AdminAudit }) {
+  const target = record.target;
+  if (!target) return <span className="text-muted-foreground">Ya no existe</span>;
+  if (target.kind === "user") return <>{target.email}</>;
+  if (target.kind === "document")
+    return (
+      <>
+        {documentLabels[target.type]} · versión {target.version}
+      </>
+    );
+  return <>{providerLabels[target.provider]}</>;
+}
 
 export function AuditPage() {
   const query = useInfiniteQuery({
@@ -38,10 +58,12 @@ export function AuditPage() {
                 <StatusBadge>{label(auditActionLabels, record.action)}</StatusBadge>
               </TableCell>
               <TableCell>
-                <code className="text-muted-foreground text-xs">{record.actorId}</code>
+                {record.actorEmail ?? (
+                  <span className="text-muted-foreground">Cuenta eliminada</span>
+                )}
               </TableCell>
               <TableCell>
-                <code className="text-muted-foreground text-xs">{record.targetId}</code>
+                <AuditTarget record={record} />
               </TableCell>
             </TableRow>
           ))}

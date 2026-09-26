@@ -23,6 +23,11 @@ export type AdminAudit = {
     | "account.reactivated";
   targetId: string;
   recordedAt: Date;
+  actorEmail: string | null;
+  targetEmail: string | null;
+  documentType: "terms" | "privacy" | "ai" | null;
+  documentVersion: number | null;
+  provider: "openai" | "anthropic" | "deepseek" | null;
   cursorRecordedAt: string;
 };
 type Cursor = { createdAt: string; id: string };
@@ -100,6 +105,63 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
       );
       return result.rows;
     },
+    /** Ficha de una cuenta: datos de acceso, perfil y cuánto usa la app. */
+    async userDetail(userId: string) {
+      const result = await pool.query<{
+        id: string;
+        email: string;
+        name: string;
+        emailVerified: boolean;
+        twoFactorEnabled: boolean;
+        role: "admin" | "support" | null;
+        suspendedAt: Date | null;
+        version: number;
+        createdAt: Date;
+        updatedAt: Date;
+        displayName: string | null;
+        timeZone: string | null;
+        avatar: string | null;
+        onboardingCompletedAt: Date | null;
+        hasProfile: boolean;
+        activities: number;
+        completedActivities: number;
+        commitments: number;
+        studyHours: number;
+        pushDevices: number;
+        streakDays: string[];
+        deletionRequestedAt: Date | null;
+      }>(
+        `SELECT u.id, u.correo AS email, u.nombre AS name,
+           u.correo_verificado AS "emailVerified",
+           u.segundo_factor_habilitado AS "twoFactorEnabled",
+           r.rol AS role, u.suspendido_en AS "suspendedAt", u.estado_version AS version,
+           u.creado_en AS "createdAt", u.actualizado_en AS "updatedAt",
+           p.nombre AS "displayName", p.zona_horaria AS "timeZone", p.avatar,
+           p.onboarding_completado_en AS "onboardingCompletedAt",
+           p.usuario_id IS NOT NULL AS "hasProfile",
+           (SELECT count(*)::int FROM dominio.actividades a
+            WHERE a.usuario_id = u.id AND a.eliminado_en IS NULL) AS activities,
+           (SELECT count(*)::int FROM dominio.actividades a
+            WHERE a.usuario_id = u.id AND a.eliminado_en IS NULL
+              AND a.estado = 'completed') AS "completedActivities",
+           (SELECT count(*)::int FROM dominio.eventos_calendario e
+            WHERE e.usuario_id = u.id AND e.archivado_en IS NULL) AS commitments,
+           (SELECT count(*)::int FROM dominio.reglas_disponibilidad rule
+            WHERE rule.usuario_id = u.id AND rule.archivado_en IS NULL) AS "studyHours",
+           (SELECT count(*)::int FROM dominio.dispositivos_push d
+            WHERE d.usuario_id = u.id) AS "pushDevices",
+           coalesce((SELECT array_agg(d.fecha::text) FROM dominio.dias_racha d
+            WHERE d.usuario_id = u.id), '{}') AS "streakDays",
+           (SELECT s.solicitada_en FROM dominio.solicitudes_eliminacion s
+            WHERE s.usuario_id = u.id) AS "deletionRequestedAt"
+         FROM autenticacion.usuarios u
+         LEFT JOIN autenticacion.roles_usuario r ON r.usuario_id = u.id
+         LEFT JOIN dominio.perfiles_usuario p ON p.usuario_id = u.id
+         WHERE u.id = $1`,
+        [userId],
+      );
+      return result.rows[0] ?? null;
+    },
     async setSuspended(actorId: string, userId: string, suspended: boolean, version: number) {
       if (actorId === userId) return { kind: "self_change" as const };
       const client = await pool.connect();
@@ -131,16 +193,10 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
           await client.query("COMMIT");
           return { kind: "unchanged" as const, version, suspendedAt: user.suspendedAt };
         }
+        // A un administrador no se lo suspende: primero hay que quitarle el rol.
         if (suspended && user.role === "admin") {
-          const active = await client.query<{ count: string }>(
-            `SELECT count(*)::text AS count FROM autenticacion.roles_usuario r
-             JOIN autenticacion.usuarios u ON u.id = r.usuario_id
-             WHERE r.rol = 'admin' AND u.suspendido_en IS NULL`,
-          );
-          if (Number(active.rows[0]?.count ?? 0) <= 1) {
-            await client.query("ROLLBACK");
-            return { kind: "last_admin" as const };
-          }
+          await client.query("ROLLBACK");
+          return { kind: "admin_target" as const };
         }
         if (suspended) await revokeUserSecureSessions(client, authSecret, userId);
         const changed = await client.query<{ version: number; suspendedAt: Date | null }>(
@@ -297,13 +353,20 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
     },
     async listAudit(cursor: { recordedAt: string; id: string } | null) {
       const result = await pool.query<AdminAudit>(
-        `SELECT id, actor_id AS "actorId", accion AS action,
-           objetivo_id AS "targetId", registrado_en AS "recordedAt",
-           to_char(registrado_en AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+        `SELECT a.id, a.actor_id AS "actorId", a.accion AS action,
+           a.objetivo_id AS "targetId", a.registrado_en AS "recordedAt",
+           actor.correo AS "actorEmail", target.correo AS "targetEmail",
+           document.tipo AS "documentType", document.version AS "documentVersion",
+           provider.proveedor AS "provider",
+           to_char(a.registrado_en AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
              AS "cursorRecordedAt"
-         FROM dominio.auditoria_admin
-         WHERE ($1::timestamptz IS NULL OR (registrado_en, id) < ($1, $2::uuid))
-         ORDER BY registrado_en DESC, id DESC LIMIT 21`,
+         FROM dominio.auditoria_admin a
+         LEFT JOIN autenticacion.usuarios actor ON actor.id = a.actor_id
+         LEFT JOIN autenticacion.usuarios target ON target.id = a.objetivo_id
+         LEFT JOIN dominio.documentos_privacidad document ON document.id = a.objetivo_id
+         LEFT JOIN dominio.proveedores_ia provider ON provider.id = a.objetivo_id
+         WHERE ($1::timestamptz IS NULL OR (a.registrado_en, a.id) < ($1, $2::uuid))
+         ORDER BY a.registrado_en DESC, a.id DESC LIMIT 21`,
         [cursor?.recordedAt ?? null, cursor?.id ?? null],
       );
       return result.rows;

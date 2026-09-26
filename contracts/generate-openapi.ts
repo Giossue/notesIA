@@ -233,6 +233,7 @@ add("GET", "/v1/calendar-events/:id", "calendarEventSchema");
 add("POST", "/v1/calendar-events", "calendarEventSchema", "calendarEventCreateSchema", [200, 201]);
 add("PATCH", "/v1/calendar-events/:id", "calendarEventSchema", "calendarEventUpdateSchema");
 add("GET", "/v1/streak", "streakSchema");
+add("GET", "/v1/admin/users/:userId", "adminUserDetailSchema");
 add("POST", "/v1/me/onboarding/complete", "profileSchema");
 add(
   "POST",
