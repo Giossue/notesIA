@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { adminAiProviderUpdateSchema, aiProviderSchema } from "@notesia/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, CircleHelp, Coins, DollarSign, PlugZap, Route, Shuffle } from "lucide-react";
+import { Activity, CircleHelp, Coins, DollarSign, PlugZap, Route } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -44,13 +44,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type AdminAiProvider, type AdminAiRoute, adminApi } from "@/lib/admin-api";
-import {
-  fallbackReasonLabels,
-  label,
-  providerLabels,
-  usageStatusLabels,
-  useCaseLabels,
-} from "@/lib/labels";
+import { providerLabels, usageStatusLabels, useCaseLabels } from "@/lib/labels";
 import { aiProvidersQuery, aiRoutesQuery, auditQueryKey, systemHealthQuery } from "@/lib/query";
 
 type Provider = z.infer<typeof aiProviderSchema>;
@@ -526,6 +520,13 @@ function sumUsd(values: string[]) {
   return `${text.slice(0, -9)}.${text.slice(-9)}`;
 }
 
+/** "USD 1.25"; montos que no llegan a un centavo se muestran como "< USD 0.01". */
+function formatUsd(value: string) {
+  const amount = Number(value);
+  if (amount > 0 && amount < 0.01) return "< USD 0.01";
+  return `USD ${amount.toFixed(2)}`;
+}
+
 function UsageSummary({ usage }: { usage: AiUsage }) {
   const requests = usage.items.reduce((sum, item) => sum + item.requests, 0);
   const tokens = usage.items.reduce((sum, item) => sum + item.inputTokens + item.outputTokens, 0);
@@ -542,14 +543,14 @@ function UsageSummary({ usage }: { usage: AiUsage }) {
       <StatCard
         icon={DollarSign}
         label="Coste conocido"
-        value={`USD ${sumUsd(usage.items.map((item) => item.knownCostUsd))}`}
+        value={formatUsd(sumUsd(usage.items.map((item) => item.knownCostUsd)))}
         footer="Solo solicitudes con precio configurado"
       />
       <StatCard
-        icon={Shuffle}
-        label="Respaldos"
+        icon={CircleHelp}
+        label="Sin respuesta"
         value={fallbacks}
-        footer="Solicitudes resueltas por el proveedor alterno"
+        footer="Sin créditos, límite diario alcanzado o proveedor caído"
       />
     </StatGrid>
   );
@@ -569,7 +570,7 @@ function AiOverview() {
         label={
           health.data ? `Coste, últimos ${health.data.ai.windowMinutes} minutos` : "Coste reciente"
         }
-        value={health.data ? `USD ${health.data.ai.knownCostUsd}` : pending}
+        value={health.data ? formatUsd(health.data.ai.knownCostUsd) : pending}
         footer="Coste conocido de la ventana de salud"
       />
       <StatCard
@@ -661,7 +662,7 @@ function UsagePanel() {
                 "Estado",
                 "Solicitudes",
                 "Tokens",
-                "Coste USD",
+                "Coste",
                 "Tiempo p95 (ms)",
               ]}
             >
@@ -676,44 +677,12 @@ function UsagePanel() {
                   <TableCell className="tabular-nums">
                     {item.inputTokens + item.outputTokens}
                   </TableCell>
-                  <TableCell>{item.totalCostUsd ?? `${item.knownCostUsd} conocido`}</TableCell>
+                  <TableCell>{formatUsd(item.totalCostUsd ?? item.knownCostUsd)}</TableCell>
                   <TableCell>{item.p95DurationMs ?? "sin dato"}</TableCell>
                 </TableRow>
               ))}
             </DataTable>
           )}
-          <Card>
-            <CardHeader>
-              <CardTitle>Respaldos y cambios de proveedor</CardTitle>
-              <CardDescription>
-                Motivos agregados; no contienen contenido de usuarios
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {query.data.fallbacks.length + query.data.transitions.length === 0 ? (
-                <p className="text-muted-foreground text-sm">
-                  Sin respaldos ni cambios de proveedor en el rango
-                </p>
-              ) : null}
-              <ul className="flex flex-col gap-1 text-sm">
-                {query.data.fallbacks.map((item) => (
-                  <li key={`${item.useCase}-${item.reason}`}>
-                    {useCaseLabels[item.useCase]}: {label(fallbackReasonLabels, item.reason)} (
-                    {item.requests})
-                  </li>
-                ))}
-                {query.data.transitions.map((item) => (
-                  <li
-                    key={`${item.useCase}-${item.fromProvider}-${item.toProvider}-${item.reason}`}
-                  >
-                    {useCaseLabels[item.useCase]}: {providerLabels[item.fromProvider]} →{" "}
-                    {providerLabels[item.toProvider]}, {label(fallbackReasonLabels, item.reason)} (
-                    {item.requests})
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
         </>
       ) : null}
     </div>
