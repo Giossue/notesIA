@@ -1,4 +1,4 @@
-import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { ThemeProvider } from "next-themes";
 import React from "react";
@@ -9,8 +9,12 @@ import { Toaster } from "@/components/ui/sonner";
 import { errorMessage } from "@/lib/api";
 import "./index.css";
 
-// Los errores de las acciones se avisan solo con un toast, nunca dentro del formulario.
+// Todos los errores (al cargar o al guardar) se avisan solo con un toast; las
+// pantallas no repiten el mensaje.
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => toast.error(errorMessage(error)),
+  }),
   mutationCache: new MutationCache({
     onError: (error) => toast.error(errorMessage(error)),
   }),

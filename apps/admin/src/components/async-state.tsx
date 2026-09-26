@@ -1,5 +1,4 @@
 import { CircleAlert, Inbox } from "lucide-react";
-import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -9,7 +8,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
-import { errorMessage } from "@/lib/api";
 
 export function PageLoading() {
   return (
@@ -29,20 +27,25 @@ export function PageLoading() {
   );
 }
 
-export function PageError({ error, retry }: { error: unknown; retry?: () => void }) {
+/**
+ * Sección que no cargó. El motivo ya se avisó con un toast (QueryCache en
+ * main.tsx); aquí solo queda el hueco y la opción de reintentar.
+ */
+export function PageError({ retry }: { error?: unknown; retry?: () => void }) {
   return (
-    <Alert variant="destructive">
-      <CircleAlert />
-      <AlertTitle>No se pudo cargar</AlertTitle>
-      <AlertDescription>{errorMessage(error)}</AlertDescription>
+    <Empty className="border border-dashed">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <CircleAlert />
+        </EmptyMedia>
+        <EmptyTitle>Sin datos</EmptyTitle>
+      </EmptyHeader>
       {retry ? (
-        <AlertAction>
-          <Button size="sm" variant="outline" onClick={retry}>
-            Reintentar
-          </Button>
-        </AlertAction>
+        <Button size="sm" variant="outline" onClick={retry}>
+          Reintentar
+        </Button>
       ) : null}
-    </Alert>
+    </Empty>
   );
 }
 
