@@ -45,7 +45,7 @@ export function createAiGateway(
       if (!cipher) return manual("not_configured");
       const payload =
         "redact" in spec
-          ? spec.redact(parsed.data as Parameters<typeof spec.redact>[0])
+          ? (spec.redact as (input: unknown) => unknown)(parsed.data)
           : redactInput(parsed.data);
       const instruction = `${UNTRUSTED_INPUT}${spec.instruction} (prompt v${spec.version})`;
       type Attempt =

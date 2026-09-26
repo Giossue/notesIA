@@ -120,7 +120,7 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
           {!current
             ? "Sin conexión configurada"
             : current.enabled
-              ? "En uso · la API key guardada nunca se muestra"
+              ? "Activo · la API key guardada nunca se muestra"
               : "API key guardada, sin usar"}
         </CardDescription>
       </CardHeader>
@@ -151,8 +151,8 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
                   id={`provider-enabled-${provider}`}
                   checked={field.value}
                   change={field.onChange}
-                  title="Usar este proveedor"
-                  description="Solo uno puede estar activo: al activarlo se desactivan los demás"
+                  title="Proveedor activo"
+                  description="Los usos de IA de la app solo pueden elegir proveedores activos"
                 />
               )}
             />
@@ -175,15 +175,13 @@ function ProvidersPanel() {
   if (query.isError) return <PageError error={query.error} retry={() => query.refetch()} />;
   return (
     <div className="grid gap-4 lg:grid-cols-3">
-      {providers
-        .filter((provider) => provider !== "deepseek")
-        .map((provider) => (
-          <ProviderCard
-            key={provider}
-            provider={provider}
-            current={query.data.find((item) => item.provider === provider)}
-          />
-        ))}
+      {providers.map((provider) => (
+        <ProviderCard
+          key={provider}
+          provider={provider}
+          current={query.data.find((item) => item.provider === provider)}
+        />
+      ))}
     </div>
   );
 }
@@ -210,7 +208,23 @@ const assistantModels: Record<
     },
   ],
   openai: [],
-  deepseek: [],
+  // Precio de horario pico (el valle cuesta la mitad): el tope diario queda del lado seguro.
+  deepseek: [
+    {
+      id: "deepseek-flash",
+      name: "DeepSeek Flash",
+      hint: "Muy económico · recomendado para la configuración inicial",
+      input: "0.30",
+      output: "1.20",
+    },
+    {
+      id: "deepseek-v4-pro",
+      name: "DeepSeek V4 Pro",
+      hint: "Más preciso, más caro",
+      input: "1.32",
+      output: "3.96",
+    },
+  ],
 };
 const CUSTOM_MODEL = "custom";
 // Valores fijos: cada mensaje puede usar dos llamadas cortas a la IA.
@@ -275,34 +289,70 @@ function assistantDefaults(route: AdminAiRoute | undefined, active: Provider): A
   };
 }
 
-function AssistantPanel() {
+type RouteUseCase = "assistant_chat" | "onboarding_setup";
+const routeCopy: Record<
+  RouteUseCase,
+  { title: string; description: string; preferred: Provider; enable: string }
+> = {
+  assistant_chat: {
+    title: "Asistente de IA",
+    description:
+      "El chat de la app donde los estudiantes escriben o hablan para organizar sus actividades",
+    preferred: "anthropic",
+    enable: "Activar asistente",
+  },
+  onboarding_setup: {
+    title: "Configuración inicial",
+    description:
+      "Al registrarse, el estudiante cuenta su semana por voz o texto y el agente arma su horario y compromisos",
+    preferred: "deepseek",
+    enable: "Activar configuración conversada",
+  },
+};
+
+function RoutePanel({ useCase }: { useCase: RouteUseCase }) {
   const routes = useQuery(aiRoutesQuery);
   const providersQuery = useQuery(aiProvidersQuery);
   if (routes.isPending || providersQuery.isPending) return <PageLoading />;
   if (routes.isError) return <PageError error={routes.error} retry={() => routes.refetch()} />;
   if (providersQuery.isError)
     return <PageError error={providersQuery.error} retry={() => providersQuery.refetch()} />;
-  const route = routes.data.find((item) => item.useCase === "assistant_chat");
-  const active = providersQuery.data.find((item) => item.enabled)?.provider;
-  if (!active)
+  const route = routes.data.find((item) => item.useCase === useCase);
+  const enabled = providersQuery.data.filter((item) => item.enabled).map((item) => item.provider);
+  if (enabled.length === 0)
     return (
       <Alert>
-        <AlertTitle>No hay un proveedor activo</AlertTitle>
+        <AlertTitle>No hay proveedores activos</AlertTitle>
         <AlertDescription>
-          En la pestaña Proveedores guarda una API key y marca «Usar este proveedor»
+          En la pestaña Proveedores guarda una API key y marca «Proveedor activo»
         </AlertDescription>
       </Alert>
     );
+  const preferred = routeCopy[useCase].preferred;
+  const fallback = enabled.includes(preferred) ? preferred : (enabled[0] as Provider);
   return (
     <AssistantEditor
-      key={`${active}-${route?.provider ?? "new"}-${route?.modelId ?? ""}`}
+      key={`${enabled.join("-")}-${route?.provider ?? "new"}-${route?.modelId ?? ""}`}
+      useCase={useCase}
       route={route}
-      active={active}
+      active={route && enabled.includes(route.provider) ? route.provider : fallback}
+      enabled={enabled}
     />
   );
 }
 
-function AssistantEditor({ route, active }: { route?: AdminAiRoute; active: Provider }) {
+function AssistantEditor({
+  useCase,
+  route,
+  active,
+  enabled,
+}: {
+  useCase: RouteUseCase;
+  route?: AdminAiRoute;
+  active: Provider;
+  enabled: Provider[];
+}) {
+  const copy = routeCopy[useCase];
   const queryClient = useQueryClient();
   const form = useForm<AssistantFormValues>({
     resolver: zodResolver(assistantFormSchema),
@@ -319,7 +369,7 @@ function AssistantEditor({ route, active }: { route?: AdminAiRoute; active: Prov
       const tokens = Math.round(
         (Number(values.dailyBudgetUsd) * 1_000_000) / topPrice(input, output),
       );
-      return adminApi.updateAiRoute("assistant_chat", {
+      return adminApi.updateAiRoute(useCase, {
         provider: values.provider,
         modelId: known ? known.id : values.customModelId.trim(),
         timeoutMs: ASSISTANT_TIMEOUT_MS,
@@ -340,16 +390,14 @@ function AssistantEditor({ route, active }: { route?: AdminAiRoute; active: Prov
     },
   });
   const test = useMutation({
-    mutationFn: () => adminApi.testAiRoute("assistant_chat"),
+    mutationFn: () => adminApi.testAiRoute(useCase),
     onSettled: () => void queryClient.invalidateQueries({ queryKey: auditQueryKey }),
   });
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Asistente de IA</CardTitle>
-        <CardDescription>
-          El chat de la app donde los estudiantes escriben o hablan para organizar sus actividades
-        </CardDescription>
+        <CardTitle>{copy.title}</CardTitle>
+        <CardDescription>{copy.description}</CardDescription>
       </CardHeader>
       <form
         className="flex flex-col gap-(--card-spacing)"
@@ -359,26 +407,51 @@ function AssistantEditor({ route, active }: { route?: AdminAiRoute; active: Prov
           <FieldGroup>
             {route && route.provider !== active && (
               <Alert>
-                <AlertTitle>El asistente usaba {providerLabels[route.provider]}</AlertTitle>
+                <AlertTitle>Usaba {providerLabels[route.provider]}, que no está activo</AlertTitle>
                 <AlertDescription>
-                  Elige un modelo de {providerLabels[active]} y guarda para que vuelva a funcionar
+                  Elige un proveedor activo y un modelo, y guarda para que vuelva a funcionar
                 </AlertDescription>
               </Alert>
             )}
             <Field>
-              <FieldLabel>Proveedor</FieldLabel>
-              <FieldDescription>
-                {providerLabels[provider]} · se cambia en la pestaña Proveedores
-              </FieldDescription>
+              <FieldLabel htmlFor={`${useCase}-provider`}>Proveedor</FieldLabel>
+              <Controller
+                control={form.control}
+                name="provider"
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={(value) => {
+                      const next = value as Provider;
+                      field.onChange(next);
+                      form.setValue("model", assistantModels[next][0]?.id ?? CUSTOM_MODEL);
+                    }}
+                  >
+                    <SelectTrigger id={`${useCase}-provider`} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {enabled.map((item) => (
+                          <SelectItem key={item} value={item}>
+                            {providerLabels[item]}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <FieldDescription>Solo aparecen los proveedores activos</FieldDescription>
             </Field>
             <Field data-invalid={Boolean(form.formState.errors.model)}>
-              <FieldLabel htmlFor="assistant-model">Modelo</FieldLabel>
+              <FieldLabel htmlFor={`${useCase}-model`}>Modelo</FieldLabel>
               <Controller
                 control={form.control}
                 name="model"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="assistant-model" className="w-full">
+                    <SelectTrigger id={`${useCase}-model`} className="w-full">
                       <SelectValue placeholder="Elige un modelo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -399,9 +472,9 @@ function AssistantEditor({ route, active }: { route?: AdminAiRoute; active: Prov
             {model === CUSTOM_MODEL && (
               <>
                 <Field data-invalid={Boolean(form.formState.errors.customModelId)}>
-                  <FieldLabel htmlFor="assistant-model-id">ID del modelo</FieldLabel>
+                  <FieldLabel htmlFor={`${useCase}-model-id`}>ID del modelo</FieldLabel>
                   <Input
-                    id="assistant-model-id"
+                    id={`${useCase}-model-id`}
                     placeholder="Tal como lo indica el proveedor"
                     aria-invalid={Boolean(form.formState.errors.customModelId)}
                     {...form.register("customModelId")}
@@ -410,22 +483,22 @@ function AssistantEditor({ route, active }: { route?: AdminAiRoute; active: Prov
                 </Field>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field data-invalid={Boolean(form.formState.errors.inputPrice)}>
-                    <FieldLabel htmlFor="assistant-input-price">
+                    <FieldLabel htmlFor={`${useCase}-input-price`}>
                       Precio de entrada (USD por millón de tokens)
                     </FieldLabel>
                     <Input
-                      id="assistant-input-price"
+                      id={`${useCase}-input-price`}
                       inputMode="decimal"
                       {...form.register("inputPrice")}
                     />
                     <FieldError errors={[form.formState.errors.inputPrice]} />
                   </Field>
                   <Field data-invalid={Boolean(form.formState.errors.outputPrice)}>
-                    <FieldLabel htmlFor="assistant-output-price">
+                    <FieldLabel htmlFor={`${useCase}-output-price`}>
                       Precio de salida (USD por millón de tokens)
                     </FieldLabel>
                     <Input
-                      id="assistant-output-price"
+                      id={`${useCase}-output-price`}
                       inputMode="decimal"
                       {...form.register("outputPrice")}
                     />
@@ -435,15 +508,15 @@ function AssistantEditor({ route, active }: { route?: AdminAiRoute; active: Prov
               </>
             )}
             <Field data-invalid={Boolean(form.formState.errors.dailyBudgetUsd)}>
-              <FieldLabel htmlFor="assistant-budget">Límite de gasto diario (USD)</FieldLabel>
+              <FieldLabel htmlFor={`${useCase}-budget`}>Límite de gasto diario (USD)</FieldLabel>
               <Input
-                id="assistant-budget"
+                id={`${useCase}-budget`}
                 inputMode="decimal"
                 aria-invalid={Boolean(form.formState.errors.dailyBudgetUsd)}
                 {...form.register("dailyBudgetUsd")}
               />
               <FieldDescription>
-                Al llegar al límite, el asistente se pausa hasta el día siguiente
+                Al llegar al límite se pausa hasta el día siguiente
               </FieldDescription>
               <FieldError errors={[form.formState.errors.dailyBudgetUsd]} />
             </Field>
@@ -452,17 +525,17 @@ function AssistantEditor({ route, active }: { route?: AdminAiRoute; active: Prov
               name="enabled"
               render={({ field }) => (
                 <BooleanField
-                  id="assistant-enabled"
+                  id={`${useCase}-enabled`}
                   checked={field.value}
                   change={field.onChange}
-                  title="Activar asistente"
-                  description="Desactívalo para que la app deje de usar la IA"
+                  title={copy.enable}
+                  description="Desactívalo para que la app deje de usar la IA aquí"
                 />
               )}
             />
             {test.isSuccess && (
               <Alert>
-                <AlertTitle>El asistente respondió bien</AlertTitle>
+                <AlertTitle>La IA respondió bien</AlertTitle>
                 <AlertDescription>La conexión y el modelo funcionan</AlertDescription>
               </Alert>
             )}
@@ -560,7 +633,7 @@ function AiOverview() {
   const health = useQuery(systemHealthQuery);
   const providersQuery = useQuery(aiProvidersQuery);
   const routes = useQuery(aiRoutesQuery);
-  const active = providersQuery.data?.find((item) => item.enabled);
+  const active = providersQuery.data?.filter((item) => item.enabled) ?? [];
   const assistant = routes.data?.find((item) => item.useCase === "assistant_chat");
   const dailyLimit = assistant
     ? (assistant.dailyBudgetTokens *
@@ -581,9 +654,13 @@ function AiOverview() {
       />
       <StatCard
         icon={PlugZap}
-        label="Proveedor en uso"
+        label="Proveedores activos"
         value={
-          !providersQuery.data ? pending : active ? providerLabels[active.provider] : "Ninguno"
+          !providersQuery.data
+            ? pending
+            : active.length > 0
+              ? active.map((item) => providerLabels[item.provider]).join(", ")
+              : "Ninguno"
         }
         footer="Se cambia en la pestaña Proveedores"
       />
@@ -708,14 +785,17 @@ export function AiPage() {
       <Tabs defaultValue="providers">
         <TabsList>
           <TabsTrigger value="providers">Proveedores</TabsTrigger>
-          <TabsTrigger value="assistant">Asistente</TabsTrigger>
+          <TabsTrigger value="assistant">Usos de la IA</TabsTrigger>
           <TabsTrigger value="usage">Uso</TabsTrigger>
         </TabsList>
         <TabsContent value="providers">
           <ProvidersPanel />
         </TabsContent>
         <TabsContent value="assistant">
-          <AssistantPanel />
+          <div className="grid gap-4 xl:grid-cols-2">
+            <RoutePanel useCase="assistant_chat" />
+            <RoutePanel useCase="onboarding_setup" />
+          </div>
         </TabsContent>
         <TabsContent value="usage">
           <UsagePanel />

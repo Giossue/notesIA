@@ -110,7 +110,11 @@ export async function generateWithProvider(
     body = {
       model: route.modelId,
       messages: [
-        { role: "system", content: `${instruction} Responde únicamente con JSON válido.` },
+        // Su modo JSON no recibe el esquema: va en las instrucciones.
+        {
+          role: "system",
+          content: `${instruction} Responde únicamente con JSON válido que cumpla este JSON Schema: ${JSON.stringify(jsonSchema)}`,
+        },
         { role: "user", content: message },
       ],
       response_format: { type: "json_object" },

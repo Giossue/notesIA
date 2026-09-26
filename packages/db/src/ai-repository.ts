@@ -7,7 +7,8 @@ export type AiUseCaseName =
   | "explain_risk"
   | "explain_replan"
   | "propose_subtasks"
-  | "assistant_chat";
+  | "assistant_chat"
+  | "onboarding_setup";
 export type AiRouteConfig = {
   useCase: AiUseCaseName;
   provider: AiProviderName;
@@ -430,13 +431,6 @@ export function createAiRepository(pool: Pool) {
             [id, provider, encryptedKey, enabled],
           );
         }
-        // Un solo proveedor activo: activar uno apaga los demás (sus claves se conservan).
-        if (enabled)
-          await client.query(
-            `UPDATE dominio.proveedores_ia SET habilitado = false, actualizado_en = now()
-             WHERE id <> $1 AND habilitado`,
-            [id],
-          );
         await client.query(
           `INSERT INTO dominio.auditoria_admin (id, actor_id, accion, objetivo_id)
            VALUES ($1,$2,'ai_provider.updated',$3)`,

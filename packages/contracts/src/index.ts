@@ -160,6 +160,7 @@ export const aiUseCaseSchema = z.enum([
   "explain_replan",
   "propose_subtasks",
   "assistant_chat",
+  "onboarding_setup",
 ]);
 export const aiFallbackReasonSchema = z.enum([
   "not_configured",
@@ -1121,6 +1122,51 @@ export const assistantTurnResponseSchema = z.union([
     actions: z.array(assistantActionSchema).max(5),
   }),
 ]);
+const clockSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
+/** Semana que arma el agente de configuración inicial; la app la guarda al confirmar. */
+export const onboardingDraftSchema = z.strictObject({
+  /** Horas en que puede estudiar; si el fin es menor que el inicio, termina al día siguiente. */
+  studyHours: z
+    .array(
+      z.strictObject({
+        weekday: z.number().int().min(1).max(7),
+        start: clockSchema,
+        end: clockSchema,
+      }),
+    )
+    .max(28),
+  maxDailyMinutes: z.number().int().min(30).max(720).nullable(),
+  /** Compromisos fijos semanales (clases, trabajo); `until` null = falta preguntarlo. */
+  commitments: z
+    .array(
+      z.strictObject({
+        title: z.string().trim().min(1).max(120),
+        kind: z.enum(["class", "work", "other"]),
+        weekdays: z.array(z.number().int().min(1).max(7)).min(1).max(7),
+        start: clockSchema,
+        end: clockSchema,
+        until: z.iso.date().nullable(),
+      }),
+    )
+    .max(20),
+});
+export const onboardingTurnRequestSchema = z.strictObject({
+  message: z.string().trim().min(1).max(2000),
+  history: z.array(assistantMessageSchema).max(16),
+  draft: onboardingDraftSchema,
+});
+export const onboardingTurnResponseSchema = z.union([
+  z.object({ kind: z.literal("manual"), reason: aiFallbackReasonSchema }),
+  z.object({
+    kind: z.literal("reply"),
+    reply: z.string().trim().min(1).max(1200),
+    draft: onboardingDraftSchema,
+    /** El agente cree que no falta nada; el estudiante igual revisa y guarda. */
+    complete: z.boolean(),
+  }),
+]);
+export type OnboardingDraft = z.infer<typeof onboardingDraftSchema>;
+export type OnboardingTurnResponse = z.infer<typeof onboardingTurnResponseSchema>;
 export type AssistantMessage = z.infer<typeof assistantMessageSchema>;
 export type AssistantAction = z.infer<typeof assistantActionSchema>;
 export type AssistantTurnResponse = z.infer<typeof assistantTurnResponseSchema>;

@@ -234,6 +234,12 @@ add("POST", "/v1/calendar-events", "calendarEventSchema", "calendarEventCreateSc
 add("PATCH", "/v1/calendar-events/:id", "calendarEventSchema", "calendarEventUpdateSchema");
 add("GET", "/v1/streak", "streakSchema");
 add("POST", "/v1/me/onboarding/complete", "profileSchema");
+add(
+  "POST",
+  "/v1/ai/onboarding/turns",
+  "onboardingTurnResponseSchema",
+  "onboardingTurnRequestSchema",
+);
 add("DELETE", "/v1/calendar-events/:id", undefined, "calendarEventVersionSchema", [204]);
 for (const action of ["archive", "restore"])
   add(

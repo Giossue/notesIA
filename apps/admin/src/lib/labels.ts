@@ -17,6 +17,7 @@ export const useCaseLabels = {
   explain_replan: "Explicar replanificación",
   propose_subtasks: "Proponer subtareas",
   assistant_chat: "Asistente conversacional",
+  onboarding_setup: "Configuración inicial",
 } as const;
 
 export const queueLabels: Record<keyof AdminSystemHealth["queues"], string> = {

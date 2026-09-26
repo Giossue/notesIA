@@ -36,7 +36,9 @@ import { AlertsScreen } from "@/features/notifications/AlertsScreen";
 import { NotificationsScreen } from "@/features/notifications/NotificationsScreen";
 import { PushPermissionPrompt } from "@/features/notifications/PushPermissionPrompt";
 import { OfflineChangesScreen } from "@/features/offline/OfflineChangesScreen";
+import { OnboardingAgentScreen } from "@/features/onboarding/OnboardingAgentScreen";
 import { OnboardingScreen } from "@/features/onboarding/OnboardingScreen";
+import type { WeekSetup } from "@/features/onboarding/save-week";
 import { ConsentGate } from "@/features/privacy/ConsentGate";
 import { PrivacyScreen } from "@/features/privacy/PrivacyScreen";
 import { ProfileEditScreen } from "@/features/profile/ProfileEditScreen";
@@ -106,9 +108,22 @@ function EventFormRoute({ route }: NativeStackScreenProps<RootStackParamList, "E
  */
 function OnboardingGate({ children }: { children: ReactNode }) {
   const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
+  // Primero con el agente; el formulario queda de respaldo (sin IA o si lo prefiere).
+  const [manual, setManual] = useState<{ initial?: WeekSetup } | null>(null);
   if (profile.isPending) return null;
   if (profile.data && !profile.data.onboardingCompleted)
-    return <OnboardingScreen profile={profile.data} />;
+    return manual ? (
+      <OnboardingScreen
+        profile={profile.data}
+        initial={manual.initial}
+        onUseAgent={() => setManual(null)}
+      />
+    ) : (
+      <OnboardingAgentScreen
+        profile={profile.data}
+        onManual={(initial) => setManual({ initial })}
+      />
+    );
   return children;
 }
 

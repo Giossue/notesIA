@@ -276,6 +276,13 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
           timeZone: "America/Guayaquil",
           results: null,
         },
+        onboarding_setup: {
+          message:
+            "Tengo clases de cálculo lunes y miércoles de 7 a 9 y puedo estudiar en las tardes",
+          history: [],
+          today: "2026-01-05 (lunes)",
+          draft: { studyHours: [], maxDailyMinutes: null, commitments: [] },
+        },
       }[useCase.data];
       try {
         const spec = aiCases[useCase.data];

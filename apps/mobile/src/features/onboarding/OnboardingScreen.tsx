@@ -1,23 +1,16 @@
 import type { Profile } from "@notesia/contracts";
-import { localDateTimeToUtc, shiftLocalDate, todayInTimeZone } from "@notesia/domain";
+import { shiftLocalDate } from "@notesia/domain";
 import { useNetInfo } from "@react-native-community/netinfo";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { HelperText, Icon, IconButton, ProgressBar, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { v4 as uuidv4 } from "uuid";
-import { createAvailabilityRule } from "@/core/api/availability";
-import { createCalendarEvent } from "@/core/api/calendar-events";
-import { getPreferences, updatePreferences } from "@/core/api/preferences";
-import { completeOnboarding, getProfile } from "@/core/api/profile";
 import { layout } from "@/core/theme/layout";
-import { clockToMinute } from "@/features/availability/time";
 import {
   closestDaily,
   dailyChoices,
   type HourSlot,
-  toMinutes,
   WeeklyHoursEditor,
   weekdays,
 } from "@/features/availability/WeeklyHours";
@@ -26,54 +19,37 @@ import { DateField, FormSection, TimeField } from "@/shared/fields";
 import { Button, Card, TextInput } from "@/shared/paper";
 import { useHideSplash } from "@/shared/splash";
 import { Tabs } from "@/shared/Tabs";
-import { deviceTimeZone, saveTimeZone, UNSET_TIME_ZONE } from "@/shared/time-zones";
+import type { Commitment, CommitmentKind, WeekSetup } from "./save-week";
+import { useLocalToday, useSaveWeek } from "./useSaveWeek";
 
-type Kind = "class" | "work" | "other";
+type Kind = CommitmentKind;
 const kindLabels: Record<Kind, string> = { class: "Clase", work: "Trabajo", other: "Otro" };
 const letters = ["L", "M", "M", "J", "V", "S", "D"];
-/** Un compromiso fijo: se repite cada semana en los días elegidos hasta `until`. */
-type Commitment = {
-  key: string;
-  title: string;
-  kind: Kind;
-  days: number[];
-  start: string;
-  end: string;
-  until: string;
-};
-/** Tope de semanas que se crean por compromiso: un año. */
-const MAX_WEEKS = 52;
-
-/** Primera fecha desde `from` que cae en el día de la semana (1 = lunes). */
-function firstOnWeekday(from: string, weekday: number) {
-  const [year, month, day] = from.split("-").map(Number);
-  const current =
-    ((new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1)).getUTCDay() + 6) % 7) + 1;
-  return shiftLocalDate(from, (weekday - current + 7) % 7);
-}
 
 /**
  * Configuración inicial, una sola vez después de registrarse: cuándo puede
  * estudiar y qué compromisos fijos tiene (clases, trabajo). Con eso la app arma
  * sola el plan de estudio.
  */
-export function OnboardingScreen({ profile }: { profile: Profile }) {
+export function OnboardingScreen({
+  profile,
+  initial,
+  onUseAgent,
+}: {
+  profile: Profile;
+  initial?: WeekSetup;
+  /** Volver a armar la semana conversando con el agente. */
+  onUseAgent?(): void;
+}) {
   useHideSplash();
   const theme = useTheme();
-  const queryClient = useQueryClient();
   const offline = useNetInfo().isConnected === false;
-  // La zona del teléfono: el plan y los compromisos se calculan en ella.
-  const device = deviceTimeZone();
-  const timeZone = device !== UNSET_TIME_ZONE ? device : profile.timeZone;
-  const today = todayInTimeZone(new Date().toISOString(), timeZone);
-  const [step, setStep] = useState(0);
-  const [days, setDays] = useState<HourSlot[][]>(() => weekdays.map(() => []));
-  const [daily, setDaily] = useState<string>(closestDaily(180));
-  const [commitments, setCommitments] = useState<Commitment[]>([]);
-  const [saved, setSaved] = useState(0);
-  const [total, setTotal] = useState(0);
-  // Mismos ids al reintentar: lo ya creado no se duplica.
-  const eventIds = useRef(new Map<string, string>());
+  const { timeZone, today } = useLocalToday(profile.timeZone);
+  // Con lo que armó el agente se empieza directo en el horario de estudio.
+  const [step, setStep] = useState(initial ? 1 : 0);
+  const [days, setDays] = useState<HourSlot[][]>(() => initial?.days ?? weekdays.map(() => []));
+  const [daily, setDaily] = useState<string>(initial?.daily ?? closestDaily(180));
+  const [commitments, setCommitments] = useState<Commitment[]>(initial?.commitments ?? []);
   const hasHours = days.some((slots) => slots.length > 0);
 
   const updateDay = (weekday: number, change: (slots: HourSlot[]) => HourSlot[]) =>
@@ -87,80 +63,9 @@ export function OnboardingScreen({ profile }: { profile: Profile }) {
       ),
     );
 
-  const finish = useMutation({
-    mutationFn: async () => {
-      // Perfil fresco: al reintentar la zona ya puede estar guardada.
-      const current = await getProfile();
-      if (current.timeZone !== timeZone) await saveTimeZone(current, timeZone);
-      const occurrences = commitments.flatMap((item) =>
-        item.days.flatMap((weekday) => {
-          const dates: string[] = [];
-          for (
-            let date = firstOnWeekday(today, weekday);
-            date <= item.until && dates.length < MAX_WEEKS;
-            date = shiftLocalDate(date, 7)
-          )
-            dates.push(date);
-          return dates.map((date) => ({ item, date }));
-        }),
-      );
-      const rules = days.flatMap((slots, index) =>
-        slots.map((slot) => ({ slot, weekday: index + 1 })),
-      );
-      setSaved(0);
-      setTotal(rules.length + occurrences.length + 2);
-      const step = () => setSaved((value) => value + 1);
-
-      for (const { slot, weekday } of rules) {
-        await createAvailabilityRule({ id: slot.key, weekday, ...toMinutes(slot.start, slot.end) });
-        step();
-      }
-      const preferences = await getPreferences();
-      const minutes = Number(daily);
-      await updatePreferences({
-        minSessionMinutes: Math.min(preferences.minSessionMinutes, minutes),
-        maxSessionMinutes: preferences.maxSessionMinutes,
-        maxDailyMinutes: minutes,
-        notificationsEnabled: true,
-        pushNotificationsEnabled: true,
-        quietStartMinute: preferences.quietStartMinute,
-        quietEndMinute: preferences.quietEndMinute,
-        version: preferences.version,
-      });
-      step();
-      // De a varios a la vez: un ciclo completo puede ser un centenar de compromisos.
-      for (let index = 0; index < occurrences.length; index += 8) {
-        await Promise.all(
-          occurrences.slice(index, index + 8).map(async ({ item, date }) => {
-            const key = `${item.key}-${date}`;
-            const id = eventIds.current.get(key) ?? uuidv4();
-            eventIds.current.set(key, id);
-            const overnight = clockToMinute(item.end) <= clockToMinute(item.start);
-            await createCalendarEvent({
-              id,
-              kind: item.kind,
-              title: item.title,
-              description: null,
-              startsAt: localDateTimeToUtc(`${date}T${item.start}`, timeZone),
-              endsAt: localDateTimeToUtc(
-                `${overnight ? shiftLocalDate(date, 1) : date}T${item.end}`,
-                timeZone,
-              ),
-              timeZone,
-            });
-            step();
-          }),
-        );
-      }
-      const updated = await completeOnboarding();
-      step();
-      return updated;
-    },
-    onSuccess: (updated) => {
-      queryClient.setQueryData(["profile"], updated);
-      void queryClient.invalidateQueries();
-    },
-  });
+  const { finish, progress } = useSaveWeek(timeZone, today);
+  const saved = progress.saved;
+  const total = progress.total;
 
   const steps = [
     <Intro key="intro" name={profile.displayName} />,
@@ -263,9 +168,14 @@ export function OnboardingScreen({ profile }: { profile: Profile }) {
           <HelperText type="info">Agrega al menos un horario para continuar.</HelperText>
         )}
         <View style={styles.actions}>
-          {step > 0 && (
+          {step > 0 && !(initial && step === 1) && (
             <Button disabled={finish.isPending} onPress={() => setStep(step - 1)}>
               Atrás
+            </Button>
+          )}
+          {onUseAgent && step <= 1 && (
+            <Button icon="robot" disabled={finish.isPending} onPress={onUseAgent}>
+              Con el asistente
             </Button>
           )}
           <View style={styles.flex} />
@@ -276,7 +186,7 @@ export function OnboardingScreen({ profile }: { profile: Profile }) {
             mode="contained"
             loading={finish.isPending}
             disabled={(step === 1 && !hasHours) || finish.isPending || (last && offline)}
-            onPress={() => (last ? finish.mutate() : setStep(step + 1))}
+            onPress={() => (last ? finish.mutate({ days, daily, commitments }) : setStep(step + 1))}
           >
             {step === 0
               ? "Empezar"
