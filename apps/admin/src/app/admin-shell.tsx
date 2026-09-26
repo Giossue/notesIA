@@ -1,15 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Outlet, useNavigate } from "@tanstack/react-router";
 import { NotebookPen } from "lucide-react";
 import type { CSSProperties } from "react";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
@@ -24,7 +16,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type AuthSession, authApi } from "@/lib/auth-api";
-import { navItems } from "./shell/nav-items";
 import { NavMain } from "./shell/nav-main";
 import { NavUser } from "./shell/nav-user";
 import { ThemeSwitcher } from "./shell/theme-switcher";
@@ -36,8 +27,6 @@ function sidebarDefaultOpen() {
 export function AdminShell({ session }: { session: AuthSession }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const current = navItems.find((item) => item.to === pathname);
   const signOut = useMutation({
     mutationFn: authApi.signOut,
     onSuccess: async () => {
@@ -85,23 +74,6 @@ export function AdminShell({ session }: { session: AuthSession }) {
                 </TooltipTrigger>
                 <TooltipContent>Mostrar u ocultar el menú</TooltipContent>
               </Tooltip>
-              <Separator
-                orientation="vertical"
-                className="mx-2 data-[orientation=vertical]:h-4 data-[orientation=vertical]:self-center"
-              />
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem className="hidden md:block">Administración</BreadcrumbItem>
-                  {current ? (
-                    <>
-                      <BreadcrumbSeparator className="hidden md:block" />
-                      <BreadcrumbItem>
-                        <BreadcrumbPage>{current.label}</BreadcrumbPage>
-                      </BreadcrumbItem>
-                    </>
-                  ) : null}
-                </BreadcrumbList>
-              </Breadcrumb>
             </div>
             <ThemeSwitcher />
           </div>
