@@ -907,6 +907,14 @@ test("only an administrator can publish documents and each action is audited", a
       })
     ).status,
   ).toBe(200);
+  // Un solo proveedor activo: al activar Anthropic se apaga OpenAI, con su clave guardada.
+  const active = await seed.query<{ provider: string; enabled: boolean }>(
+    "SELECT proveedor AS provider, habilitado AS enabled FROM dominio.proveedores_ia ORDER BY proveedor",
+  );
+  expect(active.rows).toEqual([
+    { provider: "anthropic", enabled: true },
+    { provider: "openai", enabled: false },
+  ]);
   const alternate = {
     provider: "anthropic",
     modelId: "test-alternate-1",

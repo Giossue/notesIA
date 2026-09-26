@@ -123,9 +123,11 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
       <CardHeader>
         <CardTitle>{providerLabels[provider]}</CardTitle>
         <CardDescription>
-          {current
-            ? "Conexión configurada; la API key guardada nunca se muestra"
-            : "Sin conexión configurada"}
+          {!current
+            ? "Sin conexión configurada"
+            : current.enabled
+              ? "En uso · la API key guardada nunca se muestra"
+              : "API key guardada, sin usar"}
         </CardDescription>
       </CardHeader>
       <form className="flex flex-col gap-(--card-spacing)" onSubmit={form.handleSubmit(submit)}>
@@ -155,7 +157,8 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
                   id={`provider-enabled-${provider}`}
                   checked={field.value}
                   change={field.onChange}
-                  title="Habilitar proveedor"
+                  title="Usar este proveedor"
+                  description="Solo uno puede estar activo: al activarlo se desactivan los demás"
                 />
               )}
             />
@@ -250,11 +253,12 @@ type AssistantFormValues = z.infer<typeof assistantFormSchema>;
 const topPrice = (input: string, output: string) =>
   Math.max(Number(input), Number(output), 0.000001);
 
-function assistantDefaults(route?: AdminAiRoute): AssistantFormValues {
-  if (!route)
+function assistantDefaults(route: AdminAiRoute | undefined, active: Provider): AssistantFormValues {
+  // Si el asistente estaba con otro proveedor, se parte del primer modelo del activo.
+  if (!route || route.provider !== active)
     return {
-      provider: "anthropic",
-      model: "claude-haiku-4-5",
+      provider: active,
+      model: assistantModels[active][0]?.id ?? CUSTOM_MODEL,
       customModelId: "",
       inputPrice: "",
       outputPrice: "",
@@ -285,15 +289,30 @@ function AssistantPanel() {
   if (providersQuery.isError)
     return <PageError error={providersQuery.error} retry={() => providersQuery.refetch()} />;
   const route = routes.data.find((item) => item.useCase === "assistant_chat");
-  const connected = providersQuery.data.filter((item) => item.enabled).map((item) => item.provider);
-  return <AssistantEditor key={route ? "saved" : "new"} route={route} connected={connected} />;
+  const active = providersQuery.data.find((item) => item.enabled)?.provider;
+  if (!active)
+    return (
+      <Alert>
+        <AlertTitle>No hay un proveedor activo</AlertTitle>
+        <AlertDescription>
+          En la pestaña Proveedores guarda una API key y marca «Usar este proveedor»
+        </AlertDescription>
+      </Alert>
+    );
+  return (
+    <AssistantEditor
+      key={`${active}-${route?.provider ?? "new"}-${route?.modelId ?? ""}`}
+      route={route}
+      active={active}
+    />
+  );
 }
 
-function AssistantEditor({ route, connected }: { route?: AdminAiRoute; connected: Provider[] }) {
+function AssistantEditor({ route, active }: { route?: AdminAiRoute; active: Provider }) {
   const queryClient = useQueryClient();
   const form = useForm<AssistantFormValues>({
     resolver: zodResolver(assistantFormSchema),
-    defaultValues: assistantDefaults(route),
+    defaultValues: assistantDefaults(route, active),
   });
   const provider = form.watch("provider");
   const model = form.watch("model");
@@ -330,7 +349,6 @@ function AssistantEditor({ route, connected }: { route?: AdminAiRoute; connected
     mutationFn: () => adminApi.testAiRoute("assistant_chat"),
     onSettled: () => void queryClient.invalidateQueries({ queryKey: auditQueryKey }),
   });
-  const providerChoices = providers.filter((item) => item !== "deepseek");
   return (
     <Card>
       <CardHeader>
@@ -345,43 +363,19 @@ function AssistantEditor({ route, connected }: { route?: AdminAiRoute; connected
       >
         <CardContent>
           <FieldGroup>
-            {!connected.includes(provider) && (
+            {route && route.provider !== active && (
               <Alert>
-                <AlertTitle>Falta la API key de {providerLabels[provider]}</AlertTitle>
+                <AlertTitle>El asistente usaba {providerLabels[route.provider]}</AlertTitle>
                 <AlertDescription>
-                  Guárdala y habilítala en la pestaña Proveedores para que el asistente funcione
+                  Elige un modelo de {providerLabels[active]} y guarda para que vuelva a funcionar
                 </AlertDescription>
               </Alert>
             )}
             <Field>
-              <FieldLabel htmlFor="assistant-provider">Proveedor</FieldLabel>
-              <Controller
-                control={form.control}
-                name="provider"
-                render={({ field }) => (
-                  <Select
-                    value={field.value}
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      const first = assistantModels[value as Provider][0];
-                      form.setValue("model", first ? first.id : CUSTOM_MODEL);
-                    }}
-                  >
-                    <SelectTrigger id="assistant-provider" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {providerChoices.map((item) => (
-                          <SelectItem key={item} value={item}>
-                            {providerLabels[item]}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
+              <FieldLabel>Proveedor</FieldLabel>
+              <FieldDescription>
+                {providerLabels[provider]} · se cambia en la pestaña Proveedores
+              </FieldDescription>
             </Field>
             <Field data-invalid={Boolean(form.formState.errors.model)}>
               <FieldLabel htmlFor="assistant-model">Modelo</FieldLabel>
