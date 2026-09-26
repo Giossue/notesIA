@@ -182,7 +182,7 @@ function UserDetailDialog({
   const data = detail.data;
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{user.name}</DialogTitle>
           <DialogDescription>{user.email}</DialogDescription>

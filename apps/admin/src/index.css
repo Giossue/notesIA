@@ -159,3 +159,24 @@
     cursor: not-allowed;
   }
 }
+
+/* Barra del navegador (la página completa) con el aspecto del ScrollArea de shadcn:
+   fina, redondeada y del color del borde del tema. */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background: var(--border) padding-box;
+  }
+}

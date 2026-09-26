@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
@@ -96,7 +97,7 @@ function EditDocumentDialog({
   }, [open]);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Editar {name.toLocaleLowerCase("es")}</DialogTitle>
           <DialogDescription>
@@ -158,9 +159,9 @@ function DocumentDialog({
               : "Sin publicar"}
           </DialogDescription>
         </DialogHeader>
-        <pre className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-md border bg-muted/40 p-4 font-sans text-sm">
-          {document.content}
-        </pre>
+        <ScrollArea className="max-h-[60vh] rounded-md border bg-muted/40">
+          <pre className="whitespace-pre-wrap p-4 font-sans text-sm">{document.content}</pre>
+        </ScrollArea>
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline">Cerrar</Button>

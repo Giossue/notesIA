@@ -129,7 +129,7 @@ function AssignRoleDialog() {
           Asignar rol
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Asignar un rol</DialogTitle>
           <DialogDescription>Elige la cuenta y el rol que tendrá en el panel</DialogDescription>

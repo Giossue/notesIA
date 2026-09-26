@@ -96,7 +96,7 @@ function ReportDialog({
   const mine = data?.assigneeId === me.data?.userId;
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{report.title}</DialogTitle>
           <DialogDescription>
