@@ -1,33 +1,19 @@
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Controller, useForm } from "react-hook-form";
-import { Share, StyleSheet, View } from "react-native";
-import { ActivityIndicator, Divider, HelperText, Text, useTheme } from "react-native-paper";
-import { z } from "zod";
+import { useState } from "react";
+import { StyleSheet, View } from "react-native";
+import { ActivityIndicator, Icon, Portal, Text, useTheme } from "react-native-paper";
 import {
   cancelAccountDeletion,
-  exportAccount,
+  exportAccountExcel,
   getDeletionRequest,
   requestAccountDeletion,
 } from "@/core/api/account";
+import { shareFile } from "@/core/files/share-file";
 import { layout } from "@/core/theme/layout";
 import { userMessage } from "@/shared/errors";
-import { Button, Card, TextInput } from "@/shared/paper";
+import { Button, Card, Dialog, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
-
-const passwordSchema = z.object({
-  password: z.string().min(1, "Confirma tu contraseña."),
-});
-const deletionSchema = passwordSchema.extend({
-  confirmation: z.literal("ELIMINAR", "Escribe ELIMINAR."),
-});
-const cancelSchema = passwordSchema.extend({
-  confirmation: z.literal("CANCELAR", "Escribe CANCELAR."),
-});
-type PasswordValues = z.infer<typeof passwordSchema>;
-type DeletionValues = z.infer<typeof deletionSchema>;
-type CancelValues = z.infer<typeof cancelSchema>;
 
 export function AccountScreen() {
   const deletion = useQuery({
@@ -37,8 +23,7 @@ export function AccountScreen() {
   });
   return (
     <ScreenLayout keyboardShouldPersistTaps="handled" header={{ title: "Datos y cuenta" }}>
-      <ExportForm />
-      <Divider />
+      <ExportCard />
       {deletion.isPending && (
         <ActivityIndicator accessibilityLabel="Consultando eliminación de cuenta" />
       )}
@@ -48,171 +33,280 @@ export function AccountScreen() {
           <Button onPress={() => void deletion.refetch()}>Reintentar</Button>
         </View>
       )}
-      {!deletion.isError && <DeletionPanel status={deletion.data ?? null} />}
+      {!deletion.isPending && !deletion.isError && <DeletionCard status={deletion.data} />}
     </ScreenLayout>
   );
 }
 
-function ExportForm() {
+function ActionCard({
+  icon,
+  title,
+  text,
+  danger,
+  children,
+}: {
+  icon: string;
+  title: string;
+  text: string;
+  danger?: boolean;
+  children: React.ReactNode;
+}) {
   const theme = useTheme();
-  const offline = useNetInfo().isConnected === false;
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<PasswordValues>({
-    resolver: zodResolver(passwordSchema),
-    defaultValues: { password: "" },
-  });
-  const mutation = useMutation({
-    mutationFn: ({ password }: PasswordValues) => exportAccount(password),
-    onSuccess: async (content) => {
-      reset();
-      await Share.share({ title: "Exportación de NotesIA", message: content });
-    },
-  });
+  const tint = danger ? theme.colors.error : theme.colors.primary;
   return (
     <Card mode="contained">
-      <Card.Content style={styles.group}>
-        <Text variant="titleMedium">Exportar mis datos</Text>
-        <Text>
-          Genera tus datos en JSON y abre el menú del sistema para guardarlos o compartirlos.
-        </Text>
-        <Controller
-          control={control}
-          name="password"
-          render={({ field }) => (
-            <TextInput
-              mode="outlined"
-              label="Contraseña actual"
-              secureTextEntry
-              autoComplete="current-password"
-              value={field.value}
-              onChangeText={field.onChange}
-              onBlur={field.onBlur}
-              error={!!errors.password}
-            />
-          )}
-        />
-        <HelperText type="error" visible={!!errors.password}>
-          {errors.password?.message}
-        </HelperText>
-        {offline && (
-          <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para exportar.</Text>
-        )}
-        <Button
-          mode="contained"
-          loading={mutation.isPending}
-          disabled={offline || mutation.isPending}
-          onPress={() => void handleSubmit((values) => mutation.mutate(values))()}
-        >
-          Exportar datos
-        </Button>
+      <Card.Content style={styles.card}>
+        <View style={styles.head}>
+          <View
+            style={[
+              styles.icon,
+              {
+                backgroundColor: danger
+                  ? theme.colors.errorContainer
+                  : theme.colors.primaryContainer,
+              },
+            ]}
+          >
+            <Icon source={icon} size={22} color={tint} />
+          </View>
+          <Text variant="titleMedium" style={styles.bold}>
+            {title}
+          </Text>
+        </View>
+        <Text style={{ color: theme.colors.onSurfaceVariant }}>{text}</Text>
+        {children}
       </Card.Content>
     </Card>
   );
 }
 
-function DeletionPanel({ status }: { status: Awaited<ReturnType<typeof getDeletionRequest>> }) {
-  const queryClient = useQueryClient();
+/** Modal que pide la contraseña antes de una acción sensible. */
+function PasswordDialog({
+  visible,
+  title,
+  text,
+  confirmLabel,
+  danger,
+  loading,
+  error,
+  onConfirm,
+  onDismiss,
+}: {
+  visible: boolean;
+  title: string;
+  text: string;
+  confirmLabel: string;
+  danger?: boolean;
+  loading: boolean;
+  error?: string;
+  onConfirm(password: string): void;
+  onDismiss(): void;
+}) {
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
-  const requestForm = useForm<DeletionValues>({
-    resolver: zodResolver(deletionSchema),
-    defaultValues: { password: "", confirmation: "ELIMINAR" },
+  const [password, setPassword] = useState("");
+  const [visiblePassword, setVisiblePassword] = useState(false);
+  const close = () => {
+    if (loading) return;
+    setPassword("");
+    onDismiss();
+  };
+  return (
+    <Portal>
+      <Dialog visible={visible} onDismiss={close}>
+        <Dialog.Title>{title}</Dialog.Title>
+        <Dialog.Content style={styles.group}>
+          <Text>{text}</Text>
+          <TextInput
+            mode="outlined"
+            label="Contraseña"
+            secureTextEntry={!visiblePassword}
+            autoComplete="current-password"
+            value={password}
+            onChangeText={setPassword}
+            error={!!error}
+            right={
+              <TextInput.Icon
+                icon={visiblePassword ? "eye-off" : "eye"}
+                onPress={() => setVisiblePassword(!visiblePassword)}
+                accessibilityLabel={visiblePassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              />
+            }
+          />
+          {error && (
+            <Text variant="bodySmall" style={{ color: theme.colors.error }}>
+              {error}
+            </Text>
+          )}
+          {offline && (
+            <Text variant="bodySmall" style={{ color: theme.colors.error }}>
+              Sin conexión. Conéctate para continuar.
+            </Text>
+          )}
+        </Dialog.Content>
+        <Dialog.Actions>
+          <Button onPress={close} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button
+            mode="contained"
+            buttonColor={danger ? theme.colors.error : undefined}
+            textColor={danger ? theme.colors.onError : undefined}
+            loading={loading}
+            disabled={loading || offline || !password}
+            onPress={() => onConfirm(password)}
+          >
+            {confirmLabel}
+          </Button>
+        </Dialog.Actions>
+      </Dialog>
+    </Portal>
+  );
+}
+
+function ExportCard() {
+  const [open, setOpen] = useState(false);
+  const exporter = useMutation({
+    mutationFn: async (password: string) => {
+      const file = await exportAccountExcel(password);
+      await shareFile(file.base64, file.fileName, file.mimeType, "Guardar mis datos de NotesIA");
+    },
+    onSuccess: () => setOpen(false),
+    // El error se muestra dentro del modal.
+    meta: { silent: true },
   });
-  const cancelForm = useForm<CancelValues>({
-    resolver: zodResolver(cancelSchema),
-    defaultValues: { password: "", confirmation: "CANCELAR" },
-  });
+  return (
+    <ActionCard
+      icon="download-outline"
+      title="Exportar mis datos"
+      text="Descarga un Excel con toda tu información: actividades, eventos, tiempo registrado, avisos y más."
+    >
+      <Button
+        mode="contained"
+        onPress={() => {
+          exporter.reset();
+          setOpen(true);
+        }}
+      >
+        Exportar a Excel
+      </Button>
+      <PasswordDialog
+        key={open ? "abierto" : "cerrado"}
+        visible={open}
+        title="Exportar mis datos"
+        text="Por seguridad, confirma tu contraseña. Luego podrás guardar el archivo o compartirlo."
+        confirmLabel="Exportar"
+        loading={exporter.isPending}
+        error={exporter.isError ? userMessage(exporter.error) : undefined}
+        onConfirm={(password) => exporter.mutate(password)}
+        onDismiss={() => setOpen(false)}
+      />
+    </ActionCard>
+  );
+}
+
+function DeletionCard({ status }: { status: Awaited<ReturnType<typeof getDeletionRequest>> }) {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
   const request = useMutation({
-    mutationFn: (values: DeletionValues) =>
-      requestAccountDeletion(values.password, values.confirmation),
-    onSuccess: (updated) => queryClient.setQueryData(["account-deletion"], updated),
+    mutationFn: (password: string) => requestAccountDeletion(password, "ELIMINAR"),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["account-deletion"], updated);
+      setOpen(false);
+    },
+    meta: { silent: true },
   });
   const cancel = useMutation({
-    mutationFn: (values: CancelValues) =>
-      cancelAccountDeletion(values.password, values.confirmation),
-    onSuccess: () => queryClient.setQueryData(["account-deletion"], null),
+    mutationFn: (password: string) => cancelAccountDeletion(password, "CANCELAR"),
+    onSuccess: () => {
+      queryClient.setQueryData(["account-deletion"], null);
+      setOpen(false);
+    },
+    meta: { silent: true },
   });
+  const openDialog = () => {
+    request.reset();
+    cancel.reset();
+    setOpen(true);
+  };
+
   if (status) {
     return (
-      <Card mode="contained">
-        <Card.Content style={styles.group}>
-          <Text variant="titleMedium">Eliminación solicitada</Text>
-          <Text>Estado: {status.status === "pending" ? "pendiente" : "bloqueada"}</Text>
-          <Text>Programada para: {new Date(status.executeAt).toLocaleString()}</Text>
-          <Text>Para cancelarla, confirma tu contraseña.</Text>
-          <Controller
-            control={cancelForm.control}
-            name="password"
-            render={({ field }) => (
-              <TextInput
-                mode="outlined"
-                label="Contraseña actual"
-                secureTextEntry
-                value={field.value}
-                onChangeText={field.onChange}
-                error={!!cancelForm.formState.errors.password}
-              />
-            )}
-          />
-          <HelperText type="error" visible={!!cancelForm.formState.errors.password}>
-            {cancelForm.formState.errors.password?.message}
-          </HelperText>
-          <Button
-            loading={cancel.isPending}
-            disabled={offline || cancel.isPending}
-            onPress={() => void cancelForm.handleSubmit((values) => cancel.mutate(values))()}
-          >
-            Cancelar eliminación
-          </Button>
-        </Card.Content>
-      </Card>
+      <ActionCard
+        icon="clock-outline"
+        title="Eliminación programada"
+        text={`Tu cuenta y todos tus datos se eliminarán el ${new Date(
+          status.executeAt,
+        ).toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" })}${
+          status.status === "pending" ? "" : " (en espera de revisión)"
+        }. Hasta entonces puedes cancelarlo.`}
+        danger
+      >
+        <Button mode="outlined" onPress={openDialog}>
+          Cancelar eliminación
+        </Button>
+        <PasswordDialog
+          key={open ? "abierto" : "cerrado"}
+          visible={open}
+          title="Cancelar eliminación"
+          text="Confirma tu contraseña para conservar tu cuenta."
+          confirmLabel="Conservar mi cuenta"
+          loading={cancel.isPending}
+          error={cancel.isError ? userMessage(cancel.error) : undefined}
+          onConfirm={(password) => cancel.mutate(password)}
+          onDismiss={() => setOpen(false)}
+        />
+      </ActionCard>
     );
   }
   return (
-    <Card mode="contained">
-      <Card.Content style={styles.group}>
-        <Text variant="titleMedium">Eliminar mi cuenta</Text>
-        <Text>
-          La solicitud usa el periodo de espera configurado y puede cancelarse antes de su
-          ejecución.
-        </Text>
-        <Text>Confirma tu contraseña para continuar.</Text>
-        <Controller
-          control={requestForm.control}
-          name="password"
-          render={({ field }) => (
-            <TextInput
-              mode="outlined"
-              label="Contraseña actual"
-              secureTextEntry
-              value={field.value}
-              onChangeText={field.onChange}
-              error={!!requestForm.formState.errors.password}
-            />
-          )}
-        />
-        <HelperText type="error" visible={!!requestForm.formState.errors.password}>
-          {requestForm.formState.errors.password?.message}
-        </HelperText>
-        {offline && (
-          <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para continuar.</Text>
-        )}
-        <Button
-          mode="outlined"
-          loading={request.isPending}
-          disabled={offline || request.isPending}
-          textColor={theme.colors.error}
-          onPress={() => void requestForm.handleSubmit((values) => request.mutate(values))()}
-        >
-          Solicitar eliminación
-        </Button>
-      </Card.Content>
-    </Card>
+    <ActionCard
+      icon="delete-outline"
+      title="Eliminar mi cuenta"
+      text="Se borrarán tu cuenta y todos tus datos. Tendrás un plazo para arrepentirte antes de que se eliminen."
+      danger
+    >
+      <DangerButton onPress={openDialog} />
+      <PasswordDialog
+        key={open ? "abierto" : "cerrado"}
+        visible={open}
+        title="¿Eliminar tu cuenta?"
+        text="Se programará la eliminación de tu cuenta y de todos tus datos. Podrás cancelarla durante el plazo de espera. Confirma tu contraseña para continuar."
+        confirmLabel="Eliminar"
+        danger
+        loading={request.isPending}
+        error={request.isError ? userMessage(request.error) : undefined}
+        onConfirm={(password) => request.mutate(password)}
+        onDismiss={() => setOpen(false)}
+      />
+    </ActionCard>
   );
 }
 
-const styles = StyleSheet.create({ group: { gap: layout.fieldGap } });
+function DangerButton({ onPress }: { onPress(): void }) {
+  const theme = useTheme();
+  return (
+    <Button
+      mode="outlined"
+      textColor={theme.colors.error}
+      style={{ borderColor: theme.colors.error }}
+      onPress={onPress}
+    >
+      Eliminar mi cuenta
+    </Button>
+  );
+}
+
+const styles = StyleSheet.create({
+  group: { gap: layout.fieldGap },
+  card: { gap: 12 },
+  head: { flexDirection: "row", alignItems: "center", gap: 12 },
+  icon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bold: { fontWeight: "700" },
+});

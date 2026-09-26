@@ -3032,6 +3032,11 @@ components:
           minLength: 1
           maxLength: 1024
           writeOnly: true
+        format:
+          type: string
+          enum:
+            - json
+            - xlsx
       required:
         - password
       additionalProperties: false

@@ -2,17 +2,19 @@ import {
   accountDeletionCancelSchema,
   accountDeletionRequestSchema,
   accountDeletionStatusSchema,
+  accountExportFileSchema,
   accountExportRequestSchema,
 } from "@notesia/contracts";
 import { z } from "zod";
-import { requestJson, requestText } from "./client";
+import { requestJson } from "./client";
 
 const emptyResponseSchema = z.null();
 
-export function exportAccount(password: string) {
-  return requestText("/me/export", {
+/** Todos los datos de la cuenta en un Excel, con una hoja por tipo de dato. */
+export function exportAccountExcel(password: string) {
+  return requestJson("/me/export", accountExportFileSchema, {
     method: "POST",
-    body: accountExportRequestSchema.parse({ password }),
+    body: accountExportRequestSchema.parse({ password, format: "xlsx" }),
     timeoutMs: 60_000,
   });
 }

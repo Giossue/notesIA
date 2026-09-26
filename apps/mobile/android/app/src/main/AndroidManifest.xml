@@ -19,6 +19,16 @@
       android:theme="@style/AppTheme"
       android:usesCleartextTraffic="${usesCleartextTraffic}"
       android:supportsRtl="true">
+      <!-- Comparte la exportación de datos (Excel) con otras apps sin exponer más archivos. -->
+      <provider
+        android:name="androidx.core.content.FileProvider"
+        android:authorities="${applicationId}.files"
+        android:exported="false"
+        android:grantUriPermissions="true">
+        <meta-data
+          android:name="android.support.FILE_PROVIDER_PATHS"
+          android:resource="@xml/export_paths" />
+      </provider>
       <!-- Ícono de los avisos push cuando el mensaje no trae uno propio. -->
       <meta-data
         android:name="com.google.firebase.messaging.default_notification_icon"

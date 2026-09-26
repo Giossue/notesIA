@@ -1,6 +1,7 @@
 import { accountExportRequestSchema, type Problem } from "@notesia/contracts";
 import type { AccountExportRepository } from "@notesia/db";
 import type { Hono } from "hono";
+import { buildExportWorkbook } from "./xlsx";
 
 type Dependencies = {
   getSession(headers: Headers): Promise<{ user: { id: string } } | null>;
@@ -29,6 +30,19 @@ export function registerAccountExportRoutes(app: Hono, dependencies: Dependencie
     if (!body.success) return error(422, "VALIDATION_FAILED", "Solicitud inválida.");
     if (!(await dependencies.verifyPassword(c.req.raw.headers, body.data.password)))
       return error(403, "REAUTH_REQUIRED", "Vuelve a confirmar tu contraseña.");
+    if (body.data.format === "xlsx") {
+      const workbook = buildExportWorkbook(await dependencies.exports.collect(session.user.id));
+      const day = new Date().toISOString().slice(0, 10);
+      return c.json(
+        {
+          fileName: `notesia-mis-datos-${day}.xlsx`,
+          mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          base64: Buffer.from(workbook).toString("base64"),
+        },
+        200,
+        { "Cache-Control": "no-store" },
+      );
+    }
     const stream = await dependencies.exports.stream(session.user.id);
     return new Response(stream, {
       headers: {

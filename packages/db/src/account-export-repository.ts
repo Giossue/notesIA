@@ -196,6 +196,31 @@ const sections = [
 
 export function createAccountExportRepository(pool: Pool) {
   return {
+    /** Todas las secciones en memoria, en una sola lectura consistente (para el Excel). */
+    async collect(userId: string) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+        const result: Array<{ name: string; rows: Record<string, unknown>[] }> = [];
+        for (const section of sections) {
+          const rows: Record<string, unknown>[] = [];
+          for (let offset = 0; ; offset += 500) {
+            const page = await client.query<Record<string, unknown>>(section.sql, [
+              userId,
+              500,
+              offset,
+            ]);
+            rows.push(...page.rows);
+            if (page.rows.length < 500) break;
+          }
+          result.push({ name: section.name, rows });
+        }
+        return result;
+      } finally {
+        await client.query("ROLLBACK").catch(() => {});
+        client.release();
+      }
+    },
     async stream(userId: string) {
       const client = await pool.connect();
       try {

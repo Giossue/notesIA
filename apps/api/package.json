@@ -11,6 +11,7 @@
     "@notesia/domain": "workspace:*",
     "@notesia/observability": "workspace:*",
     "better-auth": "1.7.5",
+    "fflate": "^0.8.3",
     "hono": "^4.9.8",
     "kysely": "0.28.17",
     "pg": "8.23.0",

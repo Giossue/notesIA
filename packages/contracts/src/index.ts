@@ -83,6 +83,14 @@ export const consentRecordSchema = z.object({
 export const consentListSchema = z.array(consentRecordSchema);
 export const accountExportRequestSchema = z.strictObject({
   password: z.string().min(1).max(1024),
+  /** JSON completo (por defecto) o un Excel con una hoja por sección. */
+  format: z.enum(["json", "xlsx"]).optional(),
+});
+/** Archivo generado, en base64, para que la app lo guarde o comparta. */
+export const accountExportFileSchema = z.object({
+  fileName: z.string(),
+  mimeType: z.string(),
+  base64: z.string(),
 });
 export const accountDeletionRequestSchema = z.strictObject({
   password: z.string().min(1).max(1024),
