@@ -2,7 +2,7 @@ import type { Pool } from "pg";
 
 type Notification = {
   id: string;
-  type: "plan_applied" | "deadline_reminder" | "block_reminder" | "risk_alert";
+  type: "plan_applied" | "deadline_reminder" | "block_reminder" | "risk_alert" | "streak_at_risk";
   planId: string | null;
   activityId: string | null;
   blockId: string | null;

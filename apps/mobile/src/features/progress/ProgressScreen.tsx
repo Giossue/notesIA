@@ -5,6 +5,7 @@ import { ActivityIndicator, Icon, Text, useTheme } from "react-native-paper";
 import { getActivitySummary } from "@/core/api/activities";
 import { layout } from "@/core/theme/layout";
 import { categoryColors } from "@/core/theme/theme";
+import { StreakCard } from "@/features/streak/StreakCard";
 import { TimeStatisticsPanel } from "@/features/time/TimeStatisticsPanel";
 import { categoryInfo } from "@/shared/activity-kinds";
 import { userMessage } from "@/shared/errors";
@@ -56,6 +57,7 @@ export function ProgressScreen() {
         </View>
       )}
 
+      <StreakCard />
       {data && (
         <>
           <View style={[styles.card, styles.ringsCard, { backgroundColor: theme.colors.surface }]}>

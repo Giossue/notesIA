@@ -10,14 +10,31 @@ export function EmptyState({
   icon,
   actionLabel,
   onAction,
+  variant,
 }: {
   message: string;
   title?: string;
   icon?: string;
   actionLabel?: string;
   onAction?: () => void;
+  variant?: "card" | "centered";
 }) {
   const theme = useTheme();
+
+  if (variant === "centered") {
+    return (
+      <View style={styles.centered}>
+        {icon && <Icon source={icon} size={32} color={theme.colors.outline} />}
+        <Text
+          variant="bodyMedium"
+          style={[styles.centeredMessage, { color: theme.colors.onSurfaceVariant }]}
+        >
+          {message}
+        </Text>
+      </View>
+    );
+  }
+
   const iconColor = iconTint[theme.dark ? "dark" : "light"];
   const surface = [{ backgroundColor: theme.colors.surface }];
 
@@ -63,6 +80,8 @@ export function EmptyState({
 }
 
 const styles = StyleSheet.create({
+  centered: { alignItems: "center", gap: 8, paddingVertical: 24 },
+  centeredMessage: { textAlign: "center" },
   container: { padding: layout.cardPadding, borderRadius: layout.choiceRadius },
   rich: { flexDirection: "row", alignItems: "center", gap: 16 },
   iconBox: {

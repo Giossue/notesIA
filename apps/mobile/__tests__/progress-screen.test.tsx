@@ -12,6 +12,7 @@ jest.mock("@react-native-community/netinfo", () => ({ useNetInfo: () => ({ isCon
 jest.mock("@react-navigation/native", () => ({ useNavigation: () => ({ navigate: jest.fn() }) }));
 jest.mock("@/navigation/FloatingNavBar", () => ({ FloatingNavBar: () => null }));
 jest.mock("@/features/time/TimeStatisticsPanel", () => ({ TimeStatisticsPanel: () => null }));
+jest.mock("@/features/streak/StreakCard", () => ({ StreakCard: () => null }));
 
 const days = ["21", "22", "23", "24", "25", "26", "27"].map((day, index) => ({
   date: `2026-09-${day}`,
@@ -19,7 +20,7 @@ const days = ["21", "22", "23", "24", "25", "26", "27"].map((day, index) => ({
   due: index === 2 ? 4 : 1,
 }));
 
-test("estadísticas muestra el avance semanal, y los tipos de actividad", async () => {
+test("estadísticas muestra el avance semanal y los tipos de actividad", async () => {
   (useQuery as jest.Mock).mockReturnValue({
     data: {
       day: "2026-09-23",

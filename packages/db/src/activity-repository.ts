@@ -131,19 +131,12 @@ export function createActivityRepository(pool: Pool) {
         .groupBy(activities.kind);
     },
 
-    async completionInstantsSince(userId: string, since: Date) {
-      const rows = await db
-        .select({ completedAt: activities.completedAt })
-        .from(activities)
-        .where(
-          and(
-            eq(activities.userId, userId),
-            isNull(activities.deletedAt),
-            eq(activities.status, "completed"),
-            gte(activities.completedAt, since),
-          ),
-        );
-      return rows.flatMap((row) => (row.completedAt ? [row.completedAt] : []));
+    /** Días (AAAA-MM-DD locales) en que el estudiante completó alguna actividad. */
+    async streakDays(userId: string) {
+      const rows = await db.execute<{ day: string }>(
+        sql`SELECT fecha::text AS day FROM dominio.dias_racha WHERE usuario_id = ${userId}`,
+      );
+      return rows.rows.map((row) => row.day);
     },
 
     async listForPlanning(userId: string) {

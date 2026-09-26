@@ -174,6 +174,7 @@ export function HomeScreen() {
         )}
         {upcoming.isSuccess && nextDeliveries.length === 0 && (
           <EmptyState
+            variant="centered"
             icon="calendar-check-outline"
             message="Nada por entregar en los próximos días."
           />
@@ -242,6 +243,7 @@ export function HomeScreen() {
         <SectionHeading title="Tareas de hoy" onMore={() => navigation.navigate("Agenda")} />
         {upcoming.isSuccess && todayTasks.length === 0 && (
           <EmptyState
+            variant="centered"
             icon="checkbox-marked-circle-outline"
             message="No tienes entregas hoy. Aprovecha para avanzar a tu ritmo."
           />

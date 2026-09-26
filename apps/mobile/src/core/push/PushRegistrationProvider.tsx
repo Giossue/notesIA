@@ -4,11 +4,12 @@ import { navigateWhenReady, navigationRef } from "@/navigation/navigation-ref";
 import { showToast } from "@/shared/Toast";
 import { type PushEvent, subscribeToPushEvents } from "./push-registration";
 
-/** Abre lo que avisa: la actividad, la agenda (planes) o, si no, la lista de avisos. */
+/** Abre lo que avisa: la actividad, la agenda (planes), la racha o, si no, la lista de avisos. */
 function openPushEvent(event: PushEvent) {
   navigateWhenReady(() => {
     if (event.activityId) navigationRef.navigate("ActivityForm", { id: event.activityId });
     else if (event.planId) navigationRef.navigate("Agenda");
+    else if (event.type === "streak_at_risk") navigationRef.navigate("Progress");
     else navigationRef.navigate("Notifications");
   });
 }

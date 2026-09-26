@@ -613,6 +613,24 @@ export const activitySummarySchema = z.object({
   /** Días locales consecutivos con al menos una actividad completada, hasta hoy o ayer. */
   streakDays: z.number().int().nonnegative(),
 });
+export const streakSchema = z.object({
+  today: z.iso.date(),
+  current: z.number().int().nonnegative(),
+  best: z.number().int().nonnegative(),
+  todayDone: z.boolean(),
+  freezeAvailable: z.boolean(),
+  perfectWeeks: z.number().int().nonnegative(),
+  week: z
+    .array(
+      z.object({
+        date: z.iso.date(),
+        status: z.enum(["done", "protected", "missed", "pending", "future"]),
+      }),
+    )
+    .length(7),
+});
+export type StreakView = z.infer<typeof streakSchema>;
+
 export type ActivitySummary = z.infer<typeof activitySummarySchema>;
 
 export const activityCursorSchema = z.strictObject({
@@ -982,7 +1000,13 @@ export const timeStatisticsSchema = z.object({
 
 export const notificationSchema = z.object({
   id: z.uuid(),
-  type: z.enum(["plan_applied", "deadline_reminder", "block_reminder", "risk_alert"]),
+  type: z.enum([
+    "plan_applied",
+    "deadline_reminder",
+    "block_reminder",
+    "risk_alert",
+    "streak_at_risk",
+  ]),
   planId: z.uuid().nullable(),
   activityId: z.uuid().nullable(),
   blockId: z.uuid().nullable(),

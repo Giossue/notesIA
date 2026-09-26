@@ -2,7 +2,8 @@ export type PushNotificationType =
   | "plan_applied"
   | "deadline_reminder"
   | "block_reminder"
-  | "risk_alert";
+  | "risk_alert"
+  | "streak_at_risk";
 
 export type PushMessageInput = {
   type: PushNotificationType;
@@ -68,6 +69,11 @@ export function pushMessage(input: PushMessageInput): { title: string; body: str
       return {
         title: "Actividad en riesgo",
         body: `${activity} podría no terminarse a tiempo. Revisa tu plan`,
+      };
+    case "streak_at_risk":
+      return {
+        title: "🔥 Tu racha está en peligro",
+        body: "Completa una tarea hoy para no perderla",
       };
     case "plan_applied":
       return { title: "Plan aplicado", body: "Tu plan de estudio ya está listo" };

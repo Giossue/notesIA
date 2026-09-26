@@ -11,7 +11,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, Icon, Text, TouchableRipple, useTheme } from "react-native-paper";
+import { ActivityIndicator, Text, TouchableRipple, useTheme } from "react-native-paper";
 import Svg, { Circle } from "react-native-svg";
 import { listActivities } from "@/core/api/activities";
 import { listCalendarEvents } from "@/core/api/calendar-events";
@@ -21,6 +21,7 @@ import { layout } from "@/core/theme/layout";
 import { type CategoryColor, categoryColors } from "@/core/theme/theme";
 import type { RootStackParamList } from "@/navigation/types";
 import { kindColor } from "@/shared/activity-kinds";
+import { EmptyState } from "@/shared/EmptyState";
 import { userMessage } from "@/shared/errors";
 import { shortWeekday } from "@/shared/format";
 import { Button } from "@/shared/paper";
@@ -324,12 +325,11 @@ export function AgendaScreen() {
             />
           )}
           {!loading && !failed && dayItems.length === 0 && (
-            <View style={styles.empty}>
-              <Icon source="calendar-blank-outline" size={32} color={theme.colors.outline} />
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                Nada programado para este día.
-              </Text>
-            </View>
+            <EmptyState
+              variant="centered"
+              icon="calendar-blank-outline"
+              message="Nada programado para este día."
+            />
           )}
 
           {dayItems.length > 0 && <DayAgendaList entries={entries} nowMinute={nowMinute} />}
@@ -374,5 +374,4 @@ const styles = StyleSheet.create({
   day: { flex: 1, borderRadius: 26 },
   dayContent: { alignItems: "center", paddingVertical: 8, gap: 1 },
   busyDot: { marginTop: 3 },
-  empty: { alignItems: "center", gap: 8, paddingVertical: 24 },
 });

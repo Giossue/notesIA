@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from "pg";
 
 type Candidate = {
   userId: string;
-  activityId: string;
+  activityId: string | null;
   planId: string | null;
   blockId: string | null;
   referenceAt: Date | null;
@@ -29,6 +29,9 @@ export function isQuietAt(now: Date, timeZone: string, start: number, end: numbe
     : localMinute >= start || localMinute < end;
 }
 
+/** Hora local (en minutos) desde la que se avisa que la racha está en peligro: 20:00. */
+export const STREAK_REMINDER_MINUTE = 20 * 60;
+
 const candidateColumns = `a.usuario_id AS "userId", a.id AS "activityId",
   profile.zona_horaria AS "timeZone",
   prefs.minuto_silencio_inicio AS "quietStartMinute",
@@ -49,7 +52,7 @@ const outsideQuietHours = `NOT (
 
 async function insertNotice(
   connection: Pool | PoolClient,
-  type: "deadline_reminder" | "block_reminder" | "risk_alert",
+  type: "deadline_reminder" | "block_reminder" | "risk_alert" | "streak_at_risk",
   row: Candidate,
   now: Date,
 ) {
@@ -81,7 +84,13 @@ async function insertNotice(
              AND a.estado NOT IN ('completed','cancelled')
              AND a.eliminado_en IS NULL AND a.archivado_en IS NULL
            FOR SHARE OF a, b, p`
-            : "SELECT $2::uuid AS usuario_id";
+            : type === "streak_at_risk"
+              ? // Sigue sin ganar el día cuando por fin se crea el aviso.
+                `SELECT profile.usuario_id FROM dominio.perfiles_usuario profile
+           WHERE profile.usuario_id = $2 AND NOT EXISTS (
+             SELECT 1 FROM dominio.dias_racha d WHERE d.usuario_id = profile.usuario_id
+               AND d.fecha = timezone(profile.zona_horaria, $8::timestamptz)::date)`
+              : "SELECT $2::uuid AS usuario_id";
       const inserted = await connection.query<{ created: number }>(
         `WITH enabled AS (
        SELECT prefs.usuario_id FROM dominio.preferencias_usuario prefs
@@ -222,11 +231,40 @@ export function createNotificationSchedulerRepository(pool: Pool) {
          ) candidates ORDER BY "planId", "activityId" LIMIT $2`,
         [now, limit],
       );
+      // Racha en peligro: desde las 20:00 locales, si ayer o anteayer se ganó el día
+      // (anteayer por el protector) y hoy todavía no. Uno por día.
+      const streak = await pool.query<Candidate>(
+        `SELECT profile.usuario_id AS "userId", NULL::uuid AS "activityId",
+           profile.zona_horaria AS "timeZone",
+           prefs.minuto_silencio_inicio AS "quietStartMinute",
+           prefs.minuto_silencio_fin AS "quietEndMinute",
+           NULL::uuid AS "planId", NULL::uuid AS "blockId",
+           (local_day.today::timestamp AT TIME ZONE profile.zona_horaria) AS "referenceAt"
+         FROM dominio.perfiles_usuario profile
+         JOIN dominio.preferencias_usuario prefs ON prefs.usuario_id = profile.usuario_id
+         ${localClockJoin(1)}
+         CROSS JOIN LATERAL (
+           SELECT timezone(profile.zona_horaria, $1::timestamptz)::date AS today
+         ) local_day
+         WHERE prefs.notificaciones_habilitadas AND ${outsideQuietHours}
+           AND local_clock.local_minute >= ${STREAK_REMINDER_MINUTE}
+           AND EXISTS (SELECT 1 FROM dominio.dias_racha d
+             WHERE d.usuario_id = profile.usuario_id
+               AND d.fecha IN (local_day.today - 1, local_day.today - 2))
+           AND NOT EXISTS (SELECT 1 FROM dominio.dias_racha d
+             WHERE d.usuario_id = profile.usuario_id AND d.fecha = local_day.today)
+           AND NOT EXISTS (SELECT 1 FROM dominio.notificaciones n
+             WHERE n.usuario_id = profile.usuario_id AND n.tipo = 'streak_at_risk'
+               AND n.referencia_en = (local_day.today::timestamp AT TIME ZONE profile.zona_horaria))
+         ORDER BY profile.usuario_id LIMIT $2`,
+        [now, limit],
+      );
       let created = 0;
       for (const [type, rows] of [
         ["deadline_reminder", deadline.rows],
         ["block_reminder", block.rows],
         ["risk_alert", risk.rows],
+        ["streak_at_risk", streak.rows],
       ] as const) {
         for (const row of rows) {
           try {

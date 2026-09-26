@@ -264,3 +264,57 @@ test("a superseded plan does not receive a block notice selected earlier", async
   );
   expect(result.rows[0]?.count).toBe(0);
 });
+
+test("completing an activity earns the day and an unfinished streak is warned once at night", async () => {
+  const streakUserId = crypto.randomUUID();
+  const streakActivityId = crypto.randomUUID();
+  try {
+    await pool.query(
+      `INSERT INTO autenticacion.usuarios (id, nombre, correo, correo_verificado)
+       VALUES ($1, 'Prueba racha', $2, false)`,
+      [streakUserId, `streak-${streakUserId}@example.test`],
+    );
+    await pool.query(
+      "UPDATE dominio.perfiles_usuario SET zona_horaria = 'Etc/UTC' WHERE usuario_id = $1",
+      [streakUserId],
+    );
+    await pool.query(
+      `INSERT INTO dominio.actividades (id, usuario_id, tipo, titulo, prioridad)
+       VALUES ($1,$2,'academic_task','Lectura','medium')`,
+      [streakActivityId, streakUserId],
+    );
+    await pool.query(
+      `UPDATE dominio.actividades SET estado = 'completed', porcentaje_progreso = 100,
+         completado_en = '2027-06-01T10:00:00Z' WHERE id = $1`,
+      [streakActivityId],
+    );
+    // Reabrir no borra el día ganado.
+    await pool.query(
+      `UPDATE dominio.actividades SET estado = 'backlog', porcentaje_progreso = 0,
+         completado_en = NULL WHERE id = $1`,
+      [streakActivityId],
+    );
+    const days = await pool.query<{ day: string }>(
+      "SELECT fecha::text AS day FROM dominio.dias_racha WHERE usuario_id = $1",
+      [streakUserId],
+    );
+    expect(days.rows.map((row) => row.day)).toEqual(["2027-06-01"]);
+
+    const notices = async () => {
+      const result = await pool.query<{ count: number }>(
+        `SELECT count(*)::integer AS count FROM dominio.notificaciones
+         WHERE usuario_id = $1 AND tipo = 'streak_at_risk'`,
+        [streakUserId],
+      );
+      return result.rows[0]?.count;
+    };
+    const scheduler = createNotificationSchedulerRepository(pool);
+    await scheduler.processDue(new Date("2027-06-02T19:00:00.000Z"));
+    expect(await notices()).toBe(0);
+    await scheduler.processDue(new Date("2027-06-02T20:30:00.000Z"));
+    await scheduler.processDue(new Date("2027-06-02T21:00:00.000Z"));
+    expect(await notices()).toBe(1);
+  } finally {
+    await pool.query("DELETE FROM autenticacion.usuarios WHERE id = $1", [streakUserId]);
+  }
+});

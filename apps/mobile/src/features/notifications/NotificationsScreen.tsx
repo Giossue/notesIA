@@ -17,6 +17,7 @@ const labels = {
   deadline_reminder: "Plazo próximo",
   block_reminder: "Bloque próximo",
   risk_alert: "Alerta de riesgo",
+  streak_at_risk: "Tu racha está en peligro",
 };
 
 export function NotificationsScreen() {
@@ -54,7 +55,11 @@ export function NotificationsScreen() {
         </View>
       )}
       {!notifications.isPending && !notifications.isError && items.length === 0 && (
-        <EmptyState icon="bell-check-outline" message="No tienes avisos pendientes." />
+        <EmptyState
+          variant="centered"
+          icon="bell-check-outline"
+          message="No tienes avisos pendientes."
+        />
       )}
       {items.map((item) => (
         <Card key={item.id} mode={item.readAt ? "outlined" : "contained"}>

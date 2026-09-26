@@ -45,6 +45,7 @@ El DDL de referencia se encuentra en `database/schema.sql`.
 | `subtareas` | Desglose simple. |
 | `historial_actividades` | Cambios relevantes. |
 | `registros_tiempo` | Tiempo real. |
+| `dias_racha` | Días (fecha local) en que se completó al menos una actividad. |
 
 ### Disponibilidad y planificación
 
@@ -124,6 +125,10 @@ erDiagram
 - `eliminado_en`: tombstone.
 
 El tiempo real se obtiene de `registros_tiempo`; no se acepta como dato autoritativo de IA.
+
+### `dias_racha`
+
+Clave `(usuario_id, fecha)`, con `fecha` en la zona del perfil al completar. La llena el trigger `actividades_dia_racha` al pasar una actividad a `completed`; no se borra si la actividad se reabre o elimina. La racha, la mejor racha y el protector semanal se calculan en `packages/domain` (`computeStreak`), no se guardan. El aviso `streak_at_risk` (uno por día, `referencia_en` = inicio del día local) sale desde las 20:00 si el día sigue sin ganarse.
 
 ### `registros_tiempo`
 

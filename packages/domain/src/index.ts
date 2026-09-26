@@ -14,6 +14,8 @@ export type { PushMessageInput, PushNotificationType } from "./push-message";
 export { pushMessage, whenText } from "./push-message";
 export type { RecurrenceFrequency, RecurrenceOccurrence } from "./recurrence";
 export { expandRecurrence, MAX_RECURRENCE_OCCURRENCES } from "./recurrence";
+export type { Streak, StreakDayStatus } from "./streak";
+export { computeStreak, weekStart } from "./streak";
 export type { CalendarRangeView } from "./time";
 export {
   calendarRangeForDate,

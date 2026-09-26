@@ -41,6 +41,7 @@ import { PrivacyScreen } from "@/features/privacy/PrivacyScreen";
 import { ProfileEditScreen } from "@/features/profile/ProfileEditScreen";
 import { ProfileScreen } from "@/features/profile/ProfileScreen";
 import { ProgressScreen } from "@/features/progress/ProgressScreen";
+import { StreakCelebration } from "@/features/streak/StreakCelebration";
 import { flushPendingNavigation, navigationRef } from "@/navigation/navigation-ref";
 import type { RootStackParamList, TabParams } from "@/navigation/types";
 import { userMessage } from "@/shared/errors";
@@ -157,6 +158,7 @@ function Main() {
         >
           <TimeZoneSync />
           <PushPermissionPrompt />
+          <StreakCelebration />
           <Stack.Navigator
             screenOptions={{
               headerShown: false,
