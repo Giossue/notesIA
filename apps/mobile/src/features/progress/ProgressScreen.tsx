@@ -192,26 +192,6 @@ export function ProgressScreen() {
               })}
             </View>
           </View>
-
-          <View
-            style={[styles.card, styles.streak, { backgroundColor: theme.colors.errorContainer }]}
-          >
-            <View style={[styles.streakIcon, { backgroundColor: theme.colors.surface }]}>
-              <Icon source="trophy-outline" size={24} color={categories.pink} />
-            </View>
-            <View style={styles.streakCopy}>
-              <Text variant="titleMedium" style={styles.bold}>
-                {data.streakDays === 0
-                  ? "Empieza tu racha"
-                  : `Racha de ${data.streakDays} ${data.streakDays === 1 ? "día" : "días"}`}
-              </Text>
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                {data.streakDays === 0
-                  ? "Completa una tarea hoy para comenzar."
-                  : "Días seguidos completando al menos una tarea."}
-              </Text>
-            </View>
-          </View>
         </>
       )}
       {/* Tiempo estudiado frente al estimado; se registra desde cada tarea. */}
@@ -266,13 +246,4 @@ const styles = StyleSheet.create({
   },
   track: { height: 8, borderRadius: 4, overflow: "hidden" },
   trackFill: { height: 8, borderRadius: 4 },
-  streak: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16 },
-  streakIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  streakCopy: { flex: 1, gap: 2 },
 });

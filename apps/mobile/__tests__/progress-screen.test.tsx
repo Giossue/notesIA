@@ -19,7 +19,7 @@ const days = ["21", "22", "23", "24", "25", "26", "27"].map((day, index) => ({
   due: index === 2 ? 4 : 1,
 }));
 
-test("estadísticas muestra el avance semanal, los tipos de actividad y la racha", async () => {
+test("estadísticas muestra el avance semanal, y los tipos de actividad", async () => {
   (useQuery as jest.Mock).mockReturnValue({
     data: {
       day: "2026-09-23",
@@ -52,6 +52,5 @@ test("estadísticas muestra el avance semanal, los tipos de actividad y la racha
   expect(screen.getAllByText("Académica")).toHaveLength(2);
   expect(screen.getByText("7 de 10")).toBeOnTheScreen();
   expect(screen.getByText("Cotidiana")).toBeOnTheScreen();
-  expect(screen.getByText("Racha de 3 días")).toBeOnTheScreen();
   expect(screen.getByLabelText("Mié: 3 completadas de 4 con plazo")).toBeOnTheScreen();
 });
