@@ -51,6 +51,7 @@ import { flushPendingNavigation, navigationRef } from "@/navigation/navigation-r
 import type { RootStackParamList, TabParams } from "@/navigation/types";
 import { userMessage } from "@/shared/errors";
 import { Button } from "@/shared/paper";
+import { hideSplash } from "@/shared/splash";
 import { showToast } from "@/shared/Toast";
 import { adoptDeviceTimeZone } from "@/shared/time-zones";
 
@@ -153,7 +154,13 @@ function Main() {
   return (
     <ConsentGate>
       <PushRegistrationProvider>
-        <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
+        <NavigationContainer
+          ref={navigationRef}
+          onReady={() => {
+            hideSplash();
+            flushPendingNavigation();
+          }}
+        >
           <TimeZoneSync />
           <PushPermissionPrompt />
           <Stack.Navigator

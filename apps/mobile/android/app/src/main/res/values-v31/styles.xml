@@ -1,9 +1,0 @@
-<resources>
-    <!-- Android 12+ muestra su propia pantalla de arranque: fondo oscuro e ícono de la app. -->
-    <style name="SplashTheme" parent="AppTheme">
-        <!-- Tras el arranque del sistema, fondo liso hasta que la app muestra su logo. -->
-        <item name="android:windowBackground">@color/splash_background</item>
-        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
-    </style>
-</resources>

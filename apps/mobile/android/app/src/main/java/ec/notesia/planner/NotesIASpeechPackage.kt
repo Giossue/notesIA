@@ -7,7 +7,11 @@ import com.facebook.react.uimanager.ViewManager
 
 class NotesIASpeechPackage : ReactPackage {
   override fun createNativeModules(reactContext: ReactApplicationContext): MutableList<NativeModule> =
-      mutableListOf(NotesIAConfigModule(reactContext), NotesIASpeechModule(reactContext))
+      mutableListOf(
+          NotesIAConfigModule(reactContext),
+          NotesIASpeechModule(reactContext),
+          NotesIASplashModule(reactContext),
+      )
 
   override fun createViewManagers(
       reactContext: ReactApplicationContext,

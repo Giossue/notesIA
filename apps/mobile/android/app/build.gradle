@@ -180,6 +180,8 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    // Pantalla de arranque única: se mantiene hasta que la app avisa que está lista.
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

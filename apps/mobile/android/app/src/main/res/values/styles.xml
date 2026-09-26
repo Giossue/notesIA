@@ -6,9 +6,12 @@
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
     </style>
 
-    <!-- Fondo de la ventana: el logo se ve mientras carga la app; luego cada pantalla pinta encima. -->
-    <style name="SplashTheme" parent="AppTheme">
-        <item name="android:windowBackground">@drawable/launch_screen</item>
+    <!-- Arranque: fondo oscuro con el ícono; sigue visible hasta que la app avisa que
+         está lista (MainActivity) y luego pasa a AppTheme. -->
+    <style name="SplashTheme" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/AppTheme</item>
     </style>
 
 </resources>

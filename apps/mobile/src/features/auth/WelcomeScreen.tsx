@@ -11,6 +11,7 @@ import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ExitOnDoubleBack } from "@/navigation/useExitOnDoubleBack";
 import { Button } from "@/shared/paper";
+import { useHideSplash } from "@/shared/splash";
 import { HeroBackdrop, HeroStatusBar, heroColors } from "./AuthHero";
 
 const slides = [
@@ -33,6 +34,7 @@ const slides = [
 
 /** Presentación para quien recién instala la app; se muestra una sola vez. */
 export function WelcomeScreen({ onDone }: { onDone(mode: "signIn" | "signUp"): void }) {
+  useHideSplash();
   const { width, height } = useWindowDimensions();
   const scroller = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);

@@ -8,6 +8,7 @@ import { clearPrivateCache } from "@/core/auth/query-cache";
 import { HeroBackdrop, HeroStatusBar, heroColors } from "@/features/auth/AuthHero";
 import { userMessage } from "@/shared/errors";
 import { Button, Dialog } from "@/shared/paper";
+import { useHideSplash } from "@/shared/splash";
 import { LegalConsentCheckbox, requiredDocuments } from "./LegalConsent";
 
 /**
@@ -83,6 +84,7 @@ function ConsentDialog({
   error?: string;
   onAccept(): void;
 }) {
+  useHideSplash();
   const theme = useTheme();
   const queryClient = useQueryClient();
   const [agreed, setAgreed] = useState(false);

@@ -3,6 +3,7 @@ import { ScrollView, StatusBar, StyleSheet, useWindowDimensions, View } from "re
 import { IconButton, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppSplash } from "@/shared/AppSplash";
+import { useHideSplash } from "@/shared/splash";
 
 /** Fondo oscuro fijo de la entrada, igual en modo claro y oscuro. */
 export const heroColors = {
@@ -103,6 +104,7 @@ export function AuthLayout({
   onBack?: () => void;
   children: ReactNode;
 }) {
+  useHideSplash();
   const theme = useTheme();
   return (
     <SafeAreaView style={styles.dark} edges={["top"]}>
@@ -134,8 +136,13 @@ export function HeroStatus({
   message?: string;
   action?: ReactNode;
 }) {
-  const { height } = useWindowDimensions();
   if (!message) return <AppSplash label={label} />;
+  return <HeroError message={message} action={action} />;
+}
+
+function HeroError({ message, action }: { message: string; action?: ReactNode }) {
+  useHideSplash();
+  const { height } = useWindowDimensions();
   return (
     <SafeAreaView style={[styles.dark, styles.status]}>
       <HeroStatusBar />
