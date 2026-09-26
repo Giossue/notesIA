@@ -69,7 +69,7 @@ export function LegalConsentCheckbox({
         <Dialog visible={reading !== null} onDismiss={() => setReading(null)}>
           <Dialog.Title>{reading ? legalNames[reading.type] : ""}</Dialog.Title>
           <Dialog.ScrollArea style={styles.dialogScroll}>
-            <ScrollView contentContainerStyle={styles.dialogContent}>
+            <ScrollView persistentScrollbar contentContainerStyle={styles.dialogContent}>
               <Text selectable variant="bodyMedium">
                 {reading?.content}
               </Text>

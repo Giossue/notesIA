@@ -110,6 +110,7 @@ export function AuthLayout({
     <SafeAreaView style={styles.dark} edges={["top"]}>
       <HeroStatusBar />
       <ScrollView
+        persistentScrollbar
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scroll}
         bounces={false}

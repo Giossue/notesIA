@@ -50,7 +50,7 @@ export function ConnectionScreen() {
   return (
     <SafeAreaView style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <StatusBar barStyle="default" />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView persistentScrollbar contentContainerStyle={styles.content}>
         <View style={styles.brand}>
           <Avatar.Icon
             size={64}

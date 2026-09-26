@@ -73,6 +73,7 @@ function AvatarGrid({ value, onChange }: { value: AvatarId; onChange(avatar: Ava
         Elige tu avatar
       </Text>
       <FlatList
+        persistentScrollbar
         data={avatarIds}
         keyExtractor={(item) => item}
         numColumns={COLUMNS}

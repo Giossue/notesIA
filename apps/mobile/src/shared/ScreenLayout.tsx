@@ -88,6 +88,7 @@ export function ScreenLayout({
       )}
       <ScrollView
         ref={scroller}
+        persistentScrollbar
         onContentSizeChange={
           stickToBottom ? () => scroller.current?.scrollToEnd({ animated: true }) : undefined
         }
