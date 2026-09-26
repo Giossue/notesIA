@@ -46,6 +46,13 @@ export function CreateMenu({
       open: () => navigation.navigate("EventForm", { date }),
       color: categories.orange,
     },
+    {
+      icon: "robot",
+      label: "Asistente",
+      route: "AiAssistant",
+      open: () => navigation.navigate("AiAssistant"),
+      color: categories.cyan,
+    },
   ];
 
   return (
