@@ -49,11 +49,18 @@ export function ProfileScreen() {
 
   const menu = [
     {
+      icon: "clock-outline",
+      color: categories.blue,
+      title: "Mi horario de estudio",
+      subtitle: "Cuándo puedes estudiar cada semana",
+      onPress: () => navigation.navigate("Availability"),
+    },
+    {
       icon: "bell",
       color: categories.pink,
-      title: "Notificaciones",
-      subtitle: "Controla tus recordatorios",
-      onPress: () => navigation.navigate("Notifications"),
+      title: "Avisos",
+      subtitle: "Anticipación y horario de no molestar",
+      onPress: () => navigation.navigate("Alerts"),
     },
     {
       icon: "weather-night",
@@ -63,32 +70,11 @@ export function ProfileScreen() {
       onPress: () => setThemeOpen(true),
     },
     {
-      icon: "account",
-      color: categories.blue,
-      title: "Cuenta",
-      subtitle: "Datos personales y seguridad",
-      onPress: () => navigation.navigate("Account"),
-    },
-    {
       icon: "shield-lock-outline",
       color: categories.gray,
-      title: "Privacidad",
-      subtitle: "Consentimientos y datos",
+      title: "Privacidad y datos",
+      subtitle: "Documentos, IA, exportar o eliminar tu cuenta",
       onPress: () => navigation.navigate("Privacy"),
-    },
-    {
-      icon: "cog-outline",
-      color: categories.gray,
-      title: "Preferencias",
-      subtitle: "Zona horaria, sesiones de estudio y avisos",
-      onPress: () => navigation.navigate("Preferences"),
-    },
-    {
-      icon: "dots-grid",
-      color: categories.blue,
-      title: "Herramientas",
-      subtitle: "Planificación, disponibilidad, IA y más",
-      onPress: () => navigation.navigate("Tools"),
     },
   ];
 

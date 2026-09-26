@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type Activity, activityCreateSchema, type Profile } from "@notesia/contracts";
-import { localDateTimeToUtc, utcToLocalDateTime } from "@notesia/domain";
+import { localDateTimeToUtc, todayInTimeZone, utcToLocalDateTime } from "@notesia/domain";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -12,12 +12,21 @@ import { ActivityIndicator, HelperText, Text, useTheme } from "react-native-pape
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import { createActivity, getActivity, updateActivity } from "@/core/api/activities";
+import { createActivitySeries } from "@/core/api/activity-series";
 import { getProfile } from "@/core/api/profile";
 import { layout, sharedStyles } from "@/core/theme/layout";
+import { ManualTimeForm } from "@/features/time/ManualTimeForm";
+import { TimerPanel } from "@/features/time/TimerPanel";
 import type { RootStackParamList } from "@/navigation/types";
 import { kindChoices } from "@/shared/activity-kinds";
 import { userMessage } from "@/shared/errors";
-import { DateTimeField, DurationField, FormSection, LabeledField } from "@/shared/fields";
+import {
+  DateField,
+  DateTimeField,
+  DurationField,
+  FormSection,
+  LabeledField,
+} from "@/shared/fields";
 import { Button, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { Tabs } from "@/shared/Tabs";
@@ -168,8 +177,32 @@ function ActivityForm({
   });
   const selectedKind = watch("kind");
   const selectedPriority = watch("priority");
+  // Solo al crear: repetir la tarea cada día o cada semana hasta una fecha.
+  const [repeat, setRepeat] = useState<"none" | "daily" | "weekly">("none");
+  const [repeatUntil, setRepeatUntil] = useState("");
   const save = useMutation({
-    mutationFn: (values: FormValues) => {
+    mutationFn: async (values: FormValues) => {
+      if (!activity && repeat !== "none") {
+        const startOn =
+          values.deadlineLocal.slice(0, 10) ||
+          todayInTimeZone(new Date().toISOString(), profile.timeZone);
+        if (!repeatUntil) throw new Error("Elige hasta qué día se repite.");
+        if (repeatUntil < startOn)
+          throw new Error("La fecha «Hasta» debe ser igual o posterior al primer día.");
+        await createActivitySeries({
+          id: newId,
+          // Un examen no se repite: la serie se crea como actividad académica.
+          kind: values.kind === "exam" ? "academic_task" : values.kind,
+          title: values.title.trim(),
+          description: values.description.trim() || null,
+          priority: values.priority,
+          estimatedMinutes: Math.min(1440, Number(values.estimatedMinutes) || 60),
+          frequency: repeat,
+          startOn,
+          throughOn: repeatUntil,
+        });
+        return null;
+      }
       const fields = {
         kind: values.kind,
         title: values.title.trim(),
@@ -187,7 +220,7 @@ function ActivityForm({
       return createActivity(activityCreateSchema.parse({ ...fields, id: newId }));
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData(["activity", updated.id], updated);
+      if (updated) queryClient.setQueryData(["activity", updated.id], updated);
       void queryClient.invalidateQueries({ queryKey: ["activities"] });
       void queryClient.invalidateQueries({ queryKey: ["agenda"] });
       navigation.goBack();
@@ -312,6 +345,25 @@ function ActivityForm({
           Sin conexión. La actividad quedará pendiente en este dispositivo.
         </Text>
       )}
+      {!activity && (
+        <FormSection
+          title="Repetir"
+          hint="Crea una copia para cada día o semana hasta la fecha elegida."
+        >
+          <Tabs
+            value={repeat}
+            onValueChange={setRepeat}
+            buttons={[
+              { value: "none", label: "No" },
+              { value: "daily", label: "Cada día" },
+              { value: "weekly", label: "Cada semana" },
+            ]}
+          />
+          {repeat !== "none" && (
+            <DateField label="Hasta" value={repeatUntil} onChange={setRepeatUntil} />
+          )}
+        </FormSection>
+      )}
       <Button
         mode="contained"
         loading={save.isPending}
@@ -323,6 +375,12 @@ function ActivityForm({
       </Button>
       {activity && <ActivityProgressForm activity={activity} />}
       {activity && <ActivityActions activity={activity} offline={offline} />}
+      {activity && !activity.archivedAt && (
+        <>
+          <TimerPanel activityId={activity.id} />
+          <ManualTimeForm activityId={activity.id} />
+        </>
+      )}
       {activity && <SubtasksSection activity={activity} offline={offline} />}
       {activity && <ActivityHistory id={activity.id} />}
     </View>

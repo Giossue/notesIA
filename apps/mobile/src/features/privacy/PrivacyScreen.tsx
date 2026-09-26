@@ -1,129 +1,96 @@
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, Portal, Text, useTheme } from "react-native-paper";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Icon, Portal, Switch, Text, useTheme } from "react-native-paper";
+import { getDeletionRequest } from "@/core/api/account";
 import {
   acceptConsent,
   listConsents,
   listPrivacyDocuments,
   revokeAiConsent,
 } from "@/core/api/privacy";
-import { getProfile } from "@/core/api/profile";
 import { layout } from "@/core/theme/layout";
-import { EmptyState } from "@/shared/EmptyState";
+import { DeletionCard, ExportCard } from "@/features/account/AccountCards";
 import { userMessage } from "@/shared/errors";
 import { Button, Card, Dialog } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
+import { legalNames, type PrivacyDocument } from "./LegalConsent";
 
-const typeLabels = {
-  terms: "Términos de uso",
-  privacy: "Política de privacidad",
-  ai: "Uso opcional de IA",
-};
-
+/** Documentos, uso de IA, exportación y eliminación de la cuenta: todo en un lugar. */
 export function PrivacyScreen() {
-  const queryClient = useQueryClient();
   const theme = useTheme();
-  const offline = useNetInfo().isConnected === false;
-  const [confirmRevoke, setConfirmRevoke] = useState(false);
-  const profile = useQuery({
-    queryKey: ["profile"],
-    queryFn: getProfile,
-    retry: false,
-  });
   const documents = useQuery({
-    queryKey: ["privacy-documents", profile.data?.language],
-    queryFn: () => listPrivacyDocuments(profile.data?.language ?? "es"),
-    enabled: !!profile.data,
+    queryKey: ["privacy-documents", "es"],
+    queryFn: () => listPrivacyDocuments("es"),
     retry: false,
   });
-  const consents = useQuery({
-    queryKey: ["consents"],
-    queryFn: listConsents,
+  const consents = useQuery({ queryKey: ["consents"], queryFn: listConsents, retry: false });
+  const deletion = useQuery({
+    queryKey: ["account-deletion"],
+    queryFn: getDeletionRequest,
     retry: false,
   });
-  const accept = useMutation({
-    mutationFn: acceptConsent,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["consents"] }),
-  });
-  const revoke = useMutation({
-    mutationFn: revokeAiConsent,
-    onSuccess: () => {
-      setConfirmRevoke(false);
-      void queryClient.invalidateQueries({ queryKey: ["consents"] });
-    },
-  });
-  const currentConsent = (type: "terms" | "privacy" | "ai", documentId: string) =>
-    consents.data?.find((item) => item.type === type && item.documentId === documentId);
+  const [reading, setReading] = useState<PrivacyDocument | null>(null);
+  const failed = [documents, consents].find((query) => query.isError);
+  const accepted = (documentId: string) =>
+    consents.data?.some((item) => item.documentId === documentId && item.decision === "accepted");
+  const legal = documents.data?.filter((document) => document.type !== "ai") ?? [];
+  const ai = documents.data?.find((document) => document.type === "ai");
 
   return (
-    <ScreenLayout header={{ title: "Privacidad y consentimientos" }}>
-      <Text variant="bodyMedium">
-        La IA es opcional. Revocarla conserva las funciones manuales.
-      </Text>
-      {offline && (
-        <Text accessibilityRole="alert" style={{ color: theme.colors.error }}>
-          Sin conexión. Se muestran los documentos guardados en esta sesión.
-        </Text>
-      )}
-      {(profile.isPending || documents.isPending || consents.isPending) && !offline && (
+    <ScreenLayout keyboardShouldPersistTaps="handled" header={{ title: "Privacidad y datos" }}>
+      {(documents.isPending || consents.isPending) && (
         <ActivityIndicator accessibilityLabel="Cargando privacidad" />
       )}
-      {[profile, documents, consents].map((query, index) =>
-        query.isError ? (
-          <View key={String(index)} style={styles.group}>
-            <Text accessibilityRole="alert">{userMessage(query.error)}</Text>
-            <Button onPress={() => void query.refetch()}>Reintentar</Button>
-          </View>
-        ) : null,
+      {failed && (
+        <View style={styles.group}>
+          <Text accessibilityRole="alert">{userMessage(failed.error)}</Text>
+          <Button onPress={() => void failed.refetch()}>Reintentar</Button>
+        </View>
       )}
-      {documents.data?.length === 0 && (
-        <EmptyState message="Todavía no hay documentos publicados para este idioma." />
-      )}
-      {documents.data?.map((document) => {
-        const consent = currentConsent(document.type, document.id);
-        const accepted = consent?.decision === "accepted";
-        return (
-          <Card key={document.id} mode="contained">
-            <Card.Content style={styles.group}>
-              <Text variant="titleMedium">
-                {typeLabels[document.type]} · versión {document.version}
-              </Text>
-              <Text selectable>{document.content}</Text>
-              <Text variant="bodySmall">
-                Publicado: {new Date(document.publishedAt).toLocaleString()}
-              </Text>
-              <Button
-                mode={accepted ? "outlined" : "contained"}
-                disabled={offline || accepted || accept.isPending}
-                onPress={() => accept.mutate(document.id)}
-              >
-                {accepted ? "Aceptado" : "Aceptar esta versión"}
-              </Button>
-              {document.type === "ai" && accepted && (
-                <Button disabled={offline} onPress={() => setConfirmRevoke(true)}>
-                  Revocar consentimiento de IA
-                </Button>
-              )}
-            </Card.Content>
-          </Card>
-        );
-      })}
-      <Portal>
-        <Dialog visible={confirmRevoke} onDismiss={() => setConfirmRevoke(false)}>
-          <Dialog.Title>Revocar uso de IA</Dialog.Title>
-          <Dialog.Content>
-            <Text>
-              Las sugerencias de IA quedarán desactivadas. El planificador manual seguirá
-              disponible.
+      {legal.length > 0 && (
+        <Card mode="contained">
+          <Card.Content style={styles.group}>
+            <Text variant="titleMedium" style={styles.bold}>
+              Documentos
             </Text>
-          </Dialog.Content>
+            {legal.map((document) => (
+              <Pressable
+                key={document.id}
+                accessibilityRole="button"
+                onPress={() => setReading(document)}
+                style={styles.row}
+              >
+                <Icon source="book-open-outline" size={22} color={theme.colors.primary} />
+                <View style={styles.flex}>
+                  <Text variant="bodyLarge">{legalNames[document.type]}</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    Versión {document.version}
+                    {accepted(document.id) ? " · aceptada" : " · pendiente"}
+                  </Text>
+                </View>
+                <Icon source="chevron-right" size={22} color={theme.colors.onSurfaceVariant} />
+              </Pressable>
+            ))}
+          </Card.Content>
+        </Card>
+      )}
+      {ai && <AiConsentCard document={ai} enabled={!!accepted(ai.id)} onRead={setReading} />}
+      <ExportCard />
+      {!deletion.isPending && !deletion.isError && <DeletionCard status={deletion.data} />}
+      <Portal>
+        <Dialog visible={reading !== null} onDismiss={() => setReading(null)}>
+          <Dialog.Title>{reading ? legalNames[reading.type] : ""}</Dialog.Title>
+          <Dialog.ScrollArea style={styles.dialogScroll}>
+            <ScrollView contentContainerStyle={styles.dialogContent}>
+              <Text selectable variant="bodyMedium">
+                {reading?.content}
+              </Text>
+            </ScrollView>
+          </Dialog.ScrollArea>
           <Dialog.Actions>
-            <Button onPress={() => setConfirmRevoke(false)}>Cancelar</Button>
-            <Button loading={revoke.isPending} onPress={() => revoke.mutate()}>
-              Revocar
-            </Button>
+            <Button onPress={() => setReading(null)}>Cerrar</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -131,4 +98,60 @@ export function PrivacyScreen() {
   );
 }
 
-const styles = StyleSheet.create({ group: { gap: layout.itemGap } });
+/** El asistente de IA es opcional: activarlo acepta el documento vigente; apagarlo lo revoca. */
+function AiConsentCard({
+  document,
+  enabled,
+  onRead,
+}: {
+  document: PrivacyDocument;
+  enabled: boolean;
+  onRead(document: PrivacyDocument): void;
+}) {
+  const theme = useTheme();
+  const queryClient = useQueryClient();
+  const offline = useNetInfo().isConnected === false;
+  const toggle = useMutation({
+    mutationFn: async (next: boolean) => {
+      if (next) await acceptConsent(document.id);
+      else await revokeAiConsent();
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["consents"] }),
+  });
+  return (
+    <Card mode="contained">
+      <Card.Content style={styles.group}>
+        <View style={styles.row}>
+          <View style={styles.flex}>
+            <Text variant="titleMedium" style={styles.bold}>
+              Asistente con IA
+            </Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              {enabled
+                ? "Activado. Tus mensajes se procesan con un proveedor de IA."
+                : "Desactivado. Todo lo demás de la app funciona igual."}
+            </Text>
+          </View>
+          <Switch
+            value={enabled}
+            disabled={offline || toggle.isPending}
+            onValueChange={(next) => toggle.mutate(next)}
+            accessibilityLabel="Usar el asistente con IA"
+          />
+        </View>
+        <Button mode="text" icon="book-open-outline" onPress={() => onRead(document)}>
+          Leer cómo se usa la IA
+        </Button>
+      </Card.Content>
+    </Card>
+  );
+}
+
+const styles = StyleSheet.create({
+  group: { gap: layout.itemGap },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48 },
+  flex: { flex: 1, gap: 2 },
+  bold: { fontWeight: "700" },
+  dialogScroll: { maxHeight: 420, paddingHorizontal: 0 },
+  dialogContent: { paddingHorizontal: 24, paddingVertical: 12 },
+});

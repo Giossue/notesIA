@@ -1,8 +1,14 @@
+import { useQuery } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react-native";
 import { PaperProvider } from "react-native-paper";
 import { HomeHeader } from "@/features/home/HomeHeader";
 
-test("el encabezado saluda con el nombre y la fecha", async () => {
+jest.mock("@tanstack/react-query", () => ({ useQuery: jest.fn() }));
+jest.mock("@react-navigation/native", () => ({ useNavigation: () => ({ navigate: jest.fn() }) }));
+jest.mock("@/core/api/notifications", () => ({ listNotifications: jest.fn() }));
+
+test("el encabezado saluda con el nombre, la fecha y avisa si hay notificaciones sin leer", async () => {
+  (useQuery as jest.Mock).mockReturnValue({ data: { items: [{ readAt: null }] } });
   await render(
     <PaperProvider>
       <HomeHeader name="Josué" dateLabel="Lunes, 28 de abril" />
@@ -11,4 +17,5 @@ test("el encabezado saluda con el nombre y la fecha", async () => {
 
   expect(screen.getByText("Hola, Josué")).toBeOnTheScreen();
   expect(screen.getByText("Lunes, 28 de abril")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Notificaciones, hay avisos sin leer")).toBeOnTheScreen();
 });

@@ -11,6 +11,7 @@ jest.mock("@react-native-vector-icons/material-design-icons", () => ({
 jest.mock("@react-native-community/netinfo", () => ({ useNetInfo: () => ({ isConnected: true }) }));
 jest.mock("@react-navigation/native", () => ({ useNavigation: () => ({ navigate: jest.fn() }) }));
 jest.mock("@/navigation/FloatingNavBar", () => ({ FloatingNavBar: () => null }));
+jest.mock("@/features/time/TimeStatisticsPanel", () => ({ TimeStatisticsPanel: () => null }));
 
 const days = ["21", "22", "23", "24", "25", "26", "27"].map((day, index) => ({
   date: `2026-09-${day}`,

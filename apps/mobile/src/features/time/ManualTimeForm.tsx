@@ -27,7 +27,8 @@ const formSchema = z.object({
 });
 type FormValues = z.infer<typeof formSchema>;
 
-export function ManualTimeForm() {
+/** Con `activityId`, el registro queda fijo a esa tarea (dentro de su pantalla). */
+export function ManualTimeForm({ activityId }: { activityId?: string } = {}) {
   const queryClient = useQueryClient();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
@@ -44,7 +45,7 @@ export function ManualTimeForm() {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { activityId: "", minutes: "", endsLocal: "" },
+    defaultValues: { activityId: activityId ?? "", minutes: "", endsLocal: "" },
   });
   const save = useMutation({
     mutationFn: (values: FormValues) => {
@@ -75,14 +76,18 @@ export function ManualTimeForm() {
   return (
     <View style={styles.group}>
       <Text variant="titleMedium">Registro manual</Text>
-      <Controller
-        control={control}
-        name="activityId"
-        render={({ field }) => <ActivityPicker value={field.value} onChange={field.onChange} />}
-      />
-      <HelperText type="error" visible={!!errors.activityId}>
-        {errors.activityId?.message}
-      </HelperText>
+      {!activityId && (
+        <>
+          <Controller
+            control={control}
+            name="activityId"
+            render={({ field }) => <ActivityPicker value={field.value} onChange={field.onChange} />}
+          />
+          <HelperText type="error" visible={!!errors.activityId}>
+            {errors.activityId?.message}
+          </HelperText>
+        </>
+      )}
       <Controller
         control={control}
         name="minutes"

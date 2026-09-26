@@ -1,13 +1,11 @@
 import { shiftLocalDate } from "@notesia/domain";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 import { StyleSheet, View } from "react-native";
 import { ActivityIndicator, Icon, Text, useTheme } from "react-native-paper";
 import { getActivitySummary } from "@/core/api/activities";
 import { layout } from "@/core/theme/layout";
 import { categoryColors } from "@/core/theme/theme";
-import type { RootStackParamList } from "@/navigation/types";
+import { TimeStatisticsPanel } from "@/features/time/TimeStatisticsPanel";
 import { categoryInfo } from "@/shared/activity-kinds";
 import { userMessage } from "@/shared/errors";
 import { percent, shortRange, shortWeekday } from "@/shared/format";
@@ -18,7 +16,6 @@ import { ScreenLayout } from "@/shared/ScreenLayout";
 const BAR_HEIGHT = 130;
 
 export function ProgressScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const theme = useTheme();
   const categories = categoryColors[theme.dark ? "dark" : "light"];
   const summary = useQuery({
@@ -49,11 +46,6 @@ export function ProgressScreen() {
       header={{
         title: "Progreso",
         left: null,
-        right: {
-          icon: "timer-outline",
-          label: "Registrar tiempo de estudio",
-          onPress: () => navigation.navigate("TimeTracking"),
-        },
       }}
     >
       {summary.isPending && <ActivityIndicator accessibilityLabel="Cargando progreso" />}
@@ -222,6 +214,8 @@ export function ProgressScreen() {
           </View>
         </>
       )}
+      {/* Tiempo estudiado frente al estimado; se registra desde cada tarea. */}
+      <TimeStatisticsPanel />
     </ScreenLayout>
   );
 }

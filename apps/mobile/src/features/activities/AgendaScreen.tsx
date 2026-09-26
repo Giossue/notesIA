@@ -303,6 +303,14 @@ export function AgendaScreen() {
       )}
 
       {weekStrip}
+      <Button
+        mode="contained-tonal"
+        icon="calendar-check-outline"
+        onPress={() => navigation.navigate("Planning")}
+        contentStyle={styles.planContent}
+      >
+        Planificar mi semana
+      </Button>
       {week && (
         <View style={styles.card}>
           {loading && <ActivityIndicator accessibilityLabel="Cargando agenda" />}
@@ -354,6 +362,7 @@ function ErrorRetry({ message, onRetry }: { message: string; onRetry: () => void
 }
 
 const styles = StyleSheet.create({
+  planContent: { minHeight: 48 },
   message: { gap: layout.itemGap },
   bold: { fontWeight: "700" },
   card: { gap: 16 },

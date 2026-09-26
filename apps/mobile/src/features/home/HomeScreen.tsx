@@ -11,6 +11,7 @@ import { getActivitySummary, listActivities, transitionActivity } from "@/core/a
 import { getProfile } from "@/core/api/profile";
 import { layout } from "@/core/theme/layout";
 import { categoryColors } from "@/core/theme/theme";
+import { OfflineBanner } from "@/features/offline/OfflineBanner";
 import type { RootStackParamList } from "@/navigation/types";
 import { useExitOnDoubleBack } from "@/navigation/useExitOnDoubleBack";
 import { categoryInfo, kindColor, kindLabel } from "@/shared/activity-kinds";
@@ -121,6 +122,7 @@ export function HomeScreen() {
           Sin conexión. Se muestran los datos guardados.
         </Text>
       )}
+      <OfflineBanner />
 
       <View style={[styles.card, styles.ringsCard, { backgroundColor: theme.colors.surface }]}>
         {summary.isPending && <ActivityIndicator accessibilityLabel="Cargando resumen" />}

@@ -11,11 +11,13 @@ import { ActivityTitle } from "@/features/activities/ActivityTitle";
 import { userMessage } from "@/shared/errors";
 import { Button, Card } from "@/shared/paper";
 
-export function TimerPanel() {
+/** Con `activityId`, el temporizador queda fijo a esa tarea (dentro de su pantalla). */
+export function TimerPanel({ activityId: fixedActivityId }: { activityId?: string } = {}) {
   const queryClient = useQueryClient();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
-  const [activityId, setActivityId] = useState("");
+  const [pickedActivityId, setActivityId] = useState("");
+  const activityId = fixedActivityId ?? pickedActivityId;
   const nextStartId = useRef(uuidv4());
   const stopIdentity = useRef({ entryId: "", mutationId: uuidv4() });
   const active = useQuery({
@@ -78,7 +80,7 @@ export function TimerPanel() {
           </View>
         ) : (
           <View style={styles.group}>
-            <ActivityPicker value={activityId} onChange={setActivityId} />
+            {!fixedActivityId && <ActivityPicker value={activityId} onChange={setActivityId} />}
             <Button
               mode="contained"
               icon="play"

@@ -3,7 +3,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, Divider, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 import { listNotifications, markNotificationRead } from "@/core/api/notifications";
 import { layout } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
@@ -11,8 +11,6 @@ import { EmptyState } from "@/shared/EmptyState";
 import { userMessage } from "@/shared/errors";
 import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
-import { NotificationPreferencesForm } from "./NotificationPreferencesForm";
-import { PushDevicePanel } from "./PushDevicePanel";
 
 const labels = {
   plan_applied: "Plan aplicado",
@@ -99,10 +97,6 @@ export function NotificationsScreen() {
           Cargar más
         </Button>
       )}
-      <Divider />
-      <NotificationPreferencesForm />
-      <Divider />
-      <PushDevicePanel />
     </ScreenLayout>
   );
 }

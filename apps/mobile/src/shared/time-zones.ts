@@ -79,9 +79,12 @@ export function saveTimeZone(profile: Profile, timeZone: string) {
  * Un perfil sin zona elegida (la de la base de datos) adopta la del teléfono.
  * Se ejecuta una vez por sesión; después la zona solo cambia desde Preferencias.
  */
+/** La zona horaria del perfil sigue siempre a la del teléfono (no se elige a mano). */
 export async function adoptDeviceTimeZone(profile: Profile, queryClient: QueryClient) {
   const device = deviceTimeZone();
-  if (profile.timeZone !== UNSET_TIME_ZONE || device === UNSET_TIME_ZONE) return;
+  if (device === UNSET_TIME_ZONE || profile.timeZone === device) return;
   const updated = await saveTimeZone(profile, device);
   queryClient.setQueryData(["profile"], updated);
+  // Fechas, agenda y planes se muestran en la zona del perfil.
+  void queryClient.invalidateQueries();
 }

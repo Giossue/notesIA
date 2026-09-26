@@ -16,16 +16,11 @@ export type RootStackParamList = {
   Agenda: TabParams;
   Events: undefined;
   EventForm: { id?: string /** Día (AAAA-MM-DD) en que empieza. */; date?: string };
-  Tools: undefined;
   Availability: undefined;
   Planning: undefined;
-  TimeTracking: undefined;
-  ActivitySeries: undefined;
-  ActivitySeriesForm: undefined;
   Notifications: undefined;
-  Preferences: undefined;
+  Alerts: undefined;
   Privacy: undefined;
   AiAssistant: undefined;
-  Account: undefined;
   OfflineChanges: undefined;
 };

@@ -18,7 +18,6 @@ import { DateField } from "@/shared/fields";
 import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { PlanReview } from "./PlanReview";
-import { RiskPanel } from "./RiskPanel";
 import { planStatusLabels } from "./risk-labels";
 
 type Plan = z.infer<typeof planSchema>;
@@ -71,7 +70,7 @@ export function PlanningScreen() {
   };
   const historyItems = history.data?.pages.flatMap((page) => page.items) ?? [];
   return (
-    <ScreenLayout keyboardShouldPersistTaps="handled" header={{ title: "Planificación" }}>
+    <ScreenLayout keyboardShouldPersistTaps="handled" header={{ title: "Planificar mi semana" }}>
       <Text variant="bodyMedium">
         La propuesta no modifica tu agenda hasta que pulses “Aplicar plan”.
       </Text>
@@ -148,8 +147,6 @@ export function PlanningScreen() {
           />
         </View>
       )}
-      <Divider />
-      <RiskPanel />
       <Divider />
       <Text variant="titleMedium">Historial de planes</Text>
       {history.isPending && !offline && (

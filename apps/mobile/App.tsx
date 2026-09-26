@@ -22,7 +22,6 @@ import { getSessionCookie } from "@/core/auth/session-storage";
 import { OfflineSyncProvider } from "@/core/offline/OfflineSyncProvider";
 import { PushRegistrationProvider } from "@/core/push/PushRegistrationProvider";
 import { AppearanceProvider } from "@/core/theme/AppearanceProvider";
-import { AccountScreen } from "@/features/account/AccountScreen";
 import { ActivityFormScreen } from "@/features/activities/ActivityFormScreen";
 import { ActivityListScreen } from "@/features/activities/ActivityListScreen";
 import { AgendaScreen } from "@/features/activities/AgendaScreen";
@@ -33,20 +32,16 @@ import { AvailabilityScreen } from "@/features/availability/AvailabilityScreen";
 import { EventFormScreen } from "@/features/calendar/EventFormScreen";
 import { EventsScreen } from "@/features/calendar/EventsScreen";
 import { HomeScreen } from "@/features/home/HomeScreen";
+import { AlertsScreen } from "@/features/notifications/AlertsScreen";
 import { NotificationsScreen } from "@/features/notifications/NotificationsScreen";
 import { PushPermissionPrompt } from "@/features/notifications/PushPermissionPrompt";
 import { OfflineChangesScreen } from "@/features/offline/OfflineChangesScreen";
 import { PlanningScreen } from "@/features/planning/PlanningScreen";
-import { PreferencesScreen } from "@/features/preferences/PreferencesScreen";
 import { ConsentGate } from "@/features/privacy/ConsentGate";
 import { PrivacyScreen } from "@/features/privacy/PrivacyScreen";
 import { ProfileEditScreen } from "@/features/profile/ProfileEditScreen";
 import { ProfileScreen } from "@/features/profile/ProfileScreen";
 import { ProgressScreen } from "@/features/progress/ProgressScreen";
-import { ActivitySeriesFormScreen } from "@/features/series/ActivitySeriesFormScreen";
-import { ActivitySeriesScreen } from "@/features/series/ActivitySeriesScreen";
-import { TimeTrackingScreen } from "@/features/time/TimeTrackingScreen";
-import { ToolsScreen } from "@/features/tools/ToolsScreen";
 import { flushPendingNavigation, navigationRef } from "@/navigation/navigation-ref";
 import type { RootStackParamList, TabParams } from "@/navigation/types";
 import { userMessage } from "@/shared/errors";
@@ -103,7 +98,7 @@ function EventFormRoute({ route }: NativeStackScreenProps<RootStackParamList, "E
   return <EventFormScreen id={route.params.id} date={route.params.date} />;
 }
 
-/** Perfiles sin zona elegida adoptan la del teléfono al entrar. */
+/** Al entrar, el perfil toma la zona horaria del teléfono si cambió. */
 function TimeZoneSync() {
   const queryClient = useQueryClient();
   const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
@@ -180,17 +175,12 @@ function Main() {
             <Stack.Screen name="Events" component={EventsScreen} />
             <Stack.Screen name="EventForm" component={EventFormRoute} />
             <Stack.Screen name="Profile" options={tabScreen} component={ProfileScreen} />
-            <Stack.Screen name="Tools" component={ToolsScreen} />
             <Stack.Screen name="Availability" component={AvailabilityScreen} />
             <Stack.Screen name="Planning" component={PlanningScreen} />
-            <Stack.Screen name="TimeTracking" component={TimeTrackingScreen} />
-            <Stack.Screen name="ActivitySeries" component={ActivitySeriesScreen} />
-            <Stack.Screen name="ActivitySeriesForm" component={ActivitySeriesFormScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
-            <Stack.Screen name="Preferences" component={PreferencesScreen} />
+            <Stack.Screen name="Alerts" component={AlertsScreen} />
             <Stack.Screen name="Privacy" component={PrivacyScreen} />
             <Stack.Screen name="AiAssistant" component={AssistantChatScreen} />
-            <Stack.Screen name="Account" component={AccountScreen} />
             <Stack.Screen name="OfflineChanges" component={OfflineChangesScreen} />
           </Stack.Navigator>
         </NavigationContainer>

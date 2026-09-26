@@ -1,42 +1,18 @@
 import { useNetInfo } from "@react-native-community/netinfo";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, Icon, Portal, Text, useTheme } from "react-native-paper";
+import { Icon, Portal, Text, useTheme } from "react-native-paper";
 import {
   cancelAccountDeletion,
   exportAccountExcel,
-  getDeletionRequest,
+  type getDeletionRequest,
   requestAccountDeletion,
 } from "@/core/api/account";
 import { shareFile } from "@/core/files/share-file";
 import { layout } from "@/core/theme/layout";
 import { userMessage } from "@/shared/errors";
 import { Button, Card, Dialog, TextInput } from "@/shared/paper";
-import { ScreenLayout } from "@/shared/ScreenLayout";
-
-export function AccountScreen() {
-  const deletion = useQuery({
-    queryKey: ["account-deletion"],
-    queryFn: getDeletionRequest,
-    retry: false,
-  });
-  return (
-    <ScreenLayout keyboardShouldPersistTaps="handled" header={{ title: "Datos y cuenta" }}>
-      <ExportCard />
-      {deletion.isPending && (
-        <ActivityIndicator accessibilityLabel="Consultando eliminación de cuenta" />
-      )}
-      {deletion.isError && (
-        <View style={styles.group}>
-          <Text accessibilityRole="alert">{userMessage(deletion.error)}</Text>
-          <Button onPress={() => void deletion.refetch()}>Reintentar</Button>
-        </View>
-      )}
-      {!deletion.isPending && !deletion.isError && <DeletionCard status={deletion.data} />}
-    </ScreenLayout>
-  );
-}
 
 function ActionCard({
   icon,
@@ -164,7 +140,7 @@ function PasswordDialog({
   );
 }
 
-function ExportCard() {
+export function ExportCard() {
   const [open, setOpen] = useState(false);
   const exporter = useMutation({
     mutationFn: async (password: string) => {
@@ -205,7 +181,11 @@ function ExportCard() {
   );
 }
 
-function DeletionCard({ status }: { status: Awaited<ReturnType<typeof getDeletionRequest>> }) {
+export function DeletionCard({
+  status,
+}: {
+  status: Awaited<ReturnType<typeof getDeletionRequest>>;
+}) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const request = useMutation({
