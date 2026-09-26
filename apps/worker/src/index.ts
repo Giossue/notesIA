@@ -12,6 +12,7 @@ import {
   createVerificationMailRepository,
   createWorkerHealthRepository,
   purgeExpiredSecureStorage,
+  purgeUnverifiedAccounts,
 } from "@notesia/db";
 import {
   configureTraceObserver,
@@ -105,7 +106,8 @@ while (running) {
     if (Date.now() >= nextStorageCleanup) {
       const expiredSessions = await purgeExpiredSecureStorage(pool);
       const expiredKeys = await idempotency.purgeExpired();
-      if (expiredSessions < 500 && expiredKeys < 500)
+      const unverified = await purgeUnverifiedAccounts(pool);
+      if (expiredSessions < 500 && expiredKeys < 500 && unverified < 500)
         nextStorageCleanup = Date.now() + 60 * 60 * 1000;
     }
     const idle =

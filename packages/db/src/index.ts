@@ -78,6 +78,7 @@ export { createRequestTransactionPool } from "./request-transaction";
 export { createSubtaskRepository, type SubtaskRepository } from "./subtask-repository";
 export { createTimeEntryRepository, type TimeEntryRepository } from "./time-entry-repository";
 export { createTracedPool } from "./traced-pool";
+export { purgeUnverifiedAccounts, UNVERIFIED_ACCOUNT_HOURS } from "./unverified-accounts";
 export {
   createVerificationMailRepository,
   type VerificationMailRepository,

@@ -53,7 +53,8 @@ export function createAuth(options: AuthOptions) {
   const tokenTtlSeconds = options.recovery?.tokenTtlSeconds ?? 900;
   if (!Number.isInteger(tokenTtlSeconds) || tokenTtlSeconds < 1 || tokenTtlSeconds > 3600)
     throw new Error("Invalid recovery token lifetime");
-  const verificationTtlSeconds = options.verificationMail?.tokenTtlSeconds ?? 3600;
+  // El enlace de verificación vale 15 minutos; después se pide otro desde la app.
+  const verificationTtlSeconds = options.verificationMail?.tokenTtlSeconds ?? 900;
   if (
     !Number.isInteger(verificationTtlSeconds) ||
     verificationTtlSeconds < 1 ||

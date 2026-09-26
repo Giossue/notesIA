@@ -16,7 +16,26 @@ export function createAuthSmtpSender(config: AuthMailConfig["smtp"]) {
   });
   const send = (email: string, subject: string, text: string) =>
     withTraceSpan({ name: "provider.smtp", component: "provider", target: "smtp" }, async () => {
-      await transport.sendMail({ from: config.from, to: email, subject, text });
+      try {
+        await transport.sendMail({ from: config.from, to: email, subject, text });
+      } catch (error) {
+        // Solo el código del proveedor (p. ej. 525 IP no autorizada, 535 credenciales),
+        // nunca el correo ni el enlace: basta para diagnosticar desde los logs.
+        const { code, responseCode, command } = error as {
+          code?: unknown;
+          responseCode?: unknown;
+          command?: unknown;
+        };
+        console.error(
+          JSON.stringify({
+            event: "smtp_error",
+            code: typeof code === "string" ? code : undefined,
+            responseCode: typeof responseCode === "number" ? responseCode : undefined,
+            command: typeof command === "string" ? command : undefined,
+          }),
+        );
+        throw error;
+      }
     });
   return {
     recovery(email: string, resetUrl: string) {
@@ -30,7 +49,7 @@ export function createAuthSmtpSender(config: AuthMailConfig["smtp"]) {
       return send(
         email,
         "Verifica tu correo de NotesIA",
-        `Abre este enlace para verificar tu correo y activar tu cuenta. Caduca en una hora:\n\n${verificationUrl}\n\nSi no creaste esta cuenta, ignora este mensaje.`,
+        `Abre este enlace para verificar tu correo y activar tu cuenta. Caduca en 15 minutos:\n\n${verificationUrl}\n\nSi no creaste esta cuenta, ignora este mensaje.`,
       );
     },
   };
