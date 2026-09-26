@@ -14,7 +14,6 @@ import { AvatarPicker } from "@/shared/AvatarPicker";
 import { userMessage } from "@/shared/errors";
 import { Button, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
-import { Tabs } from "@/shared/Tabs";
 
 export function ProfileEditScreen() {
   const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
@@ -90,21 +89,6 @@ function ProfileForm({ profile }: { profile: Profile }) {
       <HelperText type="error" visible={!!errors.displayName}>
         {errors.displayName?.message}
       </HelperText>
-      <Text variant="titleSmall">Idioma preferido</Text>
-      <Controller
-        control={control}
-        name="language"
-        render={({ field }) => (
-          <Tabs
-            value={field.value}
-            onValueChange={field.onChange}
-            buttons={[
-              { value: "es", label: "Español" },
-              { value: "en", label: "English" },
-            ]}
-          />
-        )}
-      />
       {offline && (
         <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
       )}
