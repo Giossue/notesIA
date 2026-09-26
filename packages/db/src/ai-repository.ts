@@ -6,7 +6,8 @@ export type AiUseCaseName =
   | "estimate_duration"
   | "explain_risk"
   | "explain_replan"
-  | "propose_subtasks";
+  | "propose_subtasks"
+  | "assistant_chat";
 export type AiRouteConfig = {
   useCase: AiUseCaseName;
   provider: AiProviderName;

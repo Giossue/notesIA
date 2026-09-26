@@ -1,7 +1,13 @@
-import { aiSuggestionResponseSchema, type Problem } from "@notesia/contracts";
+import {
+  aiSuggestionResponseSchema,
+  assistantTurnRequestSchema,
+  assistantTurnResponseSchema,
+  type Problem,
+} from "@notesia/contracts";
 import type { AiContextRepository } from "@notesia/db";
 import type { Hono } from "hono";
 import { z } from "zod";
+import { runAssistantTurn } from "./assistant";
 import { aiCases, aiUseCaseSchema } from "./cases";
 import type { AiGateway } from "./gateway";
 
@@ -23,11 +29,29 @@ function error(status: 401 | 403 | 404 | 409 | 422, code: string, title: string)
 }
 
 export function registerAiRoutes(app: Hono, dependencies: Dependencies) {
+  // Asistente conversacional: un mensaje por solicitud; no guarda la conversación.
+  app.post("/v1/ai/assistant/turns", async (c) => {
+    const session = await dependencies.getSession(c.req.raw.headers);
+    if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
+    if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json"))
+      return error(422, "VALIDATION_FAILED", "Se requiere JSON.");
+    const body = assistantTurnRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return error(422, "VALIDATION_FAILED", "Mensaje inválido.");
+    const result = await runAssistantTurn(dependencies, session.user.id, body.data);
+    if (result.kind === "consent_required")
+      return error(403, "AI_CONSENT_REQUIRED", "Acepta el documento vigente de IA.");
+    if (result.kind === "invalid_input")
+      return error(422, "VALIDATION_FAILED", "Mensaje inválido.");
+    return c.json(assistantTurnResponseSchema.parse(result));
+  });
+
   app.post("/v1/ai/:useCase/suggestions", async (c) => {
     const session = await dependencies.getSession(c.req.raw.headers);
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const useCase = aiUseCaseSchema.safeParse(c.req.param("useCase"));
-    if (!useCase.success) return error(422, "VALIDATION_FAILED", "Caso de uso inválido.");
+    // El chat tiene su propia ruta, que controla la conversación y las consultas.
+    if (!useCase.success || useCase.data === "assistant_chat")
+      return error(422, "VALIDATION_FAILED", "Caso de uso inválido.");
     if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json"))
       return error(422, "VALIDATION_FAILED", "Se requiere JSON.");
     const body: unknown = await c.req.json().catch(() => null);

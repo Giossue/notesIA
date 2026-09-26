@@ -16,6 +16,7 @@ export const useCaseLabels = {
   explain_risk: "Explicar riesgo de atraso",
   explain_replan: "Explicar replanificación",
   propose_subtasks: "Proponer subtareas",
+  assistant_chat: "Asistente conversacional",
 } as const;
 
 export const queueLabels: Record<keyof AdminSystemHealth["queues"], string> = {

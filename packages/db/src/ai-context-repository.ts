@@ -67,6 +67,72 @@ export function createAiContextRepository(pool: Pool) {
       );
       return result.rows[0] ?? null;
     },
+    /**
+     * Actividades visibles para el asistente: solo del usuario, sin borradas ni
+     * archivadas, como mucho 30. `text` filtra por título; `from`/`to`, por plazo.
+     */
+    async assistantActivities(
+      userId: string,
+      filter: { text?: string | null; open?: boolean; from?: Date | null; to?: Date | null },
+    ) {
+      const result = await pool.query<{
+        id: string;
+        title: string;
+        kind: string;
+        priority: string;
+        status: string;
+        startAfterAt: Date | null;
+        deadlineAt: Date | null;
+        estimatedMinutes: number | null;
+        progressPercent: number;
+      }>(
+        `SELECT id, titulo AS title, tipo AS kind, prioridad AS priority, estado AS status,
+           inicio_minimo AS "startAfterAt", fecha_limite AS "deadlineAt",
+           minutos_estimados AS "estimatedMinutes", porcentaje_progreso AS "progressPercent"
+         FROM dominio.actividades
+         WHERE usuario_id = $1 AND eliminado_en IS NULL AND archivado_en IS NULL
+           AND ($2::text IS NULL OR titulo ILIKE '%' || replace(replace($2, '%', ''), '_', '') || '%')
+           AND (NOT $3::boolean OR estado NOT IN ('completed', 'cancelled'))
+           AND ($4::timestamptz IS NULL OR fecha_limite >= $4)
+           AND ($5::timestamptz IS NULL OR fecha_limite < $5)
+         ORDER BY fecha_limite NULLS LAST, orden DESC
+         LIMIT 30`,
+        [
+          userId,
+          filter.text?.trim() || null,
+          filter.open ?? true,
+          filter.from ?? null,
+          filter.to ?? null,
+        ],
+      );
+      return result.rows;
+    },
+    /** Zona horaria del perfil, para que el asistente entienda "mañana a las 10". */
+    async assistantTimeZone(userId: string) {
+      const result = await pool.query<{ timeZone: string | null }>(
+        `SELECT zona_horaria AS "timeZone" FROM dominio.perfiles_usuario WHERE usuario_id = $1`,
+        [userId],
+      );
+      return result.rows[0]?.timeZone ?? null;
+    },
+    /** Eventos del calendario del usuario que se cruzan con el rango, como mucho 30. */
+    async assistantEvents(userId: string, from: Date, to: Date) {
+      const result = await pool.query<{
+        id: string;
+        title: string;
+        kind: string;
+        startsAt: Date;
+        endsAt: Date;
+      }>(
+        `SELECT id, titulo AS title, tipo AS kind, inicia_en AS "startsAt", termina_en AS "endsAt"
+         FROM dominio.eventos_calendario
+         WHERE usuario_id = $1 AND archivado_en IS NULL AND inicia_en < $3 AND termina_en > $2
+         ORDER BY inicia_en
+         LIMIT 30`,
+        [userId, from, to],
+      );
+      return result.rows;
+    },
   };
 }
 

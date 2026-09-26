@@ -183,35 +183,16 @@ add("GET", "/v1/me/push-devices", "pushDeviceListSchema");
 add("POST", "/v1/me/push-devices", "pushDeviceSaved", "pushDeviceRegisterSchema");
 add("DELETE", "/v1/me/push-devices/:id", undefined, undefined, [204]);
 
-add("GET", "/v1/subjects", "subjectPageSchema");
-add("GET", "/v1/subjects/:id", "subjectSchema");
-add("POST", "/v1/subjects", "subjectSchema", "subjectCreateSchema", [200, 201]);
-add("PATCH", "/v1/subjects/:id", "subjectSchema", "subjectUpdateSchema");
-for (const action of ["archive", "restore"])
-  add("POST", `/v1/subjects/:id/${action}`, "subjectSchema", "subjectVersionSchema");
-
-add("GET", "/v1/academic-periods", "academicPeriodPageSchema");
-add("GET", "/v1/academic-periods/:id", "academicPeriodSchema");
-add(
-  "POST",
-  "/v1/academic-periods",
-  "academicPeriodSchema",
-  "academicPeriodCreateSchema",
-  [200, 201],
-);
-add("PATCH", "/v1/academic-periods/:id", "academicPeriodSchema", "academicPeriodUpdateSchema");
-for (const action of ["archive", "restore"])
-  add("POST", `/v1/academic-periods/:id/${action}`, "academicPeriodSchema", "subjectVersionSchema");
-
 add("GET", "/v1/activities", "activityPageSchema");
+add("GET", "/v1/activities/summary", "activitySummarySchema");
 add("GET", "/v1/activities/:id", "activitySchema");
 add("GET", "/v1/activities/:id/history", "activityHistoryPageSchema");
 add("POST", "/v1/activities", "activitySchema", "activityCreateSchema", [200, 201]);
 add("PATCH", "/v1/activities/:id", "activitySchema", "activityUpdateSchema");
 add("DELETE", "/v1/activities/:id", undefined, "activityDeleteSchema", [204]);
 for (const action of ["archive", "restore"])
-  add("POST", `/v1/activities/:id/${action}`, "activitySchema", "subjectVersionSchema");
-for (const action of ["complete", "reopen", "cancel"])
+  add("POST", `/v1/activities/:id/${action}`, "activitySchema", "versionSchema");
+for (const action of ["complete", "reopen", "cancel", "start", "pause"])
   add("POST", `/v1/activities/:id/${action}`, "activitySchema", "activityTransitionSchema");
 add("PATCH", "/v1/activities/:id/progress", "activitySchema", "activityProgressSchema");
 add("GET", "/v1/activity-series", "activitySeriesPageSchema");
@@ -278,7 +259,7 @@ for (const action of ["archive", "restore"])
     "POST",
     `/v1/availability-rules/:id/${action}`,
     "availabilityRuleSchema",
-    "subjectVersionSchema",
+    "versionSchema",
   );
 add("GET", "/v1/availability-exceptions", "availabilityExceptionListSchema");
 add(
@@ -315,7 +296,7 @@ add(
   "notificationPreferencesUpdateSchema",
 );
 add("GET", "/v1/notifications", "notificationPageSchema");
-add("POST", "/v1/notifications/:id/read", "notificationSchema", "subjectVersionSchema");
+add("POST", "/v1/notifications/:id/read", "notificationSchema", "versionSchema");
 add("GET", "/v1/privacy/documents", "privacyDocumentListSchema");
 add("GET", "/v1/me/consents", "consentListSchema");
 add("POST", "/v1/me/consents", "consentRecordSchema", "consentAcceptSchema");
@@ -355,6 +336,14 @@ add(
   "aiSuggestionRequest",
   undefined,
   "El cuerpo depende del caso de uso. Riesgo y replanificación aceptan IDs propios; la IA nunca altera el plan.",
+);
+add(
+  "POST",
+  "/v1/ai/assistant/turns",
+  "assistantTurnResponseSchema",
+  "assistantTurnRequestSchema",
+  undefined,
+  "Asistente conversacional: un mensaje con el historial reciente. Responde texto y propuestas de cambio que la app aplica solo si el estudiante confirma.",
 );
 
 // Better Auth owns these endpoints; the app only exposes these flows.
@@ -485,8 +474,6 @@ const parameterName = (path: string, name: string) =>
   name !== "id"
     ? name
     : ({
-        subjects: "subjectId",
-        "academic-periods": "periodId",
         activities: "activityId",
         "activity-series": "seriesId",
         "calendar-events": "eventId",
@@ -517,8 +504,6 @@ const cursorQuery = () => ({
 const archivedQuery = () => ({ in: "query", name: "archived", schema: { type: "boolean" } });
 const rangeQuery = () => [dateQuery("from", true), dateQuery("through", true)];
 const queries: Record<string, object[]> = {
-  "/subjects": [archivedQuery(), cursorQuery()],
-  "/academic-periods": [archivedQuery(), cursorQuery()],
   "/activities": [
     archivedQuery(),
     cursorQuery(),

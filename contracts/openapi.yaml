@@ -9,193 +9,6 @@ security:
   - cookieAuth: []
   - secureCookieAuth: []
 paths:
-  /academic-periods:
-    get:
-      operationId: getAcademicPeriods
-      parameters:
-        - in: query
-          name: archived
-          schema:
-            type: boolean
-        - in: query
-          name: cursor
-          schema:
-            type: string
-            maxLength: 256
-      responses:
-        "200":
-          description: Respuesta correcta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AcademicPeriodPage"
-        default:
-          description: Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-    post:
-      operationId: postAcademicPeriods
-      parameters:
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AcademicPeriodCreateInput"
-      responses:
-        "200":
-          description: Respuesta correcta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AcademicPeriod"
-        "201":
-          description: Respuesta correcta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AcademicPeriod"
-        default:
-          description: Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-  /academic-periods/{periodId}:
-    get:
-      operationId: getAcademicPeriodsByPeriodId
-      parameters:
-        - in: path
-          name: periodId
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Respuesta correcta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AcademicPeriod"
-        default:
-          description: Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-    patch:
-      operationId: patchAcademicPeriodsByPeriodId
-      parameters:
-        - in: path
-          name: periodId
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AcademicPeriodUpdateInput"
-      responses:
-        "200":
-          description: Respuesta correcta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AcademicPeriod"
-        default:
-          description: Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-  /academic-periods/{periodId}/archive:
-    post:
-      operationId: postAcademicPeriodsByPeriodIdArchive
-      parameters:
-        - in: path
-          name: periodId
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SubjectVersionInput"
-      responses:
-        "200":
-          description: Respuesta correcta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AcademicPeriod"
-        default:
-          description: Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-  /academic-periods/{periodId}/restore:
-    post:
-      operationId: postAcademicPeriodsByPeriodIdRestore
-      parameters:
-        - in: path
-          name: periodId
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SubjectVersionInput"
-      responses:
-        "200":
-          description: Respuesta correcta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AcademicPeriod"
-        default:
-          description: Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
   /activities:
     get:
       operationId: getActivities
@@ -397,7 +210,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/SubjectVersionInput"
+              $ref: "#/components/schemas/VersionInput"
       responses:
         "200":
           description: Respuesta correcta
@@ -509,6 +322,41 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /activities/{activityId}/pause:
+    post:
+      operationId: postActivitiesByActivityIdPause
+      parameters:
+        - in: path
+          name: activityId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityTransitionInput"
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Activity"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /activities/{activityId}/progress:
     patch:
       operationId: patchActivitiesByActivityIdProgress
@@ -600,7 +448,42 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/SubjectVersionInput"
+              $ref: "#/components/schemas/VersionInput"
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Activity"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /activities/{activityId}/start:
+    post:
+      operationId: postActivitiesByActivityIdStart
+      parameters:
+        - in: path
+          name: activityId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityTransitionInput"
       responses:
         "200":
           description: Respuesta correcta
@@ -837,6 +720,22 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /activities/summary:
+    get:
+      operationId: getActivitiesSummary
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivitySummary"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /activity-series:
     get:
       operationId: getActivitySeries
@@ -995,6 +894,7 @@ paths:
               - explain_risk
               - explain_replan
               - propose_subtasks
+              - assistant_chat
       requestBody:
         required: true
         content:
@@ -1029,6 +929,7 @@ paths:
               - explain_risk
               - explain_replan
               - propose_subtasks
+              - assistant_chat
       responses:
         "200":
           description: Respuesta correcta
@@ -1328,6 +1229,7 @@ paths:
               - explain_risk
               - explain_replan
               - propose_subtasks
+              - assistant_chat
       requestBody:
         required: true
         content:
@@ -1341,6 +1243,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AiSuggestion"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /ai/assistant/turns:
+    post:
+      operationId: postAiAssistantTurns
+      description: "Asistente conversacional: un mensaje con el historial reciente. Responde texto y propuestas de cambio que la app aplica solo si el estudiante confirma."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssistantTurnRequestInput"
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantTurnResponse"
         default:
           description: Error
           content:
@@ -1826,7 +1751,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/SubjectVersionInput"
+              $ref: "#/components/schemas/VersionInput"
       responses:
         "200":
           description: Respuesta correcta
@@ -1861,7 +1786,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/SubjectVersionInput"
+              $ref: "#/components/schemas/VersionInput"
       responses:
         "200":
           description: Respuesta correcta
@@ -2502,7 +2427,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/SubjectVersionInput"
+              $ref: "#/components/schemas/VersionInput"
       responses:
         "200":
           description: Respuesta correcta
@@ -2835,193 +2760,6 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
-  /subjects:
-    get:
-      operationId: getSubjects
-      parameters:
-        - in: query
-          name: archived
-          schema:
-            type: boolean
-        - in: query
-          name: cursor
-          schema:
-            type: string
-            maxLength: 256
-      responses:
-        "200":
-          description: Respuesta correcta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SubjectPage"
-        default:
-          description: Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-    post:
-      operationId: postSubjects
-      parameters:
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SubjectCreateInput"
-      responses:
-        "200":
-          description: Respuesta correcta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Subject"
-        "201":
-          description: Respuesta correcta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Subject"
-        default:
-          description: Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-  /subjects/{subjectId}:
-    get:
-      operationId: getSubjectsBySubjectId
-      parameters:
-        - in: path
-          name: subjectId
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Respuesta correcta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Subject"
-        default:
-          description: Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-    patch:
-      operationId: patchSubjectsBySubjectId
-      parameters:
-        - in: path
-          name: subjectId
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SubjectUpdateInput"
-      responses:
-        "200":
-          description: Respuesta correcta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Subject"
-        default:
-          description: Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-  /subjects/{subjectId}/archive:
-    post:
-      operationId: postSubjectsBySubjectIdArchive
-      parameters:
-        - in: path
-          name: subjectId
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SubjectVersionInput"
-      responses:
-        "200":
-          description: Respuesta correcta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Subject"
-        default:
-          description: Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-  /subjects/{subjectId}/restore:
-    post:
-      operationId: postSubjectsBySubjectIdRestore
-      parameters:
-        - in: path
-          name: subjectId
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SubjectVersionInput"
-      responses:
-        "200":
-          description: Respuesta correcta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Subject"
-        default:
-          description: Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
   /time-entries:
     get:
       operationId: getTimeEntries
@@ -3207,153 +2945,6 @@ components:
       name: __Secure-better-auth.session_token
       description: Nombre de la cookie en producción con HTTPS.
   schemas:
-    AcademicPeriod:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-        name:
-          type: string
-          minLength: 1
-          maxLength: 120
-        startsOn:
-          type: string
-          format: date
-          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
-        endsOn:
-          type: string
-          format: date
-          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
-        archivedAt:
-          anyOf:
-            - type: string
-              format: date-time
-              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
-            - type: "null"
-        version:
-          type: integer
-          exclusiveMinimum: 0
-          maximum: 9007199254740991
-        updatedAt:
-          type: string
-          format: date-time
-          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
-      required:
-        - id
-        - name
-        - startsOn
-        - endsOn
-        - archivedAt
-        - version
-        - updatedAt
-      additionalProperties: false
-    AcademicPeriodCreateInput:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-        name:
-          type: string
-          minLength: 1
-          maxLength: 120
-        startsOn:
-          type: string
-          format: date
-          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
-        endsOn:
-          type: string
-          format: date
-          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
-      required:
-        - id
-        - name
-        - startsOn
-        - endsOn
-      additionalProperties: false
-    AcademicPeriodPage:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: string
-                format: uuid
-                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-              name:
-                type: string
-                minLength: 1
-                maxLength: 120
-              startsOn:
-                type: string
-                format: date
-                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
-              endsOn:
-                type: string
-                format: date
-                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
-              archivedAt:
-                anyOf:
-                  - type: string
-                    format: date-time
-                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
-                  - type: "null"
-              version:
-                type: integer
-                exclusiveMinimum: 0
-                maximum: 9007199254740991
-              updatedAt:
-                type: string
-                format: date-time
-                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
-            required:
-              - id
-              - name
-              - startsOn
-              - endsOn
-              - archivedAt
-              - version
-              - updatedAt
-            additionalProperties: false
-        nextCursor:
-          type:
-            - string
-            - "null"
-      required:
-        - items
-        - nextCursor
-      additionalProperties: false
-    AcademicPeriodUpdateInput:
-      type: object
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 120
-        startsOn:
-          type: string
-          format: date
-          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
-        endsOn:
-          type: string
-          format: date
-          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
-        version:
-          type: integer
-          exclusiveMinimum: 0
-          maximum: 9007199254740991
-      required:
-        - name
-        - startsOn
-        - endsOn
-        - version
-      additionalProperties: false
     AccountDeletionCancelInput:
       type: object
       properties:
@@ -3691,12 +3282,6 @@ components:
               format: date
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
             - type: "null"
-        subjectId:
-          anyOf:
-            - type: string
-              format: uuid
-              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-            - type: "null"
         kind:
           type: string
           enum:
@@ -3775,7 +3360,6 @@ components:
         - id
         - seriesId
         - occursOn
-        - subjectId
         - kind
         - title
         - description
@@ -3794,12 +3378,6 @@ components:
     ActivityCreateInput:
       type: object
       properties:
-        subjectId:
-          anyOf:
-            - type: string
-              format: uuid
-              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-            - type: "null"
         kind:
           type: string
           enum:
@@ -3846,7 +3424,6 @@ components:
           format: uuid
           pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       required:
-        - subjectId
         - kind
         - title
         - description
@@ -3892,6 +3469,8 @@ components:
                   - completed
                   - reopened
                   - cancelled
+                  - started
+                  - paused
                   - progress_updated
                   - deleted
               beforeStatus:
@@ -3963,12 +3542,6 @@ components:
                   - type: string
                     format: date
                     pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
-                  - type: "null"
-              subjectId:
-                anyOf:
-                  - type: string
-                    format: uuid
-                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
                   - type: "null"
               kind:
                 type: string
@@ -4048,7 +3621,6 @@ components:
               - id
               - seriesId
               - occursOn
-              - subjectId
               - kind
               - title
               - description
@@ -4099,12 +3671,6 @@ components:
           type: string
           format: uuid
           pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-        subjectId:
-          anyOf:
-            - type: string
-              format: uuid
-              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-            - type: "null"
         kind:
           type: string
           enum:
@@ -4157,7 +3723,6 @@ components:
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
       required:
         - id
-        - subjectId
         - kind
         - title
         - description
@@ -4177,12 +3742,6 @@ components:
           type: string
           format: uuid
           pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-        subjectId:
-          anyOf:
-            - type: string
-              format: uuid
-              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-            - type: "null"
         kind:
           type: string
           enum:
@@ -4224,7 +3783,6 @@ components:
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
       required:
         - id
-        - subjectId
         - kind
         - title
         - description
@@ -4246,12 +3804,6 @@ components:
                 type: string
                 format: uuid
                 pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-              subjectId:
-                anyOf:
-                  - type: string
-                    format: uuid
-                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-                  - type: "null"
               kind:
                 type: string
                 enum:
@@ -4304,7 +3856,6 @@ components:
                 pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
             required:
               - id
-              - subjectId
               - kind
               - title
               - description
@@ -4325,6 +3876,119 @@ components:
         - items
         - nextCursor
       additionalProperties: false
+    ActivitySummary:
+      type: object
+      properties:
+        day:
+          type: string
+          format: date
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+        dueToday:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        pending:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        inProgress:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        overdue:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        week:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+            through:
+              type: string
+              format: date
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+            due:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            completedDue:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            days:
+              minItems: 7
+              maxItems: 7
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+                  completed:
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+                  due:
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+                required:
+                  - date
+                  - completed
+                  - due
+                additionalProperties: false
+          required:
+            - from
+            - through
+            - due
+            - completedDue
+            - days
+          additionalProperties: false
+        categories:
+          minItems: 3
+          maxItems: 3
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+                enum:
+                  - academic
+                  - personal
+                  - daily
+              total:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+              completed:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+            required:
+              - category
+              - total
+              - completed
+            additionalProperties: false
+        streakDays:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      required:
+        - day
+        - dueToday
+        - pending
+        - inProgress
+        - overdue
+        - week
+        - categories
+        - streakDays
+      additionalProperties: false
     ActivityTransitionInput:
       type: object
       properties:
@@ -4343,12 +4007,6 @@ components:
     ActivityUpdateInput:
       type: object
       properties:
-        subjectId:
-          anyOf:
-            - type: string
-              format: uuid
-              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-            - type: "null"
         kind:
           type: string
           enum:
@@ -4395,7 +4053,6 @@ components:
           exclusiveMinimum: 0
           maximum: 9007199254740991
       required:
-        - subjectId
         - kind
         - title
         - description
@@ -4546,6 +4203,7 @@ components:
                   - explain_risk
                   - explain_replan
                   - propose_subtasks
+                  - assistant_chat
               reason:
                 type: string
                 enum:
@@ -4576,6 +4234,7 @@ components:
                   - explain_risk
                   - explain_replan
                   - propose_subtasks
+                  - assistant_chat
               fromProvider:
                 type: string
                 enum:
@@ -4617,6 +4276,7 @@ components:
                   - explain_risk
                   - explain_replan
                   - propose_subtasks
+                  - assistant_chat
               provider:
                 type: string
                 enum:
@@ -5476,6 +5136,7 @@ components:
               - explain_risk
               - explain_replan
               - propose_subtasks
+              - assistant_chat
           provider:
             type: string
             enum:
@@ -5562,6 +5223,7 @@ components:
             - explain_risk
             - explain_replan
             - propose_subtasks
+            - assistant_chat
         provider:
           type: string
           enum:
@@ -5852,6 +5514,191 @@ components:
             - requiresConfirmation
             - promptVersion
           additionalProperties: false
+        - type: object
+          properties:
+            kind:
+              type: string
+              const: suggestion
+            useCase:
+              type: string
+              const: assistant_chat
+            value:
+              type: object
+              properties:
+                reply:
+                  type: string
+                  minLength: 1
+                  maxLength: 1200
+                actions:
+                  maxItems: 5
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - create_activity
+                          - update_activity
+                          - set_activity_progress
+                          - transition_activity
+                          - delete_activity
+                          - create_subtasks
+                          - create_event
+                          - update_event
+                          - archive_event
+                      activityId:
+                        anyOf:
+                          - type: string
+                            maxLength: 64
+                          - type: "null"
+                      eventId:
+                        anyOf:
+                          - type: string
+                            maxLength: 64
+                          - type: "null"
+                      title:
+                        anyOf:
+                          - type: string
+                            maxLength: 10000
+                          - type: "null"
+                      description:
+                        anyOf:
+                          - type: string
+                            maxLength: 10000
+                          - type: "null"
+                      kind:
+                        anyOf:
+                          - type: string
+                            maxLength: 40
+                          - type: "null"
+                      priority:
+                        anyOf:
+                          - type: string
+                            maxLength: 40
+                          - type: "null"
+                      startAfterAt:
+                        anyOf:
+                          - type: string
+                            maxLength: 80
+                          - type: "null"
+                      deadlineAt:
+                        anyOf:
+                          - type: string
+                            maxLength: 80
+                          - type: "null"
+                      estimatedMinutes:
+                        anyOf:
+                          - type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                          - type: "null"
+                      startsAt:
+                        anyOf:
+                          - type: string
+                            maxLength: 80
+                          - type: "null"
+                      endsAt:
+                        anyOf:
+                          - type: string
+                            maxLength: 80
+                          - type: "null"
+                      progressPercent:
+                        anyOf:
+                          - type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                          - type: "null"
+                      transition:
+                        anyOf:
+                          - type: string
+                            maxLength: 40
+                          - type: "null"
+                      subtasks:
+                        anyOf:
+                          - maxItems: 8
+                            type: array
+                            items:
+                              type: string
+                              maxLength: 240
+                          - type: "null"
+                    required:
+                      - type
+                      - activityId
+                      - eventId
+                      - title
+                      - description
+                      - kind
+                      - priority
+                      - startAfterAt
+                      - deadlineAt
+                      - estimatedMinutes
+                      - startsAt
+                      - endsAt
+                      - progressPercent
+                      - transition
+                      - subtasks
+                    additionalProperties: false
+                queries:
+                  maxItems: 3
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - activities
+                          - events
+                      text:
+                        anyOf:
+                          - type: string
+                            maxLength: 120
+                          - type: "null"
+                      from:
+                        anyOf:
+                          - type: string
+                            maxLength: 80
+                          - type: "null"
+                      to:
+                        anyOf:
+                          - type: string
+                            maxLength: 80
+                          - type: "null"
+                      includeDone:
+                        type:
+                          - boolean
+                          - "null"
+                    required:
+                      - type
+                      - text
+                      - from
+                      - to
+                      - includeDone
+                    additionalProperties: false
+              required:
+                - reply
+                - actions
+                - queries
+              additionalProperties: false
+            source:
+              type: string
+              const: ai
+            requiresConfirmation:
+              type: boolean
+              const: true
+            promptVersion:
+              type: integer
+              exclusiveMinimum: 0
+              maximum: 9007199254740991
+          required:
+            - kind
+            - useCase
+            - value
+            - source
+            - requiresConfirmation
+            - promptVersion
+          additionalProperties: false
     AiSuggestionRequestInput:
       anyOf:
         - type: object
@@ -5903,6 +5750,423 @@ components:
               maxLength: 2000
           required:
             - description
+          additionalProperties: false
+    AssistantTurnRequestInput:
+      type: object
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        history:
+          maxItems: 12
+          type: array
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+                enum:
+                  - user
+                  - assistant
+              text:
+                type: string
+                minLength: 1
+                maxLength: 2000
+            required:
+              - role
+              - text
+            additionalProperties: false
+      required:
+        - message
+        - history
+      additionalProperties: false
+    AssistantTurnResponse:
+      anyOf:
+        - type: object
+          properties:
+            kind:
+              type: string
+              const: manual
+            reason:
+              type: string
+              enum:
+                - not_configured
+                - rate_limited
+                - budget_exhausted
+                - invalid_output
+                - provider_unavailable
+          required:
+            - kind
+            - reason
+          additionalProperties: false
+        - type: object
+          properties:
+            kind:
+              type: string
+              const: reply
+            source:
+              type: string
+              const: ai
+            requiresConfirmation:
+              type: boolean
+              const: true
+            promptVersion:
+              type: integer
+              exclusiveMinimum: 0
+              maximum: 9007199254740991
+            reply:
+              type: string
+              minLength: 1
+              maxLength: 1200
+            actions:
+              maxItems: 5
+              type: array
+              items:
+                oneOf:
+                  - type: object
+                    properties:
+                      type:
+                        type: string
+                        const: create_activity
+                      activity:
+                        type: object
+                        properties:
+                          kind:
+                            type: string
+                            enum:
+                              - academic_task
+                              - exam
+                              - personal
+                              - routine
+                          title:
+                            type: string
+                            minLength: 1
+                            maxLength: 240
+                          description:
+                            anyOf:
+                              - type: string
+                                maxLength: 10000
+                              - type: "null"
+                          priority:
+                            type: string
+                            enum:
+                              - low
+                              - medium
+                              - high
+                              - critical
+                          startAfterAt:
+                            anyOf:
+                              - type: string
+                                format: date-time
+                                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                              - type: "null"
+                          deadlineAt:
+                            anyOf:
+                              - type: string
+                                format: date-time
+                                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                              - type: "null"
+                          estimatedMinutes:
+                            anyOf:
+                              - type: integer
+                                exclusiveMinimum: 0
+                                maximum: 525600
+                              - type: "null"
+                        required:
+                          - kind
+                          - title
+                          - description
+                          - priority
+                          - startAfterAt
+                          - deadlineAt
+                          - estimatedMinutes
+                        additionalProperties: false
+                    required:
+                      - type
+                      - activity
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      type:
+                        type: string
+                        const: update_activity
+                      activityId:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                      title:
+                        type: string
+                      changes:
+                        type: object
+                        properties:
+                          kind:
+                            type: string
+                            enum:
+                              - academic_task
+                              - exam
+                              - personal
+                              - routine
+                          title:
+                            type: string
+                            minLength: 1
+                            maxLength: 240
+                          description:
+                            anyOf:
+                              - type: string
+                                maxLength: 10000
+                              - type: "null"
+                          priority:
+                            type: string
+                            enum:
+                              - low
+                              - medium
+                              - high
+                              - critical
+                          startAfterAt:
+                            anyOf:
+                              - type: string
+                                format: date-time
+                                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                              - type: "null"
+                          deadlineAt:
+                            anyOf:
+                              - type: string
+                                format: date-time
+                                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                              - type: "null"
+                          estimatedMinutes:
+                            anyOf:
+                              - type: integer
+                                exclusiveMinimum: 0
+                                maximum: 525600
+                              - type: "null"
+                        additionalProperties: false
+                    required:
+                      - type
+                      - activityId
+                      - title
+                      - changes
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      type:
+                        type: string
+                        const: set_activity_progress
+                      activityId:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                      title:
+                        type: string
+                      progressPercent:
+                        type: integer
+                        minimum: 0
+                        maximum: 100
+                    required:
+                      - type
+                      - activityId
+                      - title
+                      - progressPercent
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      type:
+                        type: string
+                        const: transition_activity
+                      activityId:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                      title:
+                        type: string
+                      transition:
+                        type: string
+                        enum:
+                          - complete
+                          - reopen
+                          - cancel
+                          - start
+                          - pause
+                    required:
+                      - type
+                      - activityId
+                      - title
+                      - transition
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      type:
+                        type: string
+                        const: delete_activity
+                      activityId:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                      title:
+                        type: string
+                    required:
+                      - type
+                      - activityId
+                      - title
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      type:
+                        type: string
+                        const: create_subtasks
+                      activityId:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                      title:
+                        type: string
+                      subtasks:
+                        minItems: 1
+                        maxItems: 8
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            title:
+                              type: string
+                              minLength: 1
+                              maxLength: 240
+                            estimatedMinutes:
+                              anyOf:
+                                - type: integer
+                                  exclusiveMinimum: 0
+                                  maximum: 525600
+                                - type: "null"
+                          required:
+                            - title
+                            - estimatedMinutes
+                          additionalProperties: false
+                    required:
+                      - type
+                      - activityId
+                      - title
+                      - subtasks
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      type:
+                        type: string
+                        const: create_event
+                      event:
+                        type: object
+                        properties:
+                          kind:
+                            type: string
+                            enum:
+                              - class
+                              - work
+                              - appointment
+                              - personal
+                              - unavailable
+                              - other
+                          title:
+                            type: string
+                            minLength: 1
+                            maxLength: 200
+                          description:
+                            anyOf:
+                              - type: string
+                                maxLength: 10000
+                              - type: "null"
+                          startsAt:
+                            type: string
+                            format: date-time
+                            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                          endsAt:
+                            type: string
+                            format: date-time
+                            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                          timeZone:
+                            type: string
+                            maxLength: 64
+                        required:
+                          - kind
+                          - title
+                          - description
+                          - startsAt
+                          - endsAt
+                          - timeZone
+                        additionalProperties: false
+                    required:
+                      - type
+                      - event
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      type:
+                        type: string
+                        const: update_event
+                      eventId:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                      title:
+                        type: string
+                      changes:
+                        type: object
+                        properties:
+                          kind:
+                            type: string
+                            enum:
+                              - class
+                              - work
+                              - appointment
+                              - personal
+                              - unavailable
+                              - other
+                          title:
+                            type: string
+                            minLength: 1
+                            maxLength: 200
+                          description:
+                            anyOf:
+                              - type: string
+                                maxLength: 10000
+                              - type: "null"
+                          startsAt:
+                            type: string
+                            format: date-time
+                            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                          endsAt:
+                            type: string
+                            format: date-time
+                            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                        additionalProperties: false
+                    required:
+                      - type
+                      - eventId
+                      - title
+                      - changes
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      type:
+                        type: string
+                        const: archive_event
+                      eventId:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                      title:
+                        type: string
+                    required:
+                      - type
+                      - eventId
+                      - title
+                    additionalProperties: false
+          required:
+            - kind
+            - source
+            - requiresConfirmation
+            - promptVersion
+            - reply
+            - actions
           additionalProperties: false
     AuthBackupCodes:
       type: object
@@ -6539,12 +6803,6 @@ components:
           type: string
           format: uuid
           pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-        subjectId:
-          anyOf:
-            - type: string
-              format: uuid
-              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-            - type: "null"
         kind:
           type: string
           enum:
@@ -6597,7 +6855,6 @@ components:
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
       required:
         - id
-        - subjectId
         - kind
         - title
         - description
@@ -6614,12 +6871,6 @@ components:
     CalendarEventCreateInput:
       type: object
       properties:
-        subjectId:
-          anyOf:
-            - type: string
-              format: uuid
-              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-            - type: "null"
         kind:
           type: string
           enum:
@@ -6654,7 +6905,6 @@ components:
           format: uuid
           pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       required:
-        - subjectId
         - kind
         - title
         - description
@@ -6675,12 +6925,6 @@ components:
                 type: string
                 format: uuid
                 pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-              subjectId:
-                anyOf:
-                  - type: string
-                    format: uuid
-                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-                  - type: "null"
               kind:
                 type: string
                 enum:
@@ -6733,7 +6977,6 @@ components:
                 pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
             required:
               - id
-              - subjectId
               - kind
               - title
               - description
@@ -6758,12 +7001,6 @@ components:
     CalendarEventUpdateInput:
       type: object
       properties:
-        subjectId:
-          anyOf:
-            - type: string
-              format: uuid
-              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-            - type: "null"
         kind:
           type: string
           enum:
@@ -6802,7 +7039,6 @@ components:
           format: uuid
           pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       required:
-        - subjectId
         - kind
         - title
         - description
@@ -7638,6 +7874,60 @@ components:
             - en
         timeZone:
           type: string
+        avatar:
+          type: string
+          enum:
+            - actor-chaplin-comedy
+            - addicted-draw-love
+            - afro-avatar-male-2
+            - afro-avatar-male
+            - afro-boy-child
+            - afro-female-person
+            - alien-avatar-space
+            - animal-avatar-bear
+            - animal-avatar-mutton
+            - anime-away-face
+            - apple-avatar-illness
+            - artist-avatar-marilyn
+            - avatar-avocado-food
+            - avatar-bad-breaking
+            - avatar-batman-comics
+            - avatar-boy-kid
+            - avatar-boy-male
+            - avatar-bug-insect
+            - avatar-cacti-cactus
+            - avatar-child-girl
+            - avatar-cloud-crying
+            - avatar-coffee-cup
+            - avatar-dead-monster
+            - avatar-einstein-professor
+            - avatar-elderly-grandma
+            - avatar-female-girl
+            - avatar-female-portrait-2
+            - avatar-female-portrait
+            - avatar-geisha-japanese
+            - avatar-hindi-indian
+            - avatar-joker-squad
+            - avatar-lazybones-sloth
+            - avatar-male-man
+            - avatar-male-ozzy
+            - avatar-male-president
+            - avatar-man-muslim
+            - avatar-man-person
+            - avatar-muslim-paranja
+            - avatar-nun-sister
+            - avatar-person-pilot
+            - baby-child-kid
+            - beard-hipster-male
+            - boy-indian-kid
+            - builder-helmet-worker
+            - child-girl-kid
+            - christmas-clous-santa
+            - fighter-luchador-man
+            - friday-halloween-jason
+            - indian-male-man
+            - indian-man-sikh
+            - male-man-old
         version:
           type: integer
           exclusiveMinimum: 0
@@ -7652,6 +7942,7 @@ components:
         - displayName
         - language
         - timeZone
+        - avatar
         - version
         - updatedAt
       additionalProperties: false
@@ -7670,6 +7961,60 @@ components:
         timeZone:
           type: string
           maxLength: 64
+        avatar:
+          type: string
+          enum:
+            - actor-chaplin-comedy
+            - addicted-draw-love
+            - afro-avatar-male-2
+            - afro-avatar-male
+            - afro-boy-child
+            - afro-female-person
+            - alien-avatar-space
+            - animal-avatar-bear
+            - animal-avatar-mutton
+            - anime-away-face
+            - apple-avatar-illness
+            - artist-avatar-marilyn
+            - avatar-avocado-food
+            - avatar-bad-breaking
+            - avatar-batman-comics
+            - avatar-boy-kid
+            - avatar-boy-male
+            - avatar-bug-insect
+            - avatar-cacti-cactus
+            - avatar-child-girl
+            - avatar-cloud-crying
+            - avatar-coffee-cup
+            - avatar-dead-monster
+            - avatar-einstein-professor
+            - avatar-elderly-grandma
+            - avatar-female-girl
+            - avatar-female-portrait-2
+            - avatar-female-portrait
+            - avatar-geisha-japanese
+            - avatar-hindi-indian
+            - avatar-joker-squad
+            - avatar-lazybones-sloth
+            - avatar-male-man
+            - avatar-male-ozzy
+            - avatar-male-president
+            - avatar-man-muslim
+            - avatar-man-person
+            - avatar-muslim-paranja
+            - avatar-nun-sister
+            - avatar-person-pilot
+            - baby-child-kid
+            - beard-hipster-male
+            - boy-indian-kid
+            - builder-helmet-worker
+            - child-girl-kid
+            - christmas-clous-santa
+            - fighter-luchador-man
+            - friday-halloween-jason
+            - indian-male-man
+            - indian-man-sikh
+            - male-man-old
         version:
           type: integer
           exclusiveMinimum: 0
@@ -7854,197 +8199,6 @@ components:
         - sourceRevision
         - risk
         - unscheduled
-      additionalProperties: false
-    Subject:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-        periodId:
-          anyOf:
-            - type: string
-              format: uuid
-              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-            - type: "null"
-        name:
-          type: string
-        code:
-          type:
-            - string
-            - "null"
-        colorToken:
-          type: string
-          enum:
-            - primary
-            - secondary
-            - tertiary
-        archivedAt:
-          anyOf:
-            - type: string
-              format: date-time
-              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
-            - type: "null"
-        version:
-          type: integer
-          exclusiveMinimum: 0
-          maximum: 9007199254740991
-        updatedAt:
-          type: string
-          format: date-time
-          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
-      required:
-        - id
-        - periodId
-        - name
-        - code
-        - colorToken
-        - archivedAt
-        - version
-        - updatedAt
-      additionalProperties: false
-    SubjectCreateInput:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-        periodId:
-          anyOf:
-            - type: string
-              format: uuid
-              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-            - type: "null"
-        name:
-          type: string
-          minLength: 1
-          maxLength: 160
-        code:
-          anyOf:
-            - type: string
-              minLength: 1
-              maxLength: 40
-            - type: "null"
-        colorToken:
-          type: string
-          enum:
-            - primary
-            - secondary
-            - tertiary
-      required:
-        - id
-        - name
-        - code
-        - colorToken
-      additionalProperties: false
-    SubjectPage:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: string
-                format: uuid
-                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-              periodId:
-                anyOf:
-                  - type: string
-                    format: uuid
-                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-                  - type: "null"
-              name:
-                type: string
-              code:
-                type:
-                  - string
-                  - "null"
-              colorToken:
-                type: string
-                enum:
-                  - primary
-                  - secondary
-                  - tertiary
-              archivedAt:
-                anyOf:
-                  - type: string
-                    format: date-time
-                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
-                  - type: "null"
-              version:
-                type: integer
-                exclusiveMinimum: 0
-                maximum: 9007199254740991
-              updatedAt:
-                type: string
-                format: date-time
-                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
-            required:
-              - id
-              - periodId
-              - name
-              - code
-              - colorToken
-              - archivedAt
-              - version
-              - updatedAt
-            additionalProperties: false
-        nextCursor:
-          type:
-            - string
-            - "null"
-      required:
-        - items
-        - nextCursor
-      additionalProperties: false
-    SubjectUpdateInput:
-      type: object
-      properties:
-        periodId:
-          anyOf:
-            - type: string
-              format: uuid
-              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-            - type: "null"
-        name:
-          type: string
-          minLength: 1
-          maxLength: 160
-        code:
-          anyOf:
-            - type: string
-              minLength: 1
-              maxLength: 40
-            - type: "null"
-        colorToken:
-          type: string
-          enum:
-            - primary
-            - secondary
-            - tertiary
-        version:
-          type: integer
-          exclusiveMinimum: 0
-          maximum: 9007199254740991
-      required:
-        - name
-        - code
-        - colorToken
-        - version
-      additionalProperties: false
-    SubjectVersionInput:
-      type: object
-      properties:
-        version:
-          type: integer
-          exclusiveMinimum: 0
-          maximum: 9007199254740991
-      required:
-        - version
       additionalProperties: false
     Subtask:
       type: object
@@ -8470,30 +8624,6 @@ components:
               - onTimeActivities
               - onTimePercent
             additionalProperties: false
-        subjects:
-          type: array
-          items:
-            type: object
-            properties:
-              subjectId:
-                anyOf:
-                  - type: string
-                    format: uuid
-                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-                  - type: "null"
-              subjectName:
-                type:
-                  - string
-                  - "null"
-              seconds:
-                type: integer
-                minimum: 0
-                maximum: 9007199254740991
-            required:
-              - subjectId
-              - subjectName
-              - seconds
-            additionalProperties: false
         activities:
           type: array
           items:
@@ -8527,6 +8657,15 @@ components:
         - timeZone
         - totalSeconds
         - weeks
-        - subjects
         - activities
+      additionalProperties: false
+    VersionInput:
+      type: object
+      properties:
+        version:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 9007199254740991
+      required:
+        - version
       additionalProperties: false

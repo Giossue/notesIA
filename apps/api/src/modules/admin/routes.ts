@@ -278,6 +278,13 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
           unscheduledMinutes: 20,
         },
         propose_subtasks: { description: "Preparar una exposición de biología" },
+        assistant_chat: {
+          message: "Tengo examen de biología el viernes a las 10, prioridad alta",
+          history: [],
+          now: "2026-01-05T09:00:00-05:00 (lunes)",
+          timeZone: "America/Guayaquil",
+          results: null,
+        },
       }[useCase.data];
       try {
         const spec = aiCases[useCase.data];

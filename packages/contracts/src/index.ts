@@ -149,6 +149,7 @@ export const aiUseCaseSchema = z.enum([
   "explain_risk",
   "explain_replan",
   "propose_subtasks",
+  "assistant_chat",
 ]);
 export const aiFallbackReasonSchema = z.enum([
   "not_configured",
@@ -518,23 +519,24 @@ export const activityStatusSchema = z.enum([
   "cancelled",
 ]);
 
-const activityFieldsSchema = z
-  .strictObject({
-    kind: activityKindSchema,
-    title: z.string().trim().min(1).max(240),
-    description: z.string().trim().max(10000).nullable(),
-    priority: activityPrioritySchema,
-    startAfterAt: z.iso.datetime().nullable(),
-    deadlineAt: z.iso.datetime().nullable(),
-    estimatedMinutes: z.number().int().positive().max(525600).nullable(),
-  })
-  .refine(
-    (fields) =>
-      !fields.startAfterAt ||
-      !fields.deadlineAt ||
-      Date.parse(fields.deadlineAt) >= Date.parse(fields.startAfterAt),
-    { message: "La fecha límite debe ser posterior al inicio mínimo.", path: ["deadlineAt"] },
-  );
+const activityFieldsObjectSchema = z.strictObject({
+  kind: activityKindSchema,
+  title: z.string().trim().min(1).max(240),
+  description: z.string().trim().max(10000).nullable(),
+  priority: activityPrioritySchema,
+  startAfterAt: z.iso.datetime().nullable(),
+  deadlineAt: z.iso.datetime().nullable(),
+  estimatedMinutes: z.number().int().positive().max(525600).nullable(),
+});
+/** Campos editables de una actividad; el asistente propone cambios parciales. */
+export const activityChangesSchema = activityFieldsObjectSchema.partial();
+export const activityFieldsSchema = activityFieldsObjectSchema.refine(
+  (fields) =>
+    !fields.startAfterAt ||
+    !fields.deadlineAt ||
+    Date.parse(fields.deadlineAt) >= Date.parse(fields.startAfterAt),
+  { message: "La fecha límite debe ser posterior al inicio mínimo.", path: ["deadlineAt"] },
+);
 
 export const activityCreateSchema = activityFieldsSchema.safeExtend({ id: z.uuid() });
 export const activityUpdateSchema = activityFieldsSchema.safeExtend({
@@ -705,19 +707,25 @@ export const calendarEventKindSchema = z.enum([
   "other",
 ]);
 
-const calendarEventFieldsSchema = z
-  .strictObject({
-    kind: calendarEventKindSchema,
-    title: z.string().trim().min(1).max(200),
-    description: z.string().trim().max(10000).nullable(),
-    startsAt: z.iso.datetime(),
-    endsAt: z.iso.datetime(),
-    timeZone: timeZoneSchema,
-  })
-  .refine((fields) => Date.parse(fields.endsAt) > Date.parse(fields.startsAt), {
+const calendarEventFieldsObjectSchema = z.strictObject({
+  kind: calendarEventKindSchema,
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(10000).nullable(),
+  startsAt: z.iso.datetime(),
+  endsAt: z.iso.datetime(),
+  timeZone: timeZoneSchema,
+});
+/** Campos editables de un evento; el asistente propone cambios parciales. */
+export const calendarEventChangesSchema = calendarEventFieldsObjectSchema
+  .omit({ timeZone: true })
+  .partial();
+export const calendarEventFieldsSchema = calendarEventFieldsObjectSchema.refine(
+  (fields) => Date.parse(fields.endsAt) > Date.parse(fields.startsAt),
+  {
     message: "El fin debe ser posterior al inicio.",
     path: ["endsAt"],
-  });
+  },
+);
 
 export const calendarEventCreateSchema = calendarEventFieldsSchema.safeExtend({ id: z.uuid() });
 export const calendarEventUpdateSchema = calendarEventFieldsSchema.safeExtend({
@@ -1009,3 +1017,85 @@ export const notificationPageSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 export { configureZodSpanish } from "./zod-es";
+
+/**
+ * Asistente conversacional. La conversación no se guarda en el servidor: la app
+ * envía las últimas intervenciones con cada mensaje.
+ */
+export const assistantMessageSchema = z.strictObject({
+  role: z.enum(["user", "assistant"]),
+  text: z.string().trim().min(1).max(2000),
+});
+export const assistantTurnRequestSchema = z.strictObject({
+  message: z.string().trim().min(1).max(2000),
+  history: z.array(assistantMessageSchema).max(12),
+});
+export const activityTransitionActionSchema = z.enum([
+  "complete",
+  "reopen",
+  "cancel",
+  "start",
+  "pause",
+]);
+/**
+ * Cambios que el asistente propone y el estudiante confirma (RF-30). La app los
+ * aplica con las rutas de siempre; `title` es el nombre actual, leído de la base.
+ */
+export const assistantActionSchema = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("create_activity"), activity: activityFieldsSchema }),
+  z.strictObject({
+    type: z.literal("update_activity"),
+    activityId: z.uuid(),
+    title: z.string(),
+    changes: activityChangesSchema,
+  }),
+  z.strictObject({
+    type: z.literal("set_activity_progress"),
+    activityId: z.uuid(),
+    title: z.string(),
+    progressPercent: z.number().int().min(0).max(100),
+  }),
+  z.strictObject({
+    type: z.literal("transition_activity"),
+    activityId: z.uuid(),
+    title: z.string(),
+    transition: activityTransitionActionSchema,
+  }),
+  z.strictObject({ type: z.literal("delete_activity"), activityId: z.uuid(), title: z.string() }),
+  z.strictObject({
+    type: z.literal("create_subtasks"),
+    activityId: z.uuid(),
+    title: z.string(),
+    subtasks: z
+      .array(
+        z.strictObject({
+          title: z.string().trim().min(1).max(240),
+          estimatedMinutes: z.number().int().positive().max(525600).nullable(),
+        }),
+      )
+      .min(1)
+      .max(8),
+  }),
+  z.strictObject({ type: z.literal("create_event"), event: calendarEventFieldsSchema }),
+  z.strictObject({
+    type: z.literal("update_event"),
+    eventId: z.uuid(),
+    title: z.string(),
+    changes: calendarEventChangesSchema,
+  }),
+  z.strictObject({ type: z.literal("archive_event"), eventId: z.uuid(), title: z.string() }),
+]);
+export const assistantTurnResponseSchema = z.union([
+  z.object({ kind: z.literal("manual"), reason: aiFallbackReasonSchema }),
+  z.object({
+    kind: z.literal("reply"),
+    source: z.literal("ai"),
+    requiresConfirmation: z.literal(true),
+    promptVersion: z.number().int().positive(),
+    reply: z.string().trim().min(1).max(1200),
+    actions: z.array(assistantActionSchema).max(5),
+  }),
+]);
+export type AssistantMessage = z.infer<typeof assistantMessageSchema>;
+export type AssistantAction = z.infer<typeof assistantActionSchema>;
+export type AssistantTurnResponse = z.infer<typeof assistantTurnResponseSchema>;

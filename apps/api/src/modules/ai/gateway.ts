@@ -43,7 +43,10 @@ export function createAiGateway(
       const route = await repository.route(useCase);
       if (!route) return manual("not_configured");
       if (!cipher) return manual("not_configured");
-      const payload = redactInput(parsed.data);
+      const payload =
+        "redact" in spec
+          ? spec.redact(parsed.data as Parameters<typeof spec.redact>[0])
+          : redactInput(parsed.data);
       const instruction = `${UNTRUSTED_INPUT}${spec.instruction} (prompt v${spec.version})`;
       type Attempt =
         | { kind: "failed"; reason: "invalid_output" | "provider_unavailable"; usageId: string }
