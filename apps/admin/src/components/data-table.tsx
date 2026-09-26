@@ -15,7 +15,9 @@ export function DataTable({ columns, children }: { columns: string[]; children: 
             ))}
           </TableRow>
         </TableHeader>
-        <TableBody>{children}</TableBody>
+        <TableBody className="[&>tr:nth-child(even)]:bg-muted/50 [&>tr:nth-child(even)]:hover:bg-muted">
+          {children}
+        </TableBody>
       </Table>
     </div>
   );
