@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Image, StatusBar, StyleSheet, useWindowDimensions, View } from "react-native";
+import { StatusBar, StyleSheet, useWindowDimensions, View } from "react-native";
 import { IconButton, Text } from "react-native-paper";
 import Svg, { Defs, Line, RadialGradient, Rect, Stop } from "react-native-svg";
 
@@ -42,16 +42,6 @@ export function HeroStatusBar() {
   return <StatusBar barStyle="light-content" backgroundColor={heroColors.background} />;
 }
 
-export function AppLogo({ size = 40 }: { size?: number }) {
-  return (
-    <Image
-      source={require("../../../assets/icon.png")}
-      style={{ width: size, height: size, borderRadius: size * 0.24 }}
-      accessibilityIgnoresInvertColors
-    />
-  );
-}
-
 /** Cabecera de las pantallas de acceso: logo, título grande y bajada. */
 export function AuthHero({
   title,
@@ -67,8 +57,8 @@ export function AuthHero({
   return (
     <View style={styles.hero}>
       <HeroBackdrop height={320} />
-      <View style={styles.top}>
-        {onBack ? (
+      {onBack ? (
+        <View style={styles.top}>
           <IconButton
             icon="arrow-left"
             iconColor={heroColors.text}
@@ -76,10 +66,8 @@ export function AuthHero({
             accessibilityLabel="Volver"
             style={styles.back}
           />
-        ) : (
-          <AppLogo />
-        )}
-      </View>
+        </View>
+      ) : null}
       <Text variant="displaySmall" style={styles.title}>
         {title}
       </Text>
@@ -94,12 +82,12 @@ export function AuthHero({
 const styles = StyleSheet.create({
   hero: {
     paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingTop: 48,
     paddingBottom: 40,
     gap: 10,
     overflow: "hidden",
   },
-  top: { height: 48, justifyContent: "center", marginBottom: 12 },
+  top: { height: 48, justifyContent: "center", marginTop: -36, marginBottom: 12 },
   back: { margin: 0, marginLeft: -8 },
   title: { color: heroColors.text, fontWeight: "700" },
   subtitle: { color: heroColors.muted },

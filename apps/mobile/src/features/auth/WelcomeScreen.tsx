@@ -3,7 +3,7 @@ import { Image, ScrollView, StyleSheet, useWindowDimensions, View } from "react-
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/shared/paper";
-import { AppLogo, HeroBackdrop, HeroStatusBar, heroColors } from "./AuthHero";
+import { HeroBackdrop, HeroStatusBar, heroColors } from "./AuthHero";
 
 const slides = [
   {
@@ -38,19 +38,6 @@ export function WelcomeScreen({ onDone }: { onDone(mode: "signIn" | "signUp"): v
     <SafeAreaView style={styles.page}>
       <HeroStatusBar />
       <HeroBackdrop height={height} />
-      <View style={styles.top}>
-        <AppLogo />
-        {!last && (
-          <Button
-            mode="text"
-            icon="page-last"
-            textColor={heroColors.muted}
-            onPress={() => goTo(slides.length - 1)}
-          >
-            Omitir
-          </Button>
-        )}
-      </View>
       <ScrollView
         ref={scroller}
         horizontal
@@ -126,16 +113,8 @@ export function WelcomeScreen({ onDone }: { onDone(mode: "signIn" | "signUp"): v
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: heroColors.background },
-  top: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    minHeight: 64,
-  },
   slide: { flex: 1, paddingHorizontal: 24, justifyContent: "space-between" },
-  art: { flex: 1, alignItems: "center", justifyContent: "center" },
+  art: { flex: 1, paddingTop: 24, alignItems: "center", justifyContent: "center" },
   image: { width: "100%", height: "100%", maxHeight: 420 },
   copy: { gap: 12, paddingBottom: 8 },
   title: { color: heroColors.text, fontWeight: "700" },

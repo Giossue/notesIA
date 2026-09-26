@@ -146,7 +146,6 @@ function AuthFlow({ mode, setMode }: { mode: Mode; setMode(mode: Mode): void }) 
           edges={["bottom"]}
           style={[styles.sheet, { backgroundColor: theme.colors.surface }]}
         >
-          {!verificationEmail && mode !== "recover" && <ModeTabs mode={mode} onChange={go} />}
           {offline && (
             <Banner tone="error" icon="alert">
               Sin conexión. Revisa tu red e inténtalo de nuevo.
@@ -196,43 +195,6 @@ function AuthFlow({ mode, setMode }: { mode: Mode; setMode(mode: Mode): void }) 
         </SafeAreaView>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function ModeTabs({ mode, onChange }: { mode: Mode; onChange(mode: Mode): void }) {
-  const theme = useTheme();
-  const tabs: Array<[Mode, string]> = [
-    ["signIn", "Iniciar sesión"],
-    ["signUp", "Crear cuenta"],
-  ];
-  return (
-    <View
-      accessibilityRole="tablist"
-      style={[styles.tabs, { backgroundColor: theme.colors.surfaceVariant }]}
-    >
-      {tabs.map(([value, label]) => {
-        const active = value === mode;
-        return (
-          <Pressable
-            key={value}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
-            onPress={() => onChange(value)}
-            style={[
-              styles.tab,
-              active && [styles.tabActive, { backgroundColor: theme.colors.surface }],
-            ]}
-          >
-            <Text
-              variant="labelLarge"
-              style={{ color: active ? theme.colors.onSurface : theme.colors.onSurfaceVariant }}
-            >
-              {label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
   );
 }
 
@@ -639,21 +601,6 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 24,
     gap: 20,
-  },
-  tabs: { flexDirection: "row", borderRadius: 999, padding: 4 },
-  tab: {
-    flex: 1,
-    minHeight: 44,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tabActive: {
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
   },
   banner: {
     flexDirection: "row",
