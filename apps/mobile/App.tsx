@@ -1,3 +1,4 @@
+import { configureZodSpanish } from "@notesia/contracts";
 import { NavigationContainer } from "@react-navigation/native";
 import {
   createNativeStackNavigator,
@@ -48,6 +49,8 @@ import { userMessage } from "@/shared/errors";
 import { Button } from "@/shared/paper";
 import { showToast } from "@/shared/Toast";
 import { adoptDeviceTimeZone } from "@/shared/time-zones";
+
+configureZodSpanish();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },

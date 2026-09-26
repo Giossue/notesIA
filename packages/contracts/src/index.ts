@@ -1008,3 +1008,4 @@ export const notificationPageSchema = z.object({
   items: z.array(notificationSchema),
   nextCursor: z.string().nullable(),
 });
+export { configureZodSpanish } from "./zod-es";

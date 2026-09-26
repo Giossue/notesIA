@@ -9,7 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { errorMessage } from "@/lib/api";
 import "./index.css";
-import { configureZodSpanish } from "@/lib/zod-es";
+import { configureZodSpanish } from "@notesia/contracts";
 
 configureZodSpanish();
 

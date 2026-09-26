@@ -120,11 +120,11 @@ function DeletionPanel({ status }: { status: Awaited<ReturnType<typeof getDeleti
   const offline = useNetInfo().isConnected === false;
   const requestForm = useForm<DeletionValues>({
     resolver: zodResolver(deletionSchema),
-    defaultValues: { password: "", confirmation: "" as "ELIMINAR" },
+    defaultValues: { password: "", confirmation: "ELIMINAR" },
   });
   const cancelForm = useForm<CancelValues>({
     resolver: zodResolver(cancelSchema),
-    defaultValues: { password: "", confirmation: "" as "CANCELAR" },
+    defaultValues: { password: "", confirmation: "CANCELAR" },
   });
   const request = useMutation({
     mutationFn: (values: DeletionValues) =>
@@ -143,24 +143,7 @@ function DeletionPanel({ status }: { status: Awaited<ReturnType<typeof getDeleti
           <Text variant="titleMedium">Eliminación solicitada</Text>
           <Text>Estado: {status.status === "pending" ? "pendiente" : "bloqueada"}</Text>
           <Text>Programada para: {new Date(status.executeAt).toLocaleString()}</Text>
-          <Text>Para cancelarla, escribe CANCELAR y confirma tu contraseña.</Text>
-          <Controller
-            control={cancelForm.control}
-            name="confirmation"
-            render={({ field }) => (
-              <TextInput
-                mode="outlined"
-                label="Confirmación"
-                autoCapitalize="characters"
-                value={field.value}
-                onChangeText={field.onChange}
-                error={!!cancelForm.formState.errors.confirmation}
-              />
-            )}
-          />
-          <HelperText type="error" visible={!!cancelForm.formState.errors.confirmation}>
-            {cancelForm.formState.errors.confirmation?.message}
-          </HelperText>
+          <Text>Para cancelarla, confirma tu contraseña.</Text>
           <Controller
             control={cancelForm.control}
             name="password"
@@ -197,24 +180,7 @@ function DeletionPanel({ status }: { status: Awaited<ReturnType<typeof getDeleti
           La solicitud usa el periodo de espera configurado y puede cancelarse antes de su
           ejecución.
         </Text>
-        <Text>Escribe ELIMINAR y confirma tu contraseña.</Text>
-        <Controller
-          control={requestForm.control}
-          name="confirmation"
-          render={({ field }) => (
-            <TextInput
-              mode="outlined"
-              label="Confirmación"
-              autoCapitalize="characters"
-              value={field.value}
-              onChangeText={field.onChange}
-              error={!!requestForm.formState.errors.confirmation}
-            />
-          )}
-        />
-        <HelperText type="error" visible={!!requestForm.formState.errors.confirmation}>
-          {requestForm.formState.errors.confirmation?.message}
-        </HelperText>
+        <Text>Confirma tu contraseña para continuar.</Text>
         <Controller
           control={requestForm.control}
           name="password"
