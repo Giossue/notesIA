@@ -1097,7 +1097,8 @@ export const assistantMessageSchema = z.strictObject({
 });
 export const assistantTurnRequestSchema = z.strictObject({
   message: z.string().trim().min(1).max(2000),
-  history: z.array(assistantMessageSchema).max(12),
+  /** Ya no se usa: el historial sale de la sesión guardada en el servidor. */
+  history: z.array(assistantMessageSchema).max(12).optional(),
 });
 export const activityTransitionActionSchema = z.enum([
   "complete",
@@ -1163,8 +1164,38 @@ export const assistantTurnResponseSchema = z.union([
     promptVersion: z.number().int().positive(),
     reply: z.string().trim().min(1).max(1200),
     actions: z.array(assistantActionSchema).max(5),
+    /** Id de cada propuesta, en el mismo orden, para registrar qué hizo el estudiante. */
+    actionIds: z.array(z.uuid()).max(5).optional(),
+    /** Mensajes que le quedan al estudiante en esta sesión. */
+    messagesLeft: z.number().int().min(0).optional(),
   }),
 ]);
+export const assistantActionStateSchema = z.enum(["pending", "applied", "dismissed", "failed"]);
+/** La conversación activa, tal como la guarda el servidor. */
+export const assistantSessionSchema = z.object({
+  id: z.uuid(),
+  messages: z.array(
+    z.object({
+      id: z.uuid(),
+      role: z.enum(["user", "assistant"]),
+      text: z.string(),
+      actions: z.array(
+        z.object({
+          id: z.uuid(),
+          action: assistantActionSchema,
+          state: assistantActionStateSchema,
+        }),
+      ),
+      at: z.iso.datetime(),
+    }),
+  ),
+  messagesLeft: z.number().int().min(0),
+  limit: z.number().int().positive(),
+});
+export const assistantActionStateUpdateSchema = z.strictObject({
+  state: assistantActionStateSchema.exclude(["pending"]),
+});
+export type AssistantSession = z.infer<typeof assistantSessionSchema>;
 const clockSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
 /** Semana que arma el agente de configuración inicial; la app la guarda al confirmar. */
 export const onboardingDraftSchema = z.strictObject({

@@ -65,8 +65,8 @@ export function createReportRepository(pool: Pool) {
         );
         if (inserted.rowCount)
           await client.query(
-            `INSERT INTO dominio.historial_reportes (id, reporte_id, actor_id, accion)
-             VALUES ($1,$2,$3,'created')`,
+            `INSERT INTO dominio.historial_reportes (id, reporte_id, actor_id, accion, registrado_en)
+             VALUES ($1,$2,$3,'created', clock_timestamp())`,
             [crypto.randomUUID(), input.id, userId],
           );
         const row = await client.query<ReportRow>(
@@ -156,8 +156,10 @@ export function createReportRepository(pool: Pool) {
         }
         const history = async (action: string, detail: Record<string, unknown>) =>
           client.query(
-            `INSERT INTO dominio.historial_reportes (id, reporte_id, actor_id, accion, detalle)
-             VALUES ($1,$2,$3,$4,$5)`,
+            // clock_timestamp: dentro de la transacción conserva el orden de los pasos.
+            `INSERT INTO dominio.historial_reportes
+               (id, reporte_id, actor_id, accion, detalle, registrado_en)
+             VALUES ($1,$2,$3,$4,$5, clock_timestamp())`,
             [crypto.randomUUID(), id, actorId, action, detail],
           );
         // Asignarse o responder un reporte nuevo lo pasa a "en revisión".

@@ -5,19 +5,26 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { ActivityIndicator, Icon, IconButton, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Icon, IconButton, Portal, Text, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { v4 as uuidv4 } from "uuid";
-import { sendAssistantMessage } from "@/core/api/ai";
-import { OfflineQueuedError } from "@/core/api/client";
+import {
+  getAssistantSession,
+  reportAssistantAction,
+  sendAssistantMessage,
+  startAssistantSession,
+} from "@/core/api/ai";
+import { ApiError, OfflineQueuedError } from "@/core/api/client";
 import { getProfile } from "@/core/api/profile";
 import {
   addChatMessage,
   type ChatAction,
   type ChatMessage,
-  chatHistory,
+  loadChat,
+  setMessagesLeft,
   updateChatAction,
   useChatMessages,
+  useChatSession,
 } from "@/core/assistant/chat-store";
 import { appendRecognizedText } from "@/core/speech/dictation";
 import {
@@ -30,7 +37,7 @@ import { speak, stopSpeaking } from "@/core/speech/tts";
 import { layout } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { userMessage } from "@/shared/errors";
-import { Button, Card, TextInput } from "@/shared/paper";
+import { Button, Card, Dialog, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { UserAvatar } from "@/shared/UserAvatar";
 import { applyAssistantAction, describeAction } from "./assistant-actions";
@@ -52,6 +59,7 @@ let voiceEnabled = false;
 
 export function AssistantChatScreen() {
   const theme = useTheme();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const messages = useChatMessages();
   const offline = useNetInfo().isConnected === false;
@@ -59,11 +67,48 @@ export function AssistantChatScreen() {
   const [voice, setVoice] = useState(voiceEnabled);
   const [listening, setListening] = useState(false);
   const [dictationError, setDictationError] = useState<string | null>(null);
+  const [confirmNew, setConfirmNew] = useState(false);
+  const chat = useChatSession();
+  const limitReached = chat.messagesLeft === 0;
+
+  // La conversación vive en el servidor: al abrir el chat se muestra la activa.
+  const serverSession = useQuery({
+    queryKey: ["assistant-session"],
+    queryFn: getAssistantSession,
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  useEffect(() => {
+    const data = serverSession.data;
+    if (!data || data.id === chat.id) return;
+    loadChat(
+      data.id,
+      data.messages.map((message) => ({
+        id: message.id,
+        role: message.role,
+        text: message.text,
+        actions: message.actions.map((item) => ({
+          id: item.id,
+          action: item.action,
+          state: item.state,
+        })),
+      })),
+      data.messagesLeft,
+    );
+  }, [serverSession.data, chat.id]);
+
+  const startNew = useMutation({
+    mutationFn: startAssistantSession,
+    onSuccess: (data) => {
+      stopSpeaking();
+      setConfirmNew(false);
+      loadChat(data.id, [], data.messagesLeft);
+      queryClient.setQueryData(["assistant-session"], data);
+    },
+  });
 
   const send = useMutation({
-    // El historial se toma antes de agregar el mensaje nuevo a la conversación.
-    mutationFn: ({ text, history }: { text: string; history: ReturnType<typeof chatHistory> }) =>
-      sendAssistantMessage(text, history),
+    mutationFn: ({ text }: { text: string }) => sendAssistantMessage(text),
     onMutate: ({ text }) => {
       addChatMessage({ id: uuidv4(), role: "user", text, actions: [] });
     },
@@ -82,11 +127,17 @@ export function AssistantChatScreen() {
         id: uuidv4(),
         role: "assistant",
         text: result.reply,
-        actions: result.actions.map((action) => ({ id: uuidv4(), action, state: "pending" })),
+        actions: result.actions.map((action, index) => ({
+          id: result.actionIds?.[index] ?? uuidv4(),
+          action,
+          state: "pending",
+        })),
       });
+      if (result.messagesLeft !== undefined) setMessagesLeft(result.messagesLeft);
       if (voiceEnabled) speak(result.reply);
     },
     onError: (error) => {
+      if (error instanceof ApiError && error.code === "SESSION_LIMIT") setMessagesLeft(0);
       addChatMessage({
         id: uuidv4(),
         role: "assistant",
@@ -101,10 +152,10 @@ export function AssistantChatScreen() {
 
   const submit = (text: string) => {
     const message = text.trim();
-    if (!message || send.isPending || offline) return;
+    if (!message || send.isPending || offline || limitReached) return;
     stopSpeaking();
     setDraft("");
-    send.mutate({ text: message, history: chatHistory() });
+    send.mutate({ text: message });
   };
 
   // Abierto con un mensaje (por ejemplo "Planifica mi semana" desde la Agenda): se envía una vez.
@@ -173,36 +224,64 @@ export function AssistantChatScreen() {
           {dictationError}
         </Text>
       )}
-      <View style={styles.composerRow}>
-        <IconButton
-          icon={listening ? "stop" : "microphone"}
-          mode={listening ? "contained" : undefined}
-          onPress={() => void dictate()}
-          accessibilityLabel={listening ? "Detener dictado" : "Dictar mensaje"}
-          disabled={send.isPending}
-        />
-        <TextInput
-          mode="outlined"
-          dense
-          placeholder={listening ? "Escuchando…" : "Escribe o dicta un mensaje"}
-          value={draft}
-          onChangeText={setDraft}
-          multiline
-          maxLength={2000}
-          style={styles.input}
-          outlineStyle={styles.inputOutline}
-          // Paper deja arriba el texto multilínea: se centra con relleno parejo.
-          contentStyle={styles.inputContent}
-          accessibilityLabel="Mensaje para el asistente"
-        />
-        <IconButton
-          icon="send-outline"
-          mode="contained"
-          onPress={() => submit(draft)}
-          disabled={!draft.trim() || send.isPending || offline}
-          accessibilityLabel="Enviar mensaje"
-        />
-      </View>
+      {limitReached ? (
+        <View style={styles.limit}>
+          <Text variant="bodyMedium" style={styles.center}>
+            Llegaste al límite de {serverSession.data?.limit ?? 30} mensajes de esta conversación.
+          </Text>
+          <Button
+            mode="contained"
+            icon="plus"
+            loading={startNew.isPending}
+            disabled={startNew.isPending || offline}
+            onPress={() => startNew.mutate()}
+          >
+            Nueva conversación
+          </Button>
+        </View>
+      ) : (
+        <View style={styles.composerRow}>
+          <IconButton
+            icon={voice ? "volume-high" : "volume-off"}
+            onPress={toggleVoice}
+            accessibilityLabel={voice ? "Silenciar respuestas" : "Leer respuestas en voz alta"}
+          />
+          <IconButton
+            icon={listening ? "stop" : "microphone"}
+            mode={listening ? "contained" : undefined}
+            onPress={() => void dictate()}
+            accessibilityLabel={listening ? "Detener dictado" : "Dictar mensaje"}
+            disabled={send.isPending}
+          />
+          <TextInput
+            mode="outlined"
+            dense
+            placeholder={listening ? "Escuchando…" : "Escribe o dicta un mensaje"}
+            value={draft}
+            onChangeText={setDraft}
+            multiline
+            maxLength={2000}
+            style={styles.input}
+            outlineStyle={styles.inputOutline}
+            // Paper deja arriba el texto multilínea: se centra con relleno parejo.
+            contentStyle={styles.inputContent}
+            accessibilityLabel="Mensaje para el asistente"
+          />
+          <IconButton
+            icon="send-outline"
+            mode="contained"
+            onPress={() => submit(draft)}
+            disabled={!draft.trim() || send.isPending || offline}
+            accessibilityLabel="Enviar mensaje"
+          />
+        </View>
+      )}
+      {!limitReached && chat.messagesLeft !== null && chat.messagesLeft <= 5 && (
+        <Text variant="bodySmall" style={[styles.center, { color: theme.colors.onSurfaceVariant }]}>
+          Te quedan {chat.messagesLeft} {chat.messagesLeft === 1 ? "mensaje" : "mensajes"} en esta
+          conversación.
+        </Text>
+      )}
     </View>
   );
 
@@ -211,9 +290,9 @@ export function AssistantChatScreen() {
       header={{
         title: "Asistente",
         right: {
-          icon: voice ? "volume-high" : "volume-off",
-          label: voice ? "Silenciar respuestas" : "Leer respuestas en voz alta",
-          onPress: toggleVoice,
+          icon: "plus",
+          label: "Nueva conversación",
+          onPress: () => setConfirmNew(true),
         },
       }}
       keyboardShouldPersistTaps="handled"
@@ -230,6 +309,29 @@ export function AssistantChatScreen() {
           <Text style={{ color: theme.colors.onSurfaceVariant }}>Pensando…</Text>
         </View>
       )}
+      <Portal>
+        <Dialog visible={confirmNew} onDismiss={() => setConfirmNew(false)}>
+          <Dialog.Title>¿Empezar una conversación nueva?</Dialog.Title>
+          <Dialog.Content>
+            <Text>
+              La conversación actual se perderá y no podrás volver a verla. Las propuestas que no
+              confirmaste también se descartan.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setConfirmNew(false)}>Cancelar</Button>
+            <Button
+              mode="contained"
+              icon="plus"
+              loading={startNew.isPending}
+              disabled={startNew.isPending || offline}
+              onPress={() => startNew.mutate()}
+            >
+              Empezar nueva
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </ScreenLayout>
   );
 }
@@ -339,6 +441,7 @@ function ActionCard({ messageId, item }: { messageId: string; item: ChatAction }
     try {
       await applyAssistantAction(item.action);
       updateChatAction(messageId, item.id, { state: "applied" });
+      void reportAssistantAction(item.id, "applied").catch(() => undefined);
     } catch (error) {
       // Sin conexión queda en la cola y se envía después: cuenta como hecho.
       if (error instanceof OfflineQueuedError) {
@@ -406,7 +509,10 @@ function ActionCard({ messageId, item }: { messageId: string; item: ChatAction }
               mode="text"
               icon="close"
               disabled={item.state === "applying"}
-              onPress={() => updateChatAction(messageId, item.id, { state: "dismissed" })}
+              onPress={() => {
+                updateChatAction(messageId, item.id, { state: "dismissed" });
+                void reportAssistantAction(item.id, "dismissed").catch(() => undefined);
+              }}
             >
               Descartar
             </Button>
@@ -492,6 +598,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  limit: { gap: 8, paddingVertical: 4 },
   cardActions: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 4 },
   composer: {
     borderTopWidth: StyleSheet.hairlineWidth,

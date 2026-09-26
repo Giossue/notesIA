@@ -9,6 +9,7 @@ import type {
   AdminRepository,
   AiContextRepository,
   AiRepository,
+  AssistantSessionRepository,
   AvailabilityRepository,
   CalendarEventRepository,
   IdempotencyRepository,
@@ -145,6 +146,7 @@ type AiDependencies = {
   getSession(headers: Headers): Promise<Session | null>;
   gateway: AiGateway;
   context: AiContextRepository;
+  sessions?: AssistantSessionRepository;
 };
 type AccountExportDependencies = {
   getSession(headers: Headers): Promise<Session | null>;

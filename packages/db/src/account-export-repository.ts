@@ -86,6 +86,12 @@ const sections = [
     WHERE usuario_id = $1 ORDER BY id LIMIT $2 OFFSET $3`,
   },
   {
+    name: "assistantSessions",
+    sql: `SELECT id, estado AS status, mensajes_usuario AS "userMessages",
+    contenido AS messages, creado_en AS "createdAt", cerrada_en AS "closedAt"
+    FROM dominio.sesiones_asistente WHERE usuario_id = $1 ORDER BY creado_en LIMIT $2 OFFSET $3`,
+  },
+  {
     name: "reports",
     sql: `SELECT id, tipo AS type, titulo AS title, descripcion AS description,
     estado AS status, respuesta AS reply, respondido_en AS "repliedAt",

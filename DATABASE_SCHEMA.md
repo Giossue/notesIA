@@ -74,6 +74,7 @@ El DDL de referencia se encuentra en `database/schema.sql`.
 |---|---|
 | `preferencias_notificacion` | Preferencias por tipo. |
 | `notificaciones` | Programación, envío y lectura. |
+| `sesiones_asistente` | Conversaciones con el asistente (mensajes en `contenido` jsonb); una activa por estudiante, las cerradas quedan en el servidor. |
 | `reportes` | Problemas y sugerencias del estudiante; los atiende soporte. |
 | `historial_reportes` | Creación, asignación, cambios de estado y respuestas de cada reporte. |
 | `documentos_privacidad` | Versiones de términos, privacidad e IA. |

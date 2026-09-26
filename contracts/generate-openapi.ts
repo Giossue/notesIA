@@ -233,6 +233,15 @@ add("GET", "/v1/calendar-events/:id", "calendarEventSchema");
 add("POST", "/v1/calendar-events", "calendarEventSchema", "calendarEventCreateSchema", [200, 201]);
 add("PATCH", "/v1/calendar-events/:id", "calendarEventSchema", "calendarEventUpdateSchema");
 add("GET", "/v1/streak", "streakSchema");
+add("GET", "/v1/ai/assistant/session", "assistantSessionSchema");
+add("POST", "/v1/ai/assistant/session/new", "assistantSessionSchema");
+add(
+  "PUT",
+  "/v1/ai/assistant/session/actions/:actionId",
+  undefined,
+  "assistantActionStateUpdateSchema",
+  [204],
+);
 add("GET", "/v1/reports", "reportListSchema");
 add("POST", "/v1/reports", "reportSchema", "reportCreateSchema", [201]);
 add("GET", "/v1/admin/me", "adminMeSchema");

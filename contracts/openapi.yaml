@@ -1358,6 +1358,63 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /ai/assistant/session:
+    get:
+      operationId: getAiAssistantSession
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantSession"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /ai/assistant/session/actions/{actionId}:
+    put:
+      operationId: putAiAssistantSessionActionsByActionId
+      parameters:
+        - in: path
+          name: actionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssistantActionStateUpdateInput"
+      responses:
+        "204":
+          description: Sin contenido
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /ai/assistant/session/new:
+    post:
+      operationId: postAiAssistantSessionNew
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantSession"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /ai/assistant/turns:
     post:
       operationId: postAiAssistantTurns
@@ -6696,6 +6753,425 @@ components:
           required:
             - description
           additionalProperties: false
+    AssistantActionStateUpdateInput:
+      type: object
+      properties:
+        state:
+          type: string
+          enum:
+            - applied
+            - dismissed
+            - failed
+      required:
+        - state
+      additionalProperties: false
+    AssistantSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              role:
+                type: string
+                enum:
+                  - user
+                  - assistant
+              text:
+                type: string
+              actions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                    action:
+                      oneOf:
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              const: create_activity
+                            activity:
+                              type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - academic_task
+                                    - exam
+                                    - personal
+                                    - routine
+                                title:
+                                  type: string
+                                  minLength: 1
+                                  maxLength: 240
+                                description:
+                                  anyOf:
+                                    - type: string
+                                      maxLength: 10000
+                                    - type: "null"
+                                priority:
+                                  type: string
+                                  enum:
+                                    - low
+                                    - medium
+                                    - high
+                                    - critical
+                                startAfterAt:
+                                  anyOf:
+                                    - type: string
+                                      format: date-time
+                                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                                    - type: "null"
+                                deadlineAt:
+                                  anyOf:
+                                    - type: string
+                                      format: date-time
+                                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                                    - type: "null"
+                                estimatedMinutes:
+                                  anyOf:
+                                    - type: integer
+                                      exclusiveMinimum: 0
+                                      maximum: 525600
+                                    - type: "null"
+                              required:
+                                - kind
+                                - title
+                                - description
+                                - priority
+                                - startAfterAt
+                                - deadlineAt
+                                - estimatedMinutes
+                              additionalProperties: false
+                          required:
+                            - type
+                            - activity
+                          additionalProperties: false
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              const: update_activity
+                            activityId:
+                              type: string
+                              format: uuid
+                              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                            title:
+                              type: string
+                            changes:
+                              type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - academic_task
+                                    - exam
+                                    - personal
+                                    - routine
+                                title:
+                                  type: string
+                                  minLength: 1
+                                  maxLength: 240
+                                description:
+                                  anyOf:
+                                    - type: string
+                                      maxLength: 10000
+                                    - type: "null"
+                                priority:
+                                  type: string
+                                  enum:
+                                    - low
+                                    - medium
+                                    - high
+                                    - critical
+                                startAfterAt:
+                                  anyOf:
+                                    - type: string
+                                      format: date-time
+                                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                                    - type: "null"
+                                deadlineAt:
+                                  anyOf:
+                                    - type: string
+                                      format: date-time
+                                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                                    - type: "null"
+                                estimatedMinutes:
+                                  anyOf:
+                                    - type: integer
+                                      exclusiveMinimum: 0
+                                      maximum: 525600
+                                    - type: "null"
+                              additionalProperties: false
+                          required:
+                            - type
+                            - activityId
+                            - title
+                            - changes
+                          additionalProperties: false
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              const: set_activity_progress
+                            activityId:
+                              type: string
+                              format: uuid
+                              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                            title:
+                              type: string
+                            progressPercent:
+                              type: integer
+                              minimum: 0
+                              maximum: 100
+                          required:
+                            - type
+                            - activityId
+                            - title
+                            - progressPercent
+                          additionalProperties: false
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              const: transition_activity
+                            activityId:
+                              type: string
+                              format: uuid
+                              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                            title:
+                              type: string
+                            transition:
+                              type: string
+                              enum:
+                                - complete
+                                - reopen
+                                - cancel
+                                - start
+                                - pause
+                          required:
+                            - type
+                            - activityId
+                            - title
+                            - transition
+                          additionalProperties: false
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              const: delete_activity
+                            activityId:
+                              type: string
+                              format: uuid
+                              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                            title:
+                              type: string
+                          required:
+                            - type
+                            - activityId
+                            - title
+                          additionalProperties: false
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              const: create_subtasks
+                            activityId:
+                              type: string
+                              format: uuid
+                              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                            title:
+                              type: string
+                            subtasks:
+                              minItems: 1
+                              maxItems: 8
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  title:
+                                    type: string
+                                    minLength: 1
+                                    maxLength: 240
+                                  estimatedMinutes:
+                                    anyOf:
+                                      - type: integer
+                                        exclusiveMinimum: 0
+                                        maximum: 525600
+                                      - type: "null"
+                                required:
+                                  - title
+                                  - estimatedMinutes
+                                additionalProperties: false
+                          required:
+                            - type
+                            - activityId
+                            - title
+                            - subtasks
+                          additionalProperties: false
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              const: create_event
+                            event:
+                              type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - class
+                                    - work
+                                    - appointment
+                                    - personal
+                                    - unavailable
+                                    - other
+                                title:
+                                  type: string
+                                  minLength: 1
+                                  maxLength: 200
+                                description:
+                                  anyOf:
+                                    - type: string
+                                      maxLength: 10000
+                                    - type: "null"
+                                startsAt:
+                                  type: string
+                                  format: date-time
+                                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                                endsAt:
+                                  type: string
+                                  format: date-time
+                                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                                timeZone:
+                                  type: string
+                                  maxLength: 64
+                              required:
+                                - kind
+                                - title
+                                - description
+                                - startsAt
+                                - endsAt
+                                - timeZone
+                              additionalProperties: false
+                          required:
+                            - type
+                            - event
+                          additionalProperties: false
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              const: update_event
+                            eventId:
+                              type: string
+                              format: uuid
+                              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                            title:
+                              type: string
+                            changes:
+                              type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - class
+                                    - work
+                                    - appointment
+                                    - personal
+                                    - unavailable
+                                    - other
+                                title:
+                                  type: string
+                                  minLength: 1
+                                  maxLength: 200
+                                description:
+                                  anyOf:
+                                    - type: string
+                                      maxLength: 10000
+                                    - type: "null"
+                                startsAt:
+                                  type: string
+                                  format: date-time
+                                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                                endsAt:
+                                  type: string
+                                  format: date-time
+                                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+                              additionalProperties: false
+                          required:
+                            - type
+                            - eventId
+                            - title
+                            - changes
+                          additionalProperties: false
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              const: archive_event
+                            eventId:
+                              type: string
+                              format: uuid
+                              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                            title:
+                              type: string
+                          required:
+                            - type
+                            - eventId
+                            - title
+                          additionalProperties: false
+                    state:
+                      type: string
+                      enum:
+                        - pending
+                        - applied
+                        - dismissed
+                        - failed
+                  required:
+                    - id
+                    - action
+                    - state
+                  additionalProperties: false
+              at:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            required:
+              - id
+              - role
+              - text
+              - actions
+              - at
+            additionalProperties: false
+        messagesLeft:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        limit:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 9007199254740991
+      required:
+        - id
+        - messages
+        - messagesLeft
+        - limit
+      additionalProperties: false
     AssistantTurnRequestInput:
       type: object
       properties:
@@ -6724,7 +7200,6 @@ components:
             additionalProperties: false
       required:
         - message
-        - history
       additionalProperties: false
     AssistantTurnResponse:
       anyOf:
@@ -7105,6 +7580,17 @@ components:
                       - eventId
                       - title
                     additionalProperties: false
+            actionIds:
+              maxItems: 5
+              type: array
+              items:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            messagesLeft:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
           required:
             - kind
             - source

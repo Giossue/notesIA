@@ -1,4 +1,4 @@
-import type { AssistantAction, AssistantMessage } from "@notesia/contracts";
+import type { AssistantAction } from "@notesia/contracts";
 import { useSyncExternalStore } from "react";
 
 export type ActionState = "pending" | "applying" | "applied" | "dismissed" | "failed";
@@ -22,6 +22,8 @@ export type ChatMessage = {
  * No se guarda en el servidor ni en el teléfono; se borra al cerrar sesión.
  */
 let messages: ChatMessage[] = [];
+/** Sesión del servidor que se está mostrando y cuántos mensajes le quedan. */
+let session: { id: string | null; messagesLeft: number | null } = { id: null, messagesLeft: null };
 const listeners = new Set<() => void>();
 const emit = () => {
   for (const listener of listeners) listener();
@@ -33,6 +35,22 @@ const subscribe = (listener: () => void) => {
 
 export function useChatMessages() {
   return useSyncExternalStore(subscribe, () => messages);
+}
+
+export function useChatSession() {
+  return useSyncExternalStore(subscribe, () => session);
+}
+
+/** Muestra la conversación que devolvió el servidor. */
+export function loadChat(id: string, loaded: ChatMessage[], messagesLeft: number) {
+  messages = loaded;
+  session = { id, messagesLeft };
+  emit();
+}
+
+export function setMessagesLeft(messagesLeft: number) {
+  session = { ...session, messagesLeft };
+  emit();
 }
 
 export function addChatMessage(message: ChatMessage) {
@@ -56,13 +74,6 @@ export function updateChatAction(messageId: string, actionId: string, patch: Par
 
 export function resetAssistantChat() {
   messages = [];
+  session = { id: null, messagesLeft: null };
   emit();
-}
-
-/** Últimas intervenciones que se envían como contexto (sin avisos ni tarjetas). */
-export function chatHistory(limit = 12): AssistantMessage[] {
-  return messages
-    .filter((message) => !message.notice && message.text.trim())
-    .slice(-limit)
-    .map((message) => ({ role: message.role, text: message.text.slice(0, 2000) }));
 }

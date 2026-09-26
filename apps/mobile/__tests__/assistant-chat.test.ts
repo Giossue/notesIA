@@ -1,31 +1,31 @@
 import {
   addChatMessage,
-  chatHistory,
+  loadChat,
   resetAssistantChat,
+  setMessagesLeft,
   updateChatAction,
+  useChatMessages,
 } from "@/core/assistant/chat-store";
+
+// La conversación vive en el servidor; el teléfono solo la tiene en memoria.
+let snapshot: ReturnType<typeof useChatMessages> = [];
+jest.mock("react", () => ({
+  ...jest.requireActual("react"),
+  useSyncExternalStore: (_subscribe: unknown, get: () => unknown) => get(),
+}));
 
 beforeEach(() => resetAssistantChat());
 
-test("el historial enviado al asistente omite avisos y respeta el límite", () => {
-  for (let index = 0; index < 8; index++) {
-    addChatMessage({ id: `u${index}`, role: "user", text: `mensaje ${index}`, actions: [] });
-    addChatMessage({ id: `a${index}`, role: "assistant", text: `respuesta ${index}`, actions: [] });
-  }
-  addChatMessage({
-    id: "error",
-    role: "assistant",
-    text: "El servicio de IA no responde",
-    actions: [],
-    notice: "error",
-  });
-  const history = chatHistory();
-  expect(history).toHaveLength(12);
-  expect(history.at(-1)).toEqual({ role: "assistant", text: "respuesta 7" });
-  expect(history.some((item) => item.text.includes("no responde"))).toBe(false);
+test("muestra la sesión del servidor y la borra al cerrar sesión", () => {
+  loadChat("s1", [{ id: "m1", role: "user", text: "Hola", actions: [] }], 29);
+  snapshot = useChatMessages();
+  expect(snapshot).toEqual([{ id: "m1", role: "user", text: "Hola", actions: [] }]);
+  setMessagesLeft(0);
+  resetAssistantChat();
+  expect(useChatMessages()).toEqual([]);
 });
 
-test("las propuestas cambian de estado y la conversación se borra al cerrar sesión", () => {
+test("las propuestas cambian de estado", () => {
   addChatMessage({
     id: "m1",
     role: "assistant",
@@ -43,7 +43,5 @@ test("las propuestas cambian de estado y la conversación se borra al cerrar ses
     ],
   });
   updateChatAction("m1", "p1", { state: "applied" });
-  expect(chatHistory()).toEqual([{ role: "assistant", text: "Te propongo esto" }]);
-  resetAssistantChat();
-  expect(chatHistory()).toEqual([]);
+  expect(useChatMessages()[0]?.actions[0]?.state).toBe("applied");
 });

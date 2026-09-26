@@ -12,6 +12,7 @@ import {
   createAdminRepository,
   createAiContextRepository,
   createAiRepository,
+  createAssistantSessionRepository,
   createAvailabilityRepository,
   createCalendarEventRepository,
   createIdempotencyRepository,
@@ -153,6 +154,7 @@ const app = createApp(
     getSession,
     gateway: createAiGateway(aiRepository, aiKeyCipher),
     context: createAiContextRepository(repositoryPool),
+    sessions: createAssistantSessionRepository(repositoryPool),
   },
   {
     getSession,

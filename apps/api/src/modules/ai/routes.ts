@@ -1,12 +1,19 @@
 import {
   aiSuggestionResponseSchema,
+  assistantActionStateUpdateSchema,
+  assistantSessionSchema,
   assistantTurnRequestSchema,
   assistantTurnResponseSchema,
   onboardingTurnRequestSchema,
   onboardingTurnResponseSchema,
   type Problem,
 } from "@notesia/contracts";
-import type { AiContextRepository } from "@notesia/db";
+import {
+  type AiContextRepository,
+  ASSISTANT_SESSION_LIMIT,
+  type AssistantSessionRepository,
+  type AssistantSessionRow,
+} from "@notesia/db";
 import type { Hono } from "hono";
 import { z } from "zod";
 import { runAssistantTurn } from "./assistant";
@@ -18,7 +25,26 @@ type Dependencies = {
   getSession(headers: Headers): Promise<{ user: { id: string } } | null>;
   gateway: AiGateway;
   context: AiContextRepository;
+  /** Conversaciones guardadas en el servidor; sin esto, el chat no guarda nada. */
+  sessions?: AssistantSessionRepository;
 };
+
+type SessionEntry = AssistantSessionRow["content"][number];
+
+function toSession(row: AssistantSessionRow) {
+  return assistantSessionSchema.parse({
+    id: row.id,
+    messages: row.content.map((entry) => ({
+      id: entry.id,
+      role: entry.role,
+      text: entry.text,
+      actions: entry.actions ?? [],
+      at: entry.at,
+    })),
+    messagesLeft: Math.max(0, ASSISTANT_SESSION_LIMIT - row.userMessages),
+    limit: ASSISTANT_SESSION_LIMIT,
+  });
+}
 
 function error(status: 401 | 403 | 404 | 409 | 422, code: string, title: string) {
   const body: Problem = {
@@ -32,7 +58,40 @@ function error(status: 401 | 403 | 404 | 409 | 422, code: string, title: string)
 }
 
 export function registerAiRoutes(app: Hono, dependencies: Dependencies) {
-  // Asistente conversacional: un mensaje por solicitud; no guarda la conversación.
+  const sessions = dependencies.sessions;
+  if (sessions) {
+    // La conversación activa: la app la muestra al abrir el chat (no la guarda el teléfono).
+    app.get("/v1/ai/assistant/session", async (c) => {
+      const session = await dependencies.getSession(c.req.raw.headers);
+      if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
+      return c.json(toSession(await sessions.active(session.user.id)), 200, {
+        "Cache-Control": "no-store",
+      });
+    });
+    // Conversación nueva: la anterior se cierra y ya no se muestra (queda en el servidor).
+    app.post("/v1/ai/assistant/session/new", async (c) => {
+      const session = await dependencies.getSession(c.req.raw.headers);
+      if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
+      return c.json(toSession(await sessions.startNew(session.user.id)));
+    });
+    app.put("/v1/ai/assistant/session/actions/:actionId", async (c) => {
+      const session = await dependencies.getSession(c.req.raw.headers);
+      if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
+      const actionId = z.uuid().safeParse(c.req.param("actionId"));
+      const body = assistantActionStateUpdateSchema.safeParse(await c.req.json().catch(() => null));
+      if (!actionId.success || !body.success)
+        return error(422, "VALIDATION_FAILED", "Estado inválido.");
+      const updated = await sessions.setActionState(
+        session.user.id,
+        actionId.data,
+        body.data.state,
+      );
+      return updated ? c.body(null, 204) : error(404, "NOT_FOUND", "Propuesta no encontrada.");
+    });
+  }
+
+  // Asistente conversacional: un mensaje por solicitud. El historial sale de la
+  // sesión del servidor, donde se agrega el turno (hasta 30 mensajes por sesión).
   app.post("/v1/ai/assistant/turns", async (c) => {
     const session = await dependencies.getSession(c.req.raw.headers);
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
@@ -40,12 +99,60 @@ export function registerAiRoutes(app: Hono, dependencies: Dependencies) {
       return error(422, "VALIDATION_FAILED", "Se requiere JSON.");
     const body = assistantTurnRequestSchema.safeParse(await c.req.json().catch(() => null));
     if (!body.success) return error(422, "VALIDATION_FAILED", "Mensaje inválido.");
-    const result = await runAssistantTurn(dependencies, session.user.id, body.data);
+    const userId = session.user.id;
+    const active = sessions ? await sessions.active(userId) : null;
+    if (active && active.userMessages >= ASSISTANT_SESSION_LIMIT)
+      return error(
+        409,
+        "SESSION_LIMIT",
+        "Llegaste al límite de esta conversación. Empieza una nueva.",
+      );
+    const history = active
+      ? active.content.slice(-12).map((entry) => ({
+          role: entry.role,
+          text: entry.text.slice(0, 2000),
+        }))
+      : (body.data.history ?? []);
+    const result = await runAssistantTurn(dependencies, userId, {
+      message: body.data.message,
+      history,
+    });
     if (result.kind === "consent_required")
       return error(403, "AI_CONSENT_REQUIRED", "Acepta el documento vigente de IA.");
     if (result.kind === "invalid_input")
       return error(422, "VALIDATION_FAILED", "Mensaje inválido.");
-    return c.json(assistantTurnResponseSchema.parse(result));
+    if (result.kind !== "reply" || !sessions || !active)
+      return c.json(assistantTurnResponseSchema.parse(result));
+    const at = new Date().toISOString();
+    const actionIds = result.actions.map(() => crypto.randomUUID());
+    const entries: SessionEntry[] = [
+      { id: crypto.randomUUID(), role: "user", text: body.data.message, at },
+      {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: result.reply,
+        actions: result.actions.map((action, index) => ({
+          id: actionIds[index] as string,
+          action,
+          state: "pending" as const,
+        })),
+        at,
+      },
+    ];
+    const used = await sessions.appendTurn(userId, active.id, entries);
+    if (used === null)
+      return error(
+        409,
+        "SESSION_LIMIT",
+        "Llegaste al límite de esta conversación. Empieza una nueva.",
+      );
+    return c.json(
+      assistantTurnResponseSchema.parse({
+        ...result,
+        actionIds,
+        messagesLeft: Math.max(0, ASSISTANT_SESSION_LIMIT - used),
+      }),
+    );
   });
 
   // Configuración inicial conversada: arma la semana; la app la guarda al confirmar.

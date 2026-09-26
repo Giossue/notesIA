@@ -25,6 +25,16 @@ export {
   type AiRouteConfig,
   createAiRepository,
 } from "./ai-repository";
+export type {
+  AssistantActionState,
+  AssistantSession as AssistantSessionRow,
+  AssistantSessionEntry,
+  AssistantSessionRepository,
+} from "./assistant-session-repository";
+export {
+  ASSISTANT_SESSION_LIMIT,
+  createAssistantSessionRepository,
+} from "./assistant-session-repository";
 export { createSecureStorage, purgeExpiredSecureStorage } from "./auth-secure-storage";
 export {
   type AvailabilityRepository,
