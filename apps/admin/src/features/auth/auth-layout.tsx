@@ -1,8 +1,16 @@
 import type { ReactNode } from "react";
+import { ThemeSwitcher } from "@/app/shell/theme-switcher";
 
 /** Pantallas de acceso: solo el formulario, centrado en la ventana. */
 export function AuthLayout({ children }: { children: ReactNode }) {
-  return <main className="flex min-h-dvh items-center justify-center p-4">{children}</main>;
+  return (
+    <main className="relative flex min-h-dvh items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeSwitcher />
+      </div>
+      {children}
+    </main>
+  );
 }
 
 /** Encabezado centrado del formulario de acceso. */
