@@ -1,11 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { avatarIdSchema, defaultAvatarId } from "@notesia/contracts";
 import { useNetInfo } from "@react-native-community/netinfo";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type ComponentProps, type ReactNode, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Linking, ScrollView, StyleSheet, View } from "react-native";
-import { HelperText, Surface, Text, useTheme } from "react-native-paper";
+import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Icon, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 import {
@@ -17,9 +17,11 @@ import {
   signUp,
 } from "@/core/auth/auth-client";
 import { clearPrivateCache } from "@/core/auth/query-cache";
-import { layout, sharedStyles } from "@/core/theme/layout";
 import { AvatarPicker } from "@/shared/AvatarPicker";
 import { Button, TextInput } from "@/shared/paper";
+import { AuthHero, HeroStatusBar, heroColors } from "./AuthHero";
+import { WelcomeScreen } from "./WelcomeScreen";
+import { readWelcomeSeen, writeWelcomeSeen } from "./welcome-storage";
 
 const signInSchema = z.object({
   email: z.email("Escribe un correo válido."),
@@ -38,13 +40,59 @@ const recoverySchema = z.object({
 type SignInValues = z.infer<typeof signInSchema>;
 type SignUpValues = z.infer<typeof signUpSchema>;
 type RecoveryValues = z.infer<typeof recoverySchema>;
+type Mode = "signIn" | "signUp" | "recover";
+
+const heroCopy = {
+  signIn: {
+    title: "Hola de\nnuevo",
+    subtitle: "Inicia sesión para seguir organizando tu tiempo.",
+  },
+  signUp: {
+    title: "Empecemos",
+    subtitle: "Crea tu cuenta para organizar tus actividades.",
+  },
+  recover: {
+    title: "Recupera tu\nacceso",
+    subtitle: "Te enviaremos un enlace para crear una contraseña nueva.",
+  },
+} as const;
 
 export function AuthScreen() {
+  const queryClient = useQueryClient();
+  const welcome = useQuery({
+    queryKey: ["welcome-seen"],
+    queryFn: readWelcomeSeen,
+    // Es una lectura local: no debe pausarse sin conexión.
+    networkMode: "always",
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const [mode, setMode] = useState<Mode>("signIn");
+
+  if (welcome.isPending) return <View style={styles.dark} />;
+  // Si no se puede leer el llavero, se entra directo al acceso.
+  if (welcome.data === false) {
+    return (
+      <WelcomeScreen
+        onDone={(next) => {
+          setMode(next);
+          queryClient.setQueryData(["welcome-seen"], true);
+          void writeWelcomeSeen().catch(() => undefined);
+        }}
+      />
+    );
+  }
+  return <AuthFlow mode={mode} setMode={setMode} />;
+}
+
+function AuthFlow({ mode, setMode }: { mode: Mode; setMode(mode: Mode): void }) {
   const theme = useTheme();
-  const [mode, setMode] = useState<"signIn" | "signUp" | "recover">("signIn");
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ text: string; tone: "success" | "error" } | null>(null);
   const offline = useNetInfo().isConnected === false;
+  const go = (next: Mode) => {
+    setMode(next);
+    setNotice(null);
+  };
 
   useEffect(() => {
     const handleUrl = (url: string) => {
@@ -53,9 +101,12 @@ export function AuthScreen() {
       if (result.kind === "verified") {
         setVerificationEmail(null);
         setMode("signIn");
-        setNotice("Correo verificado. Ya puedes iniciar sesión.");
+        setNotice({ text: "Correo verificado. Ya puedes iniciar sesión.", tone: "success" });
       } else {
-        setNotice("El enlace no es válido o ya venció. Solicita uno nuevo.");
+        setNotice({
+          text: "El enlace no es válido o ya venció. Solicita uno nuevo.",
+          tone: "error",
+        });
       }
     };
     void Linking.getInitialURL()
@@ -65,32 +116,46 @@ export function AuthScreen() {
       .catch(() => {});
     const subscription = Linking.addEventListener("url", ({ url }) => handleUrl(url));
     return () => subscription.remove();
-  }, []);
+  }, [setMode]);
+
+  const onVerificationRequired = (email: string) => {
+    setVerificationEmail(email);
+    setNotice(null);
+  };
+  const hero = verificationEmail
+    ? {
+        title: "Verifica tu\ncorreo",
+        subtitle: "Activa tu cuenta desde el enlace que te enviamos.",
+        onBack: () => {
+          setVerificationEmail(null);
+          go("signIn");
+        },
+      }
+    : { ...heroCopy[mode], onBack: mode === "recover" ? () => go("signIn") : undefined };
 
   return (
-    <SafeAreaView style={[styles.page, { backgroundColor: theme.colors.background }]}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
-        <View style={styles.heading}>
-          <Text variant="headlineMedium">Planificador estudiantil</Text>
-          <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
-            Organiza tus actividades y decide cómo usar tu tiempo.
-          </Text>
-        </View>
-        <Surface style={styles.form} elevation={1}>
-          <Text variant="titleLarge">
-            {verificationEmail
-              ? "Verifica tu correo"
-              : mode === "recover"
-                ? "Recuperar acceso"
-                : mode === "signIn"
-                  ? "Iniciar sesión"
-                  : "Crear cuenta"}
-          </Text>
-          {notice && <Text accessibilityRole="alert">{notice}</Text>}
+    <SafeAreaView style={styles.dark} edges={["top"]}>
+      <HeroStatusBar />
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scroll}
+        bounces={false}
+      >
+        <AuthHero title={hero.title} subtitle={hero.subtitle} onBack={hero.onBack} />
+        <SafeAreaView
+          edges={["bottom"]}
+          style={[styles.sheet, { backgroundColor: theme.colors.surface }]}
+        >
+          {!verificationEmail && mode !== "recover" && <ModeTabs mode={mode} onChange={go} />}
           {offline && (
-            <Text style={{ color: theme.colors.error }}>
+            <Banner tone="error" icon="alert">
               Sin conexión. Revisa tu red e inténtalo de nuevo.
-            </Text>
+            </Banner>
+          )}
+          {notice && (
+            <Banner tone={notice.tone} icon={notice.tone === "success" ? "check" : "alert"}>
+              {notice.text}
+            </Banner>
           )}
           {verificationEmail ? (
             <EmailVerificationPanel
@@ -98,53 +163,165 @@ export function AuthScreen() {
               offline={offline}
               onContinue={() => {
                 setVerificationEmail(null);
-                setMode("signIn");
-                setNotice(null);
+                go("signIn");
               }}
             />
           ) : mode === "recover" ? (
-            <PasswordRecoveryForm
-              offline={offline}
-              onBack={() => {
-                setMode("signIn");
-                setNotice(null);
-              }}
-            />
+            <PasswordRecoveryForm offline={offline} onBack={() => go("signIn")} />
           ) : mode === "signIn" ? (
             <SignInForm
               offline={offline}
-              onRecover={() => {
-                setMode("recover");
-                setNotice(null);
-              }}
-              onVerificationRequired={(email) => {
-                setVerificationEmail(email);
-                setNotice(null);
-              }}
+              onRecover={() => go("recover")}
+              onVerificationRequired={onVerificationRequired}
             />
           ) : (
-            <SignUpForm
-              offline={offline}
-              onVerificationRequired={(email) => {
-                setVerificationEmail(email);
-                setNotice(null);
-              }}
-            />
+            <SignUpForm offline={offline} onVerificationRequired={onVerificationRequired} />
           )}
           {!verificationEmail && mode !== "recover" && (
-            <Button
-              mode="text"
-              onPress={() => {
-                setMode(mode === "signIn" ? "signUp" : "signIn");
-                setNotice(null);
-              }}
-            >
-              {mode === "signIn" ? "Crear una cuenta" : "Ya tengo cuenta"}
-            </Button>
+            <View style={styles.switchRow}>
+              <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                {mode === "signIn" ? "¿No tienes cuenta?" : "¿Ya tienes cuenta?"}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                hitSlop={12}
+                onPress={() => go(mode === "signIn" ? "signUp" : "signIn")}
+              >
+                <Text style={[styles.link, { color: theme.colors.primary }]}>
+                  {mode === "signIn" ? "Crea una" : "Inicia sesión"}
+                </Text>
+              </Pressable>
+            </View>
           )}
-        </Surface>
+        </SafeAreaView>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function ModeTabs({ mode, onChange }: { mode: Mode; onChange(mode: Mode): void }) {
+  const theme = useTheme();
+  const tabs: Array<[Mode, string]> = [
+    ["signIn", "Iniciar sesión"],
+    ["signUp", "Crear cuenta"],
+  ];
+  return (
+    <View
+      accessibilityRole="tablist"
+      style={[styles.tabs, { backgroundColor: theme.colors.surfaceVariant }]}
+    >
+      {tabs.map(([value, label]) => {
+        const active = value === mode;
+        return (
+          <Pressable
+            key={value}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            onPress={() => onChange(value)}
+            style={[
+              styles.tab,
+              active && [styles.tabActive, { backgroundColor: theme.colors.surface }],
+            ]}
+          >
+            <Text
+              variant="labelLarge"
+              style={{ color: active ? theme.colors.onSurface : theme.colors.onSurfaceVariant }}
+            >
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function Banner({
+  tone,
+  icon,
+  children,
+}: {
+  tone: "success" | "error" | "info";
+  icon: string;
+  children: ReactNode;
+}) {
+  const theme = useTheme();
+  const colors = {
+    success: [theme.colors.primaryContainer, theme.colors.onPrimaryContainer],
+    info: [theme.colors.primaryContainer, theme.colors.onPrimaryContainer],
+    error: [theme.colors.errorContainer, theme.colors.onErrorContainer],
+  }[tone];
+  return (
+    <View accessibilityRole="alert" style={[styles.banner, { backgroundColor: colors[0] }]}>
+      <Icon source={icon} size={18} color={colors[1]} />
+      <Text variant="bodyMedium" style={[styles.bannerText, { color: colors[1] }]}>
+        {children}
+      </Text>
+    </View>
+  );
+}
+
+/** Campo con etiqueta arriba y error debajo, en forma de píldora. */
+function Field({
+  label,
+  error,
+  ...input
+}: { label: string; error?: string } & Omit<ComponentProps<typeof TextInput>, "error">) {
+  const theme = useTheme();
+  return (
+    <View style={styles.field}>
+      <Text variant="labelLarge" style={{ color: theme.colors.onSurface }}>
+        {label}
+      </Text>
+      <TextInput
+        mode="outlined"
+        accessibilityLabel={label}
+        error={!!error}
+        outlineColor={theme.colors.outlineVariant}
+        outlineStyle={styles.pillOutline}
+        style={styles.input}
+        {...input}
+      />
+      {error ? (
+        <View style={styles.error}>
+          <Icon source="alert" size={14} color={theme.colors.error} />
+          <Text variant="bodySmall" style={{ color: theme.colors.error }}>
+            {error}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function PasswordField({
+  visible,
+  onToggle,
+  ...props
+}: { visible: boolean; onToggle(): void } & ComponentProps<typeof Field>) {
+  return (
+    <Field
+      {...props}
+      secureTextEntry={!visible}
+      right={
+        <TextInput.Icon
+          icon={visible ? "eye-off" : "eye"}
+          onPress={onToggle}
+          accessibilityLabel={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+        />
+      }
+    />
+  );
+}
+
+function PrimaryButton(props: ComponentProps<typeof Button>) {
+  return (
+    <Button
+      mode="contained"
+      {...props}
+      style={[styles.pill, props.style]}
+      contentStyle={styles.pillContent}
+    />
   );
 }
 
@@ -157,6 +334,7 @@ function SignInForm({
   onVerificationRequired(email: string): void;
   onRecover(): void;
 }) {
+  const theme = useTheme();
   const queryClient = useQueryClient();
   const [visible, setVisible] = useState(false);
   const {
@@ -180,67 +358,60 @@ function SignInForm({
   });
 
   return (
-    <View style={styles.fields}>
+    <View style={styles.form}>
       <Controller
         control={control}
         name="email"
         render={({ field }) => (
-          <TextInput
+          <Field
             label="Correo electrónico"
-            mode="outlined"
+            placeholder="tucorreo@ejemplo.com"
             autoCapitalize="none"
             keyboardType="email-address"
             autoComplete="email"
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
-            error={!!errors.email}
-            accessibilityLabel="Correo electrónico"
+            error={errors.email?.message}
           />
         )}
       />
-      <HelperText type="error" visible={!!errors.email}>
-        {errors.email?.message}
-      </HelperText>
-      <Controller
-        control={control}
-        name="password"
-        render={({ field }) => (
-          <TextInput
-            label="Contraseña"
-            mode="outlined"
-            secureTextEntry={!visible}
-            autoComplete="current-password"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={!!errors.password}
-            accessibilityLabel="Contraseña"
-            right={
-              <TextInput.Icon
-                icon={visible ? "eye-off" : "eye"}
-                onPress={() => setVisible(!visible)}
-                accessibilityLabel={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
-              />
-            }
-          />
-        )}
-      />
-      <HelperText type="error" visible={!!errors.password}>
-        {errors.password?.message}
-      </HelperText>
-      <Button
-        mode="contained"
+      <View>
+        <Controller
+          control={control}
+          name="password"
+          render={({ field }) => (
+            <PasswordField
+              label="Contraseña"
+              placeholder="Tu contraseña"
+              visible={visible}
+              onToggle={() => setVisible(!visible)}
+              autoComplete="current-password"
+              value={field.value}
+              onChangeText={field.onChange}
+              onBlur={field.onBlur}
+              error={errors.password?.message}
+            />
+          )}
+        />
+        <Pressable
+          accessibilityRole="button"
+          hitSlop={12}
+          onPress={onRecover}
+          style={styles.forgot}
+        >
+          <Text style={[styles.link, styles.underline, { color: theme.colors.onSurface }]}>
+            ¿Olvidaste tu contraseña?
+          </Text>
+        </Pressable>
+      </View>
+      <PrimaryButton
         loading={mutation.isPending}
         disabled={offline || mutation.isPending}
         onPress={() => void handleSubmit((values) => mutation.mutate(values))()}
-        contentStyle={sharedStyles.actionContent}
       >
         Iniciar sesión
-      </Button>
-      <Button mode="text" onPress={onRecover}>
-        Olvidé mi contraseña
-      </Button>
+      </PrimaryButton>
     </View>
   );
 }
@@ -249,6 +420,7 @@ function PasswordRecoveryForm({ offline, onBack }: { offline: boolean; onBack():
   const {
     control,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<RecoveryValues>({
     resolver: zodResolver(recoverySchema),
@@ -257,46 +429,43 @@ function PasswordRecoveryForm({ offline, onBack }: { offline: boolean; onBack():
   const mutation = useMutation({
     mutationFn: ({ email }: RecoveryValues) => requestPasswordReset(email),
   });
+  if (mutation.isSuccess) {
+    return (
+      <SentPanel
+        icon="email-check-outline"
+        title="Revisa tu correo"
+        text={`Si ${getValues("email")} pertenece a una cuenta, te llegará un enlace para crear una contraseña nueva.`}
+      >
+        <PrimaryButton onPress={onBack}>Volver a iniciar sesión</PrimaryButton>
+      </SentPanel>
+    );
+  }
   return (
-    <View style={styles.fields}>
-      <Text>
-        Te enviaremos un enlace si el correo pertenece a una cuenta. El mensaje no revela si la
-        cuenta existe.
-      </Text>
+    <View style={styles.form}>
       <Controller
         control={control}
         name="email"
         render={({ field }) => (
-          <TextInput
-            mode="outlined"
+          <Field
             label="Correo electrónico"
+            placeholder="tucorreo@ejemplo.com"
             autoCapitalize="none"
             keyboardType="email-address"
             autoComplete="email"
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
-            error={!!errors.email}
+            error={errors.email?.message}
           />
         )}
       />
-      <HelperText type="error" visible={!!errors.email}>
-        {errors.email?.message}
-      </HelperText>
-      {mutation.isSuccess && (
-        <Text accessibilityRole="alert">Revisa tu correo para continuar.</Text>
-      )}
-      <Button
-        mode="contained"
+      <PrimaryButton
         loading={mutation.isPending}
         disabled={offline || mutation.isPending}
         onPress={() => void handleSubmit((values) => mutation.mutate(values))()}
       >
         Enviar enlace
-      </Button>
-      <Button mode="text" onPress={onBack}>
-        Volver a iniciar sesión
-      </Button>
+      </PrimaryButton>
     </View>
   );
 }
@@ -324,7 +493,7 @@ function SignUpForm({
   });
 
   return (
-    <View style={styles.fields}>
+    <View style={styles.form}>
       <Controller
         control={control}
         name="avatar"
@@ -334,78 +503,86 @@ function SignUpForm({
         control={control}
         name="name"
         render={({ field }) => (
-          <TextInput
+          <Field
             label="Nombre"
-            mode="outlined"
+            placeholder="¿Cómo te llamas?"
             autoComplete="name"
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
-            error={!!errors.name}
-            accessibilityLabel="Nombre"
+            error={errors.name?.message}
           />
         )}
       />
-      <HelperText type="error" visible={!!errors.name}>
-        {errors.name?.message}
-      </HelperText>
       <Controller
         control={control}
         name="email"
         render={({ field }) => (
-          <TextInput
+          <Field
             label="Correo electrónico"
-            mode="outlined"
+            placeholder="tucorreo@ejemplo.com"
             autoCapitalize="none"
             keyboardType="email-address"
             autoComplete="email"
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
-            error={!!errors.email}
-            accessibilityLabel="Correo electrónico"
+            error={errors.email?.message}
           />
         )}
       />
-      <HelperText type="error" visible={!!errors.email}>
-        {errors.email?.message}
-      </HelperText>
       <Controller
         control={control}
         name="password"
         render={({ field }) => (
-          <TextInput
-            label="Contraseña (mínimo 12 caracteres)"
-            mode="outlined"
-            secureTextEntry={!visible}
+          <PasswordField
+            label="Contraseña"
+            placeholder="Mínimo 12 caracteres"
+            visible={visible}
+            onToggle={() => setVisible(!visible)}
             autoComplete="new-password"
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
-            error={!!errors.password}
-            accessibilityLabel="Contraseña nueva"
-            right={
-              <TextInput.Icon
-                icon={visible ? "eye-off" : "eye"}
-                onPress={() => setVisible(!visible)}
-                accessibilityLabel={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
-              />
-            }
+            error={errors.password?.message}
           />
         )}
       />
-      <HelperText type="error" visible={!!errors.password}>
-        {errors.password?.message}
-      </HelperText>
-      <Button
-        mode="contained"
+      <PrimaryButton
         loading={mutation.isPending}
         disabled={offline || mutation.isPending}
         onPress={() => void handleSubmit((values) => mutation.mutate(values))()}
-        contentStyle={sharedStyles.actionContent}
       >
         Crear cuenta
-      </Button>
+      </PrimaryButton>
+    </View>
+  );
+}
+
+function SentPanel({
+  icon,
+  title,
+  text,
+  children,
+}: {
+  icon: string;
+  title: string;
+  text: ReactNode;
+  children: ReactNode;
+}) {
+  const theme = useTheme();
+  return (
+    <View style={styles.sent}>
+      <View style={[styles.sentIcon, { backgroundColor: theme.colors.primaryContainer }]}>
+        <Icon source={icon} size={32} color={theme.colors.primary} />
+      </View>
+      <Text variant="titleLarge" style={styles.bold}>
+        {title}
+      </Text>
+      <Text variant="bodyMedium" style={[styles.center, { color: theme.colors.onSurfaceVariant }]}>
+        {text}
+      </Text>
+      <View style={styles.sentActions}>{children}</View>
     </View>
   );
 }
@@ -423,40 +600,97 @@ function EmailVerificationPanel({
     mutationFn: () => resendVerificationEmail(email),
   });
   return (
-    <View style={styles.fields}>
-      <Text>
-        Enviamos un enlace a {email}. Ábrelo para activar la cuenta antes de iniciar sesión.
-      </Text>
-      {resend.isSuccess && <Text accessibilityRole="alert">Correo enviado nuevamente.</Text>}
-      <Button
-        mode="contained"
+    <SentPanel
+      icon="email-sync-outline"
+      title="Te enviamos un enlace"
+      text={
+        <>
+          Abre el correo que enviamos a <Text style={styles.bold}>{email}</Text> para activar tu
+          cuenta antes de iniciar sesión.
+        </>
+      }
+    >
+      {resend.isSuccess && (
+        <Banner tone="success" icon="check">
+          Correo enviado nuevamente.
+        </Banner>
+      )}
+      <PrimaryButton onPress={onContinue}>Ya verifiqué mi correo</PrimaryButton>
+      <PrimaryButton
+        mode="outlined"
         loading={resend.isPending}
         disabled={offline || resend.isPending}
         onPress={() => resend.mutate()}
-        contentStyle={sharedStyles.actionContent}
       >
         Reenviar correo
-      </Button>
-      <Button mode="text" onPress={onContinue}>
-        Ya verifiqué mi correo
-      </Button>
-    </View>
+      </PrimaryButton>
+    </SentPanel>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1 },
-  content: {
+  dark: { flex: 1, backgroundColor: heroColors.background },
+  scroll: { flexGrow: 1 },
+  sheet: {
     flexGrow: 1,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 24,
+    gap: 20,
+  },
+  tabs: { flexDirection: "row", borderRadius: 999, padding: 4 },
+  tab: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 999,
+    alignItems: "center",
     justifyContent: "center",
-    gap: 32,
-    padding: layout.pagePadding,
   },
-  heading: { gap: layout.itemGap },
-  form: {
-    borderRadius: layout.cardRadius,
-    padding: layout.pagePadding,
-    gap: layout.sectionGap,
+  tabActive: {
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
-  fields: { gap: 4 },
+  banner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  bannerText: { flex: 1 },
+  form: { gap: 16 },
+  field: { gap: 8 },
+  input: { minHeight: 52 },
+  pillOutline: { borderRadius: 999 },
+  error: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 4 },
+  forgot: { alignSelf: "flex-end", marginTop: 12 },
+  link: { fontWeight: "600" },
+  underline: { textDecorationLine: "underline" },
+  pill: { borderRadius: 999 },
+  pillContent: { minHeight: 52 },
+  switchRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    marginTop: "auto",
+  },
+  sent: { alignItems: "center", gap: 12, paddingTop: 8 },
+  sentIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  sentActions: { alignSelf: "stretch", gap: 12, marginTop: 12 },
+  bold: { fontWeight: "700" },
+  center: { textAlign: "center" },
 });
