@@ -455,7 +455,12 @@ export function createApp(
             : response.status === 429
               ? "Demasiados intentos. Inténtalo más tarde."
               : "No se pudo completar la solicitud.";
-      const safeCode = c.req.path === "/v1/auth/sign-up/email" ? "REGISTRATION_FAILED" : code;
+      // El registro no revela por qué falla (evita descubrir correos registrados),
+      // salvo que falte aceptar los términos, que no dice nada de la cuenta.
+      const safeCode =
+        c.req.path === "/v1/auth/sign-up/email" && code !== "CONSENT_REQUIRED"
+          ? "REGISTRATION_FAILED"
+          : code;
       const problem: Problem & { message: string } = {
         type: `https://notesia.local/problems/${safeCode.toLowerCase().replaceAll("_", "-")}`,
         title,

@@ -35,6 +35,8 @@ function acceptedDocumentIds(body: unknown) {
   return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
 }
 
+/** Origen con que la app móvil firma sus peticiones de autenticación. */
+const MOBILE_ORIGIN = "notesia://";
 const VERIFICATION_CALLBACK_URL = "notesia://email-verified";
 
 export function createAuth(options: AuthOptions) {
@@ -173,17 +175,26 @@ export function createAuth(options: AuthOptions) {
       },
       session: {
         create: {
-          before: async (session) => {
+          before: async (session, ctx) => {
             const account = await pool.query<{
               active: boolean;
               emailVerified: boolean;
               version: number;
+              staff: boolean;
             }>(
               `SELECT suspendido_en IS NULL AS active, estado_version AS version
                  , correo_verificado AS "emailVerified"
-               FROM autenticacion.usuarios WHERE id = $1`,
+                 , EXISTS (SELECT 1 FROM autenticacion.roles_usuario r WHERE r.usuario_id = u.id)
+                   AS staff
+               FROM autenticacion.usuarios u WHERE id = $1`,
               [session.userId],
             );
+            // Las cuentas de administración solo entran al panel web, nunca a la app.
+            if (account.rows[0]?.staff && ctx?.headers?.get("origin") === MOBILE_ORIGIN)
+              throw APIError.from("FORBIDDEN", {
+                code: "STAFF_ACCOUNT",
+                message: "Esta cuenta es de administración. Entra desde el panel web.",
+              });
             if (!account.rows[0]?.active)
               throw APIError.from("FORBIDDEN", {
                 code: "ACCOUNT_SUSPENDED",
@@ -221,7 +232,7 @@ export function createAuth(options: AuthOptions) {
         : undefined,
       password: { hash: hashPassword, verify: verifyPassword },
     },
-    trustedOrigins: ["notesia://", VERIFICATION_CALLBACK_URL, ...(options.trustedOrigins ?? [])],
+    trustedOrigins: [MOBILE_ORIGIN, VERIFICATION_CALLBACK_URL, ...(options.trustedOrigins ?? [])],
     plugins: [
       twoFactor({
         issuer: "NotesIA",

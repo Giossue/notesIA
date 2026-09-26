@@ -76,9 +76,13 @@ async function authRequest(
     const message =
       code === "EMAIL_NOT_VERIFIED"
         ? "Verifica tu correo antes de iniciar sesión."
-        : response.status === 429
-          ? "Demasiados intentos. Inténtalo más tarde."
-          : "La autenticación no pudo completarse.";
+        : code === "STAFF_ACCOUNT"
+          ? "Esta cuenta es de administración. Entra desde el panel web."
+          : code === "CONSENT_REQUIRED"
+            ? "Acepta los términos de uso y la política de privacidad para crear tu cuenta."
+            : response.status === 429
+              ? "Demasiados intentos. Inténtalo más tarde."
+              : "La autenticación no pudo completarse.";
     throw new AuthenticationError(message, code, response.status);
   }
   const newCookie = sessionCookieFromHeader(response.headers.get("set-cookie"));

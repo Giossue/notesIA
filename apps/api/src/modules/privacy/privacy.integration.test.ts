@@ -1484,3 +1484,24 @@ test("sign up requires the current terms and a new version blocks the app until 
   expect((await app.request("/v1/activities", { headers: { cookie } })).status).toBe(404);
   await withConsent.pool.end();
 });
+
+test("staff accounts sign in to the admin panel but never to the mobile app", async () => {
+  const email = `staff-${crypto.randomUUID()}@example.test`;
+  const password = "PrivacyIntegration2026!";
+  await register(email);
+  await seed.query(
+    `INSERT INTO autenticacion.roles_usuario (usuario_id, rol)
+     SELECT id, 'support' FROM autenticacion.usuarios WHERE correo = $1`,
+    [email],
+  );
+  const signIn = (origin: string) =>
+    app.request("/v1/auth/sign-in/email", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin },
+      body: JSON.stringify({ email, password }),
+    });
+  const mobile = await signIn("notesia://");
+  expect(mobile.status).toBe(403);
+  expect(await mobile.json()).toMatchObject({ code: "STAFF_ACCOUNT" });
+  expect((await signIn("http://127.0.0.1:3000")).status).toBe(200);
+});

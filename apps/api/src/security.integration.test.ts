@@ -165,6 +165,8 @@ beforeAll(async () => {
       NODE_ENV: "test",
       SMTP_HOST: "smtp.example.test",
       SMTP_FROM: "access@example.test",
+      // Push desactivado aunque el .env local tenga la clave: la prueba espera 503.
+      PUSH_ENCRYPTION_KEY: "",
     },
     stdout: "ignore",
     stderr: "ignore",
