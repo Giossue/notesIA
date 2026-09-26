@@ -1,11 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type CalendarEvent, calendarEventCreateSchema, type Profile } from "@notesia/contracts";
-import { localDateTimeToUtc, utcToLocalDateTime } from "@notesia/domain";
+import { localDateTimeToUtc, shiftLocalDate, utcToLocalDateTime } from "@notesia/domain";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
 import { ActivityIndicator, HelperText, Text, useTheme } from "react-native-paper";
@@ -20,9 +20,10 @@ import { getProfile } from "@/core/api/profile";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { userMessage } from "@/shared/errors";
-import { DateTimeField, FormSection, SelectField } from "@/shared/fields";
+import { DateField, DateTimeField, FormSection, SelectField } from "@/shared/fields";
 import { Button, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
+import { Tabs } from "@/shared/Tabs";
 import { EventActions } from "./EventActions";
 
 const localDateTimeSchema = z
@@ -100,6 +101,13 @@ export function EventFormScreen({ id, date }: { id?: string; date?: string }) {
   );
 }
 
+/** Tope de copias de un evento semanal: un año. */
+const maxWeeks = 52;
+
+/** Mueve "AAAA-MM-DD HH:mm" la cantidad de días indicada, conservando la hora. */
+const shiftLocal = (value: string, days: number) =>
+  `${shiftLocalDate(value.slice(0, 10), days)}${value.slice(10)}`;
+
 /** "AAAA-MM-DD HH:mm" una hora después (sin pasar de las 23:59 del mismo día). */
 function plusOneHour(value: string) {
   const hour = Math.min(23, Number(value.slice(11, 13)) + 1);
@@ -120,7 +128,9 @@ function EventForm({
   const queryClient = useQueryClient();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
-  const requestIdentity = useRef({ fingerprint: "", id: uuidv4() });
+  const requestIdentity = useRef({ fingerprint: "", ids: [uuidv4()] });
+  const [repeat, setRepeat] = useState<"none" | "weekly">("none");
+  const [repeatUntil, setRepeatUntil] = useState("");
   const {
     control,
     handleSubmit,
@@ -149,7 +159,7 @@ function EventForm({
   });
   const kind = watch("kind");
   const save = useMutation({
-    mutationFn: (values: FormValues) => {
+    mutationFn: async (values: FormValues) => {
       const fields = {
         kind: values.kind,
         title: values.title.trim(),
@@ -161,23 +171,45 @@ function EventForm({
       if (Date.parse(fields.endsAt) <= Date.parse(fields.startsAt)) {
         throw new Error("El fin debe ser posterior al inicio.");
       }
-      const fingerprint = JSON.stringify(fields);
-      if (requestIdentity.current.fingerprint !== fingerprint) {
-        requestIdentity.current = { fingerprint, id: uuidv4() };
+      // Cada semana es un evento aparte, de la fecha de inicio hasta "Hasta".
+      const weeks: number[] = [0];
+      if (!event && repeat === "weekly") {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(repeatUntil))
+          throw new Error("Elige hasta qué fecha se repite.");
+        if (repeatUntil < values.startsLocal.slice(0, 10))
+          throw new Error("La fecha final debe ser posterior al inicio.");
+        while (shiftLocal(values.startsLocal, 7 * weeks.length).slice(0, 10) <= repeatUntil) {
+          if (weeks.length >= maxWeeks) throw new Error("Se puede repetir como máximo un año.");
+          weeks.push(7 * weeks.length);
+        }
       }
+      // Los mismos datos reutilizan los mismos ids: reintentar no duplica eventos.
+      const fingerprint = JSON.stringify({ fields, weeks: weeks.length });
+      if (requestIdentity.current.fingerprint !== fingerprint) {
+        requestIdentity.current = { fingerprint, ids: weeks.map(() => uuidv4()) };
+      }
+      const { ids } = requestIdentity.current;
       if (event) {
         return updateCalendarEvent(event.id, {
           ...fields,
           version: event.version,
-          mutationId: requestIdentity.current.id,
+          mutationId: ids[0] ?? uuidv4(),
         });
       }
-      return createCalendarEvent(
-        calendarEventCreateSchema.parse({
-          ...fields,
-          id: requestIdentity.current.id,
-        }),
-      );
+      let first: CalendarEvent | undefined;
+      for (const [index, days] of weeks.entries()) {
+        const created = await createCalendarEvent(
+          calendarEventCreateSchema.parse({
+            ...fields,
+            startsAt: toUtc(shiftLocal(values.startsLocal, days), values.timeZone),
+            endsAt: toUtc(shiftLocal(values.endsLocal, days), values.timeZone),
+            id: ids[index],
+          }),
+        );
+        first ??= created;
+      }
+      if (!first) throw new Error("No se pudo crear el evento.");
+      return first;
     },
     onSuccess: (updated) => {
       queryClient.setQueryData(["calendar-event", updated.id], updated);
@@ -272,8 +304,32 @@ function EventForm({
         {errors.endsLocal && <HelperText type="error">{errors.endsLocal.message}</HelperText>}
       </FormSection>
 
+      {!event && (
+        <FormSection
+          title="Repetir"
+          hint="Ideal para tu horario de clases: crea el evento cada semana hasta la fecha elegida."
+        >
+          <Tabs
+            value={repeat}
+            onValueChange={setRepeat}
+            buttons={[
+              { value: "none", label: "No" },
+              { value: "weekly", label: "Cada semana" },
+            ]}
+          />
+          {repeat === "weekly" && (
+            <DateField label="Hasta" value={repeatUntil} onChange={setRepeatUntil} />
+          )}
+        </FormSection>
+      )}
+
       {offline && (
         <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
+      )}
+      {save.isError && (
+        <Text accessibilityRole="alert" style={{ color: theme.colors.error }}>
+          {userMessage(save.error)}
+        </Text>
       )}
       <Button
         mode="contained"
