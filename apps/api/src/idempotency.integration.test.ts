@@ -13,6 +13,7 @@ import {
 import { Pool } from "pg";
 import { createApp } from "./app";
 import { createAuth } from "./auth/create-auth";
+import { acceptCurrentDocuments } from "./test-consent";
 
 const sourceUrl = process.env.DATABASE_URL;
 if (!sourceUrl) throw new Error("DATABASE_URL is required for local integration tests");
@@ -105,7 +106,9 @@ async function register(email: string) {
     body: JSON.stringify({ name: "Estudiante", email, password: "IdempotencyIntegration2026!" }),
   });
   expect(response.status).toBe(200);
-  return response.headers.get("set-cookie")?.split(";")[0] ?? "";
+  const cookie = response.headers.get("set-cookie")?.split(";")[0] ?? "";
+  await acceptCurrentDocuments(app.request, cookie);
+  return cookie;
 }
 afterAll(async () => {
   for (const cookie of [cookieA, cookieB, cookieC, cookieD, cookieE]) {

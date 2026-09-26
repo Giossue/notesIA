@@ -304,6 +304,41 @@ export function createApp(
     return next();
   });
 
+  // Con una versión nueva de términos o privacidad sin aceptar, la app no se usa
+  // hasta aceptarla. Quedan libres la sesión, leer y aceptar documentos, el
+  // perfil que muestra la app, exportar y pedir la eliminación de la cuenta.
+  if (privacyDependencies)
+    app.use("/v1/*", async (c, next) => {
+      const path = c.req.path;
+      if (
+        path === "/v1/health" ||
+        path === "/v1/me" ||
+        path === "/v1/me/export" ||
+        path === "/v1/me/deletion-request" ||
+        path.startsWith("/v1/auth/") ||
+        path.startsWith("/v1/admin/") ||
+        path.startsWith("/v1/privacy/") ||
+        path.startsWith("/v1/me/consents") ||
+        path.startsWith("/v1/me/push-devices")
+      )
+        return next();
+      const session = await privacyDependencies.getSession(c.req.raw.headers);
+      if (!session) return next();
+      if (!(await privacyDependencies.privacy.missingRequired(session.user.id, "es")))
+        return next();
+      return c.json(
+        {
+          type: "https://notesia.local/problems/consent-required",
+          title: "Acepta la versión vigente de los términos para continuar.",
+          status: 403,
+          code: "CONSENT_REQUIRED",
+          requestId: requestIdFor(c.req.raw),
+        } satisfies Problem,
+        403,
+        { "Content-Type": "application/problem+json" },
+      );
+    });
+
   if (idempotencyDependencies)
     app.use("/v1/*", async (c, next) => {
       const method = c.req.method.toUpperCase();

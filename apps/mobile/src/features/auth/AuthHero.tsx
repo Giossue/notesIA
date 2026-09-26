@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { StatusBar, StyleSheet, useWindowDimensions, View } from "react-native";
-import { IconButton, Text } from "react-native-paper";
-import Svg, { Defs, Line, RadialGradient, Rect, Stop } from "react-native-svg";
+import { ScrollView, StatusBar, StyleSheet, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, IconButton, Text, useTheme } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 /** Fondo oscuro fijo de la entrada, igual en modo claro y oscuro. */
 export const heroColors = {
@@ -14,27 +14,38 @@ export const heroColors = {
 
 const CELL = 56;
 
-/** Cuadrícula tenue con un brillo azul en la esquina superior derecha. */
+/**
+ * Cuadrícula tenue con un brillo azul en la esquina superior derecha. Se dibuja
+ * con vistas: un SVG de pantalla completa dejaba la primera pintura en negro.
+ */
 export function HeroBackdrop({ height }: { height: number }) {
   const { width } = useWindowDimensions();
   const columns = Array.from({ length: Math.ceil(width / CELL) }, (_, i) => (i + 1) * CELL);
   const rows = Array.from({ length: Math.ceil(height / CELL) }, (_, i) => (i + 1) * CELL);
   return (
-    <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Defs>
-        <RadialGradient id="glow" cx={width} cy={0} r={width * 0.9} gradientUnits="userSpaceOnUse">
-          <Stop offset="0" stopColor={heroColors.glow} stopOpacity={0.35} />
-          <Stop offset="1" stopColor={heroColors.glow} stopOpacity={0} />
-        </RadialGradient>
-      </Defs>
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdrop]}>
+      {/* Capas concéntricas casi transparentes: un brillo difuso sin SVG. */}
+      {[1.6, 1.25, 0.95, 0.7, 0.5].map((scale) => (
+        <View
+          key={scale}
+          style={[
+            styles.glow,
+            {
+              width: width * scale,
+              height: width * scale,
+              top: (-width * scale) / 2,
+              right: (-width * scale) / 2,
+            },
+          ]}
+        />
+      ))}
       {columns.map((x) => (
-        <Line key={`c${x}`} x1={x} x2={x} y1={0} y2={height} stroke={heroColors.line} />
+        <View key={`c${x}`} style={[styles.column, { left: x, height }]} />
       ))}
       {rows.map((y) => (
-        <Line key={`r${y}`} x1={0} x2={width} y1={y} y2={y} stroke={heroColors.line} />
+        <View key={`r${y}`} style={[styles.row, { top: y, width }]} />
       ))}
-      <Rect width={width} height={height} fill="url(#glow)" />
-    </Svg>
+    </View>
   );
 }
 
@@ -42,7 +53,7 @@ export function HeroStatusBar() {
   return <StatusBar barStyle="light-content" backgroundColor={heroColors.background} />;
 }
 
-/** Cabecera de las pantallas de acceso: logo, título grande y bajada. */
+/** Cabecera de las pantallas de acceso: título grande y bajada. */
 export function AuthHero({
   title,
   subtitle,
@@ -79,7 +90,94 @@ export function AuthHero({
   );
 }
 
+/** Pantalla de entrada: cabecera oscura y hoja blanca redondeada debajo. */
+export function AuthLayout({
+  title,
+  subtitle,
+  onBack,
+  children,
+}: {
+  title: string;
+  subtitle: ReactNode;
+  onBack?: () => void;
+  children: ReactNode;
+}) {
+  const theme = useTheme();
+  return (
+    <SafeAreaView style={styles.dark} edges={["top"]}>
+      <HeroStatusBar />
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scroll}
+        bounces={false}
+      >
+        <AuthHero title={title} subtitle={subtitle} onBack={onBack} />
+        <SafeAreaView
+          edges={["bottom"]}
+          style={[styles.sheet, { backgroundColor: theme.colors.surface }]}
+        >
+          {children}
+        </SafeAreaView>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/** Espera o error antes de entrar, sobre el mismo fondo oscuro. */
+export function HeroStatus({
+  label,
+  message,
+  action,
+}: {
+  label?: string;
+  message?: string;
+  action?: ReactNode;
+}) {
+  const { height } = useWindowDimensions();
+  return (
+    <SafeAreaView style={[styles.dark, styles.status]}>
+      <HeroStatusBar />
+      <HeroBackdrop height={height} />
+      {message ? (
+        <Text accessibilityRole="alert" variant="bodyLarge" style={styles.statusText}>
+          {message}
+        </Text>
+      ) : (
+        <ActivityIndicator color={heroColors.text} accessibilityLabel={label} />
+      )}
+      {action}
+    </SafeAreaView>
+  );
+}
+
 const styles = StyleSheet.create({
+  dark: { flex: 1, backgroundColor: heroColors.background },
+  scroll: { flexGrow: 1 },
+  sheet: {
+    flexGrow: 1,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 24,
+    gap: 20,
+  },
+  backdrop: { overflow: "hidden" },
+  glow: { position: "absolute", borderRadius: 9999, backgroundColor: "rgba(52, 104, 225, 0.06)" },
+  column: {
+    position: "absolute",
+    top: 0,
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: heroColors.line,
+  },
+  row: {
+    position: "absolute",
+    left: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: heroColors.line,
+  },
+  status: { alignItems: "center", justifyContent: "center", gap: 20, padding: 24 },
+  statusText: { color: heroColors.text, textAlign: "center" },
   hero: {
     paddingHorizontal: 24,
     paddingTop: 48,

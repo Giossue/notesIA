@@ -22,4 +22,5 @@ export const { auth, getSession, handler, pool } = createAuth({
   allowSignUp: process.env.ALLOW_SIGNUP === "true",
   recovery: mailConfig?.resetUrl ? { resetUrl: mailConfig.resetUrl } : undefined,
   verificationMail: mailConfig ? {} : undefined,
+  requireSignupConsent: true,
 });

@@ -114,10 +114,17 @@ export async function signIn(email: string, password: string) {
   if (!(await getSessionCookie())) throw new Error("No se pudo guardar la sesión de forma segura.");
 }
 
-export async function signUp(name: string, email: string, password: string, avatar: AvatarId) {
+export async function signUp(
+  name: string,
+  email: string,
+  password: string,
+  avatar: AvatarId,
+  /** Versiones de términos y privacidad que aceptó en el formulario. */
+  acceptedDocuments: string[],
+) {
   const response = await authRequest("/sign-up/email", {
     method: "POST",
-    body: { name, email, password, avatar },
+    body: { name, email, password, avatar, acceptedDocuments },
   });
   const parsed = registrationSchema.safeParse(await response.json());
   if (!parsed.success || (await getSessionCookie())) {

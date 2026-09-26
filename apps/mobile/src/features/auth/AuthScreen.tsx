@@ -1,13 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { avatarIdSchema, defaultAvatarId } from "@notesia/contracts";
 import { useNetInfo } from "@react-native-community/netinfo";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ComponentProps, type ReactNode, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { BackHandler, Linking, Pressable, StyleSheet, View } from "react-native";
 import { Icon, Text, useTheme } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
+import { listPrivacyDocuments } from "@/core/api/privacy";
 import {
   emailVerificationCallbackResult,
   isEmailVerificationRequired,
@@ -17,9 +17,16 @@ import {
   signUp,
 } from "@/core/auth/auth-client";
 import { clearPrivateCache } from "@/core/auth/query-cache";
+import {
+  LegalConsentCheckbox,
+  type PrivacyDocument,
+  requiredDocuments,
+} from "@/features/privacy/LegalConsent";
+import { ExitOnDoubleBack } from "@/navigation/useExitOnDoubleBack";
 import { AvatarPicker } from "@/shared/AvatarPicker";
+import { userMessage } from "@/shared/errors";
 import { Button, TextInput } from "@/shared/paper";
-import { AuthHero, HeroStatusBar, heroColors } from "./AuthHero";
+import { AuthLayout, HeroStatus } from "./AuthHero";
 import { WelcomeScreen } from "./WelcomeScreen";
 import { readWelcomeSeen, writeWelcomeSeen } from "./welcome-storage";
 
@@ -58,24 +65,30 @@ const heroCopy = {
 } as const;
 
 export function AuthScreen() {
-  const queryClient = useQueryClient();
-  const welcome = useQuery({
-    queryKey: ["welcome-seen"],
-    queryFn: readWelcomeSeen,
-    // Es una lectura local: no debe pausarse sin conexión.
-    networkMode: "always",
-    staleTime: Number.POSITIVE_INFINITY,
-  });
+  // Dato local del teléfono: fuera de React Query, porque al cerrar sesión se
+  // limpia esa caché y la lectura quedaría cancelada a medias.
+  const [welcomeSeen, setWelcomeSeen] = useState<boolean | null>(null);
   const [mode, setMode] = useState<Mode>("signIn");
+  useEffect(() => {
+    let mounted = true;
+    readWelcomeSeen()
+      // Si no se puede leer el llavero, se entra directo al acceso.
+      .catch(() => true)
+      .then((seen) => {
+        if (mounted) setWelcomeSeen(seen);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-  if (welcome.isPending) return <View style={styles.dark} />;
-  // Si no se puede leer el llavero, se entra directo al acceso.
-  if (welcome.data === false) {
+  if (welcomeSeen === null) return <HeroStatus label="Cargando" />;
+  if (!welcomeSeen) {
     return (
       <WelcomeScreen
         onDone={(next) => {
           setMode(next);
-          queryClient.setQueryData(["welcome-seen"], true);
+          setWelcomeSeen(true);
           void writeWelcomeSeen().catch(() => undefined);
         }}
       />
@@ -118,6 +131,18 @@ function AuthFlow({ mode, setMode }: { mode: Mode; setMode(mode: Mode): void }) 
     return () => subscription.remove();
   }, [setMode]);
 
+  // Atrás (gesto o botón) vuelve a iniciar sesión; desde ahí cierra la app.
+  useEffect(() => {
+    if (!verificationEmail && mode === "signIn") return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      setVerificationEmail(null);
+      setMode("signIn");
+      setNotice(null);
+      return true;
+    });
+    return () => subscription.remove();
+  }, [verificationEmail, mode, setMode]);
+
   const onVerificationRequired = (email: string) => {
     setVerificationEmail(email);
     setNotice(null);
@@ -134,67 +159,55 @@ function AuthFlow({ mode, setMode }: { mode: Mode; setMode(mode: Mode): void }) 
     : { ...heroCopy[mode], onBack: mode === "recover" ? () => go("signIn") : undefined };
 
   return (
-    <SafeAreaView style={styles.dark} edges={["top"]}>
-      <HeroStatusBar />
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.scroll}
-        bounces={false}
-      >
-        <AuthHero title={hero.title} subtitle={hero.subtitle} onBack={hero.onBack} />
-        <SafeAreaView
-          edges={["bottom"]}
-          style={[styles.sheet, { backgroundColor: theme.colors.surface }]}
-        >
-          {offline && (
-            <Banner tone="error" icon="alert">
-              Sin conexión. Revisa tu red e inténtalo de nuevo.
-            </Banner>
-          )}
-          {notice && (
-            <Banner tone={notice.tone} icon={notice.tone === "success" ? "check" : "alert"}>
-              {notice.text}
-            </Banner>
-          )}
-          {verificationEmail ? (
-            <EmailVerificationPanel
-              email={verificationEmail}
-              offline={offline}
-              onContinue={() => {
-                setVerificationEmail(null);
-                go("signIn");
-              }}
-            />
-          ) : mode === "recover" ? (
-            <PasswordRecoveryForm offline={offline} onBack={() => go("signIn")} />
-          ) : mode === "signIn" ? (
-            <SignInForm
-              offline={offline}
-              onRecover={() => go("recover")}
-              onVerificationRequired={onVerificationRequired}
-            />
-          ) : (
-            <SignUpForm offline={offline} onVerificationRequired={onVerificationRequired} />
-          )}
-          {!verificationEmail && mode !== "recover" && (
-            <View style={styles.switchRow}>
-              <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                {mode === "signIn" ? "¿No tienes cuenta?" : "¿Ya tienes cuenta?"}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                hitSlop={12}
-                onPress={() => go(mode === "signIn" ? "signUp" : "signIn")}
-              >
-                <Text style={[styles.link, { color: theme.colors.primary }]}>
-                  {mode === "signIn" ? "Crea una" : "Inicia sesión"}
-                </Text>
-              </Pressable>
-            </View>
-          )}
-        </SafeAreaView>
-      </ScrollView>
-    </SafeAreaView>
+    <AuthLayout title={hero.title} subtitle={hero.subtitle} onBack={hero.onBack}>
+      {!verificationEmail && mode === "signIn" && <ExitOnDoubleBack />}
+      {offline && (
+        <Banner tone="error" icon="alert">
+          Sin conexión. Revisa tu red e inténtalo de nuevo.
+        </Banner>
+      )}
+      {notice && (
+        <Banner tone={notice.tone} icon={notice.tone === "success" ? "check" : "alert"}>
+          {notice.text}
+        </Banner>
+      )}
+      {verificationEmail ? (
+        <EmailVerificationPanel
+          email={verificationEmail}
+          offline={offline}
+          onContinue={() => {
+            setVerificationEmail(null);
+            go("signIn");
+          }}
+        />
+      ) : mode === "recover" ? (
+        <PasswordRecoveryForm offline={offline} onBack={() => go("signIn")} />
+      ) : mode === "signIn" ? (
+        <SignInForm
+          offline={offline}
+          onRecover={() => go("recover")}
+          onVerificationRequired={onVerificationRequired}
+        />
+      ) : (
+        <SignUpForm offline={offline} onVerificationRequired={onVerificationRequired} />
+      )}
+      {!verificationEmail && mode !== "recover" && (
+        <View style={styles.switchRow}>
+          <Text style={{ color: theme.colors.onSurfaceVariant }}>
+            {mode === "signIn" ? "¿No tienes cuenta?" : "¿Ya tienes cuenta?"}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            hitSlop={12}
+            onPress={() => go(mode === "signIn" ? "signUp" : "signIn")}
+          >
+            <Text style={[styles.link, { color: theme.colors.primary }]}>
+              {mode === "signIn" ? "Crea una" : "Inicia sesión"}
+            </Text>
+          </Pressable>
+        </View>
+      )}
+    </AuthLayout>
   );
 }
 
@@ -450,9 +463,26 @@ function SignUpForm({
   });
   const mutation = useMutation({
     mutationFn: (values: SignUpValues) =>
-      signUp(values.name.trim(), values.email.trim().toLowerCase(), values.password, values.avatar),
+      signUp(
+        values.name.trim(),
+        values.email.trim().toLowerCase(),
+        values.password,
+        values.avatar,
+        legal.documents.map((document) => document.id),
+      ),
     onSuccess: ({ email }) => onVerificationRequired(email),
   });
+  const legal = useLegalDocuments();
+  const [agreed, setAgreed] = useState(false);
+  const [legalError, setLegalError] = useState<string>();
+  const submit = () =>
+    void handleSubmit((values) => {
+      if (legal.documents.length > 0 && !agreed) {
+        setLegalError("Acepta los documentos para crear tu cuenta.");
+        return;
+      }
+      mutation.mutate(values);
+    })();
 
   return (
     <View style={styles.form}>
@@ -510,15 +540,62 @@ function SignUpForm({
           />
         )}
       />
+      {legal.error ? (
+        <Banner tone="error" icon="alert">
+          No se pudieron cargar los términos. Revisa tu conexión e inténtalo de nuevo.
+        </Banner>
+      ) : legal.documents.length > 0 ? (
+        <LegalConsentCheckbox
+          documents={legal.documents}
+          checked={agreed}
+          onToggle={() => {
+            setAgreed((value) => !value);
+            setLegalError(undefined);
+          }}
+          error={legalError}
+        />
+      ) : null}
+      {mutation.isError && (
+        <Banner tone="error" icon="alert">
+          {userMessage(mutation.error)}
+        </Banner>
+      )}
       <PrimaryButton
-        loading={mutation.isPending}
-        disabled={offline || mutation.isPending}
-        onPress={() => void handleSubmit((values) => mutation.mutate(values))()}
+        loading={mutation.isPending || legal.loading}
+        disabled={offline || mutation.isPending || legal.loading || legal.error}
+        onPress={submit}
       >
         Crear cuenta
       </PrimaryButton>
     </View>
   );
+}
+
+/**
+ * Documentos a aceptar al registrarse. Se cargan fuera de React Query: sin
+ * sesión la app limpia esa caché y cancelaría la consulta a medias.
+ */
+function useLegalDocuments() {
+  const [state, setState] = useState<{
+    documents: PrivacyDocument[];
+    loading: boolean;
+    error: boolean;
+  }>({ documents: [], loading: true, error: false });
+  useEffect(() => {
+    let mounted = true;
+    listPrivacyDocuments("es")
+      .then((documents) => {
+        if (mounted)
+          setState({ documents: requiredDocuments(documents), loading: false, error: false });
+      })
+      .catch(() => {
+        if (mounted) setState({ documents: [], loading: false, error: true });
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  return state;
 }
 
 function SentPanel({
@@ -591,17 +668,6 @@ function EmailVerificationPanel({
 }
 
 const styles = StyleSheet.create({
-  dark: { flex: 1, backgroundColor: heroColors.background },
-  scroll: { flexGrow: 1 },
-  sheet: {
-    flexGrow: 1,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 24,
-    gap: 20,
-  },
   banner: {
     flexDirection: "row",
     alignItems: "center",

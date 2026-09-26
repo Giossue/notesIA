@@ -12,16 +12,20 @@ test("cada avatar permitido tiene su SVG sin CSS", () => {
   }
 });
 
-test("el selector marca el avatar actual y avisa el nuevo", async () => {
+test("el selector se abre aparte, marca el avatar actual y avisa el nuevo", async () => {
   const onChange = jest.fn();
   await render(
     <PaperProvider>
       <AvatarPicker value={defaultAvatarId} onChange={onChange} />
     </PaperProvider>,
   );
+  // Cerrado solo se dibuja el avatar elegido.
+  expect(screen.queryByLabelText(`Avatar ${defaultAvatarId.replaceAll("-", " ")}`)).toBeNull();
+  const user = userEvent.setup();
+  await user.press(screen.getByLabelText("Cambiar avatar"));
   const current = screen.getByLabelText(`Avatar ${defaultAvatarId.replaceAll("-", " ")}`);
   expect(current).toBeSelected();
   const other = avatarIds[avatarIds.indexOf(defaultAvatarId) + 1] ?? defaultAvatarId;
-  await userEvent.setup().press(screen.getByLabelText(`Avatar ${other.replaceAll("-", " ")}`));
+  await user.press(screen.getByLabelText(`Avatar ${other.replaceAll("-", " ")}`));
   expect(onChange).toHaveBeenCalledWith(other);
 });

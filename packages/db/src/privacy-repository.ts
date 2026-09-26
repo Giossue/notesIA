@@ -59,6 +59,40 @@ export function createPrivacyRepository(pool: Pool) {
       );
       return result.rows;
     },
+    /** Ids de la versión vigente de términos y privacidad: los que exige usar la app. */
+    async requiredDocumentIds(language: PrivacyLanguage) {
+      const result = await pool.query<{ id: string }>(
+        `SELECT DISTINCT ON (tipo) id FROM dominio.documentos_privacidad
+         WHERE idioma = $1 AND publicado_en IS NOT NULL AND tipo IN ('terms', 'privacy')
+         ORDER BY tipo, version DESC`,
+        [language],
+      );
+      return result.rows.map((row) => row.id);
+    },
+    /** Hay algún documento obligatorio vigente cuya última decisión no es aceptarlo. */
+    async missingRequired(userId: string, language: PrivacyLanguage) {
+      const result = await pool.query<{ missing: boolean }>(
+        `SELECT EXISTS (
+           SELECT 1 FROM (
+             SELECT DISTINCT ON (tipo) id, tipo FROM dominio.documentos_privacidad
+             WHERE idioma = $2 AND publicado_en IS NOT NULL AND tipo IN ('terms', 'privacy')
+             ORDER BY tipo, version DESC
+           ) vigente
+           WHERE NOT EXISTS (
+             SELECT 1 FROM (
+               SELECT DISTINCT ON (d.tipo) c.documento_id, c.decision
+               FROM dominio.consentimientos c
+               JOIN dominio.documentos_privacidad d ON d.id = c.documento_id
+               WHERE c.usuario_id = $1 AND d.tipo = vigente.tipo
+               ORDER BY d.tipo, c.orden DESC
+             ) ultima
+             WHERE ultima.documento_id = vigente.id AND ultima.decision = 'accepted'
+           )
+         ) AS missing`,
+        [userId, language],
+      );
+      return result.rows[0]?.missing ?? false;
+    },
     async currentConsents(userId: string) {
       const result = await pool.query<ConsentRecord>(
         `SELECT DISTINCT ON (d.tipo) ${consentColumns}

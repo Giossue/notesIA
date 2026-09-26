@@ -23,6 +23,7 @@ import { Client, Pool } from "pg";
 import { createApp } from "./app";
 import { createAuth } from "./auth/create-auth";
 import { createAiGateway } from "./modules/ai/gateway";
+import { acceptCurrentDocuments } from "./test-consent";
 
 const source = process.env.DATABASE_URL;
 if (!source) throw new Error("DATABASE_URL is required for backend flow tests");
@@ -239,6 +240,7 @@ test("a student can consent, plan, work, see risk, revoke AI and keep manual pla
   });
   expect(foreignRegistration.status).toBe(200);
   const foreignCookie = foreignRegistration.headers.get("set-cookie")?.split(";")[0] ?? "";
+  await acceptCurrentDocuments(app.request, foreignCookie);
   expect(
     (await app.request(`/v1/plans/${draft.id}`, { headers: { cookie: foreignCookie } })).status,
   ).toBe(404);

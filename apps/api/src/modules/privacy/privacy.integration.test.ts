@@ -19,6 +19,7 @@ import { Hono } from "hono";
 import { Client, Pool } from "pg";
 import { createApp } from "../../app";
 import { createAuth } from "../../auth/create-auth";
+import { acceptCurrentDocuments } from "../../test-consent";
 import { registerAccountDeletionRoutes } from "../account-deletion/routes";
 import { createAiGateway } from "../ai/gateway";
 import { createAiKeyCipher } from "../ai/key-cipher";
@@ -727,6 +728,7 @@ test("only an administrator can publish documents and each action is audited", a
   expect((await post("/v1/me/consents", adminCookie, { documentId: aiDocumentId })).status).toBe(
     200,
   );
+  await acceptCurrentDocuments(app.request, adminCookie);
   const suggestion = await suggest();
   expect(suggestion.status).toBe(200);
   expect(await suggestion.json()).toMatchObject({
@@ -1404,4 +1406,81 @@ test("deletion routes stay disabled without an approved policy", async () => {
   const response = await disabled.request("/v1/me/deletion-request");
   expect(response.status).toBe(503);
   expect(await response.json()).toMatchObject({ code: "POLICY_UNAVAILABLE" });
+});
+
+test("sign up requires the current terms and a new version blocks the app until accepted", async () => {
+  const withConsent = createAuth({
+    databaseUrl: testUrl.toString(),
+    secret: authSecret,
+    baseURL: "http://127.0.0.1:3000",
+    allowSignUp: true,
+    allowUnverifiedEmailForTests: true,
+    rateLimitEnabled: false,
+    requireSignupConsent: true,
+  });
+  const nextVersion = async (type: "terms" | "privacy") =>
+    (
+      await seed.query<{ version: number }>(
+        `SELECT coalesce(max(version), 0)::integer + 1 AS version
+         FROM dominio.documentos_privacidad WHERE tipo = $1 AND idioma = 'es'`,
+        [type],
+      )
+    ).rows[0]?.version;
+  const publish = async (type: "terms" | "privacy") => {
+    const id = crypto.randomUUID();
+    await seed.query(
+      `INSERT INTO dominio.documentos_privacidad (id, tipo, version, idioma, contenido, publicado_en)
+       VALUES ($1, $2, $3, 'es', 'Texto de prueba', now())`,
+      [id, type, await nextVersion(type)],
+    );
+    return id;
+  };
+  const terms = await publish("terms");
+  const privacy = await publish("privacy");
+  const signUp = (email: string, acceptedDocuments?: string[]) =>
+    withConsent.handler(
+      new Request("http://127.0.0.1:3000/v1/auth/sign-up/email", {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://127.0.0.1:3000" },
+        body: JSON.stringify({
+          name: "Prueba",
+          email,
+          password: "PrivacyIntegration2026!",
+          acceptedDocuments,
+        }),
+      }),
+    );
+
+  const rejectedEmail = `consent-missing-${crypto.randomUUID()}@example.test`;
+  const rejected = await signUp(rejectedEmail, [terms]);
+  expect(rejected.status).toBe(400);
+  expect(await rejected.json()).toMatchObject({ code: "CONSENT_REQUIRED" });
+  expect(
+    (await seed.query("SELECT 1 FROM autenticacion.usuarios WHERE correo = $1", [rejectedEmail]))
+      .rowCount,
+  ).toBe(0);
+
+  const email = `consent-ok-${crypto.randomUUID()}@example.test`;
+  const accepted = await signUp(email, [terms, privacy]);
+  expect(accepted.status).toBe(200);
+  const cookie = accepted.headers.get("set-cookie")?.split(";")[0] ?? "";
+  const recorded = await seed.query<{ documentId: string }>(
+    `SELECT c.documento_id AS "documentId" FROM dominio.consentimientos c
+     JOIN autenticacion.usuarios u ON u.id = c.usuario_id
+     WHERE u.correo = $1 AND c.decision = 'accepted'`,
+    [email],
+  );
+  expect(recorded.rows.map((row) => row.documentId).sort()).toEqual([terms, privacy].sort());
+  // Aceptado todo, la API deja pasar (la ruta no existe en esta app de prueba).
+  expect((await app.request("/v1/activities", { headers: { cookie } })).status).toBe(404);
+
+  const terms2 = await publish("terms");
+  const blocked = await app.request("/v1/activities", { headers: { cookie } });
+  expect(blocked.status).toBe(403);
+  expect(await blocked.json()).toMatchObject({ code: "CONSENT_REQUIRED" });
+  // Leer y aceptar documentos, el perfil y cerrar sesión siguen disponibles.
+  expect((await app.request("/v1/me/consents", { headers: { cookie } })).status).toBe(200);
+  expect((await post("/v1/me/consents", cookie, { documentId: terms2 })).status).toBe(200);
+  expect((await app.request("/v1/activities", { headers: { cookie } })).status).toBe(404);
+  await withConsent.pool.end();
 });

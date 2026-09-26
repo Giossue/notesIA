@@ -160,6 +160,12 @@ export async function syncOutbox() {
       await recordRetry(item, code, title);
       continue;
     }
+    // Falta aceptar una versión nueva de los términos: el cambio sigue pendiente y
+    // se envía después de aceptarla. Los siguientes fallarían igual.
+    if (code === "CONSENT_REQUIRED") {
+      await recordRetry(item, code, title);
+      break;
+    }
     const database = await localDatabase();
     await database.execute(
       `UPDATE mutation_outbox SET status = ?, attempt_count = attempt_count + 1,

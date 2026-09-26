@@ -1,12 +1,13 @@
 import { avatarIdSchema } from "@notesia/contracts";
 import {
+  createPrivacyRepository,
   createRecoveryMailRepository,
   createSecureStorage,
   createTracedPool,
   createVerificationMailRepository,
 } from "@notesia/db";
 import { betterAuth } from "better-auth";
-import { APIError } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { twoFactor } from "better-auth/plugins";
 import { PostgresDialect } from "kysely";
 import { Pool } from "pg";
@@ -22,7 +23,17 @@ type AuthOptions = {
   verificationMail?: { tokenTtlSeconds?: number };
   allowUnverifiedEmailForTests?: boolean;
   trustedOrigins?: string[];
+  /** Exige aceptar los términos y la privacidad vigentes al registrarse y lo guarda. */
+  requireSignupConsent?: boolean;
 };
+
+/** Idioma de los documentos que la app muestra al registrarse. */
+const CONSENT_LANGUAGE = "es";
+
+function acceptedDocumentIds(body: unknown) {
+  const value = (body as { acceptedDocuments?: unknown } | null)?.acceptedDocuments;
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
+}
 
 const VERIFICATION_CALLBACK_URL = "notesia://email-verified";
 
@@ -55,8 +66,22 @@ export function createAuth(options: AuthOptions) {
   const verificationMail = options.verificationMail
     ? createVerificationMailRepository(pool, options.secret)
     : null;
+  const privacy = options.requireSignupConsent ? createPrivacyRepository(pool) : null;
   const auth = betterAuth({
     appName: "NotesIA",
+    hooks: {
+      // Sin aceptar la versión vigente de los documentos obligatorios no hay cuenta.
+      before: createAuthMiddleware(async (ctx) => {
+        if (!privacy || ctx.path !== "/sign-up/email") return;
+        const accepted = acceptedDocumentIds(ctx.body);
+        const required = await privacy.requiredDocumentIds(CONSENT_LANGUAGE);
+        if (required.some((id) => !accepted.includes(id)))
+          throw APIError.from("BAD_REQUEST", {
+            code: "CONSENT_REQUIRED",
+            message: "Acepta los términos de uso y la política de privacidad para crear tu cuenta.",
+          });
+      }),
+    },
     baseURL: options.baseURL,
     basePath: "/v1/auth",
     secret: options.secret,
@@ -134,6 +159,18 @@ export function createAuth(options: AuthOptions) {
         }
       : undefined,
     databaseHooks: {
+      user: {
+        create: {
+          // Registra la aceptación hecha en el formulario de registro, con su versión.
+          after: async (user, ctx) => {
+            if (!privacy || ctx?.path !== "/sign-up/email") return;
+            const accepted = acceptedDocumentIds(ctx.body);
+            const required = await privacy.requiredDocumentIds(CONSENT_LANGUAGE);
+            for (const id of required.filter((id) => accepted.includes(id)))
+              await privacy.accept(user.id, id);
+          },
+        },
+      },
       session: {
         create: {
           before: async (session) => {

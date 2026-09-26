@@ -1,7 +1,15 @@
-import { useRef, useState } from "react";
-import { Image, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  BackHandler,
+  Image,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ExitOnDoubleBack } from "@/navigation/useExitOnDoubleBack";
 import { Button } from "@/shared/paper";
 import { HeroBackdrop, HeroStatusBar, heroColors } from "./AuthHero";
 
@@ -34,8 +42,20 @@ export function WelcomeScreen({ onDone }: { onDone(mode: "signIn" | "signUp"): v
     setIndex(next);
   };
 
+  // Atrás regresa a la diapositiva anterior; en la primera cierra la app.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: goTo depende solo de index y width
+  useEffect(() => {
+    if (index === 0) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      goTo(index - 1);
+      return true;
+    });
+    return () => subscription.remove();
+  }, [index, width]);
+
   return (
     <SafeAreaView style={styles.page}>
+      {index === 0 && <ExitOnDoubleBack />}
       <HeroStatusBar />
       <HeroBackdrop height={height} />
       <ScrollView

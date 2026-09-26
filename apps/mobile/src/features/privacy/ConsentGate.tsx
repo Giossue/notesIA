@@ -1,28 +1,25 @@
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { ActivityIndicator, Checkbox, Text, useTheme } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { type ReactNode, useEffect, useState } from "react";
+import { AppState, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Portal, Text, useTheme } from "react-native-paper";
 import { acceptConsent, listConsents, listPrivacyDocuments } from "@/core/api/privacy";
 import { signOut } from "@/core/auth/auth-client";
 import { clearPrivateCache } from "@/core/auth/query-cache";
-import { layout } from "@/core/theme/layout";
+import { HeroBackdrop, HeroStatus, HeroStatusBar, heroColors } from "@/features/auth/AuthHero";
 import { userMessage } from "@/shared/errors";
-import { Button, Card } from "@/shared/paper";
-
-const required = { terms: "Términos de uso", privacy: "Política de privacidad" } as const;
+import { Button, Dialog } from "@/shared/paper";
+import { LegalConsentCheckbox, requiredDocuments } from "./LegalConsent";
 
 /**
- * RF-37: antes de usar la app, el estudiante acepta la versión vigente de los
- * términos y la política de privacidad. Si se publica una versión nueva, se
- * vuelve a pedir. El consentimiento de IA es aparte y opcional (Privacidad).
+ * RF-37: los términos y la política de privacidad se aceptan al registrarse.
+ * Si después se publica una versión nueva, la app se bloquea con este diálogo
+ * hasta aceptarla; la API responde CONSENT_REQUIRED mientras tanto.
  */
 export function ConsentGate({ children }: { children: ReactNode }) {
-  const theme = useTheme();
   const queryClient = useQueryClient();
-  const [agreed, setAgreed] = useState(false);
   const offline = useNetInfo().isConnected === false;
+  const { height } = useWindowDimensions();
   const documents = useQuery({
     queryKey: ["privacy-documents", "es"],
     queryFn: () => listPrivacyDocuments("es"),
@@ -35,6 +32,82 @@ export function ConsentGate({ children }: { children: ReactNode }) {
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["consents"] }),
   });
+
+  const accepted = new Set(
+    consents.data?.filter((item) => item.decision === "accepted").map((item) => item.documentId) ??
+      [],
+  );
+  const pending = requiredDocuments(documents.data ?? []).filter(
+    (document) => !accepted.has(document.id),
+  );
+
+  // Al volver a la app se comprueba de nuevo por si se publicó una versión nueva.
+  const { refetch: refetchDocuments } = documents;
+  const { refetch: refetchConsents } = consents;
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") return;
+      void refetchDocuments();
+      void refetchConsents();
+    });
+    return () => subscription.remove();
+  }, [refetchDocuments, refetchConsents]);
+
+  if (documents.isPending || consents.isPending) {
+    return <HeroStatus label="Cargando documentos" />;
+  }
+  // Sin conexión no se puede comprobar: no se bloquea el uso sin conexión de la app.
+  if ((documents.isError || consents.isError) && offline) return <>{children}</>;
+  if (documents.isError || consents.isError) {
+    const failed = documents.isError ? documents : consents;
+    return (
+      <HeroStatus
+        message={userMessage(failed.error)}
+        action={
+          <Button
+            mode="contained"
+            onPress={() => void failed.refetch()}
+            style={styles.pill}
+            contentStyle={styles.pillContent}
+          >
+            Reintentar
+          </Button>
+        }
+      />
+    );
+  }
+  if (pending.length === 0) return <>{children}</>;
+
+  // La app queda detrás, sin montar, hasta aceptar: la API también la bloquea.
+  return (
+    <View style={styles.blocked}>
+      <HeroStatusBar />
+      <HeroBackdrop height={height} />
+      <ConsentDialog
+        documents={pending}
+        accepting={accept.isPending}
+        error={accept.isError ? userMessage(accept.error) : undefined}
+        onAccept={() => accept.mutate(pending.map((document) => document.id))}
+      />
+    </View>
+  );
+}
+
+/** Diálogo obligatorio: no se cierra tocando fuera ni con atrás. */
+function ConsentDialog({
+  documents,
+  accepting,
+  error,
+  onAccept,
+}: {
+  documents: ReturnType<typeof requiredDocuments>;
+  accepting: boolean;
+  error?: string;
+  onAccept(): void;
+}) {
+  const theme = useTheme();
+  const queryClient = useQueryClient();
+  const [agreed, setAgreed] = useState(false);
   const logout = useMutation({
     mutationFn: signOut,
     onSuccess: async () => {
@@ -42,90 +115,43 @@ export function ConsentGate({ children }: { children: ReactNode }) {
       queryClient.setQueryData(["session"], null);
     },
   });
-
-  if (documents.isPending || consents.isPending) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator accessibilityLabel="Cargando documentos" />
-      </SafeAreaView>
-    );
-  }
-  // Sin conexión no se puede comprobar: no se bloquea el uso sin conexión de la app.
-  if ((documents.isError || consents.isError) && offline) return <>{children}</>;
-  if (documents.isError || consents.isError) {
-    const failed = documents.isError ? documents : consents;
-    return (
-      <SafeAreaView style={[styles.center, { padding: layout.pagePadding }]}>
-        <Text accessibilityRole="alert">{userMessage(failed.error)}</Text>
-        <Button onPress={() => void failed.refetch()}>Reintentar</Button>
-      </SafeAreaView>
-    );
-  }
-
-  const accepted = new Set(
-    consents.data.filter((item) => item.decision === "accepted").map((item) => item.documentId),
-  );
-  const pending = documents.data.filter(
-    (document) => document.type !== "ai" && !accepted.has(document.id),
-  );
-  if (pending.length === 0) return <>{children}</>;
-
   return (
-    <SafeAreaView style={[styles.page, { backgroundColor: theme.colors.background }]}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.heading}>
-          <Text variant="headlineSmall" style={styles.bold}>
-            Antes de empezar
-          </Text>
+    <Portal>
+      <Dialog visible dismissable={false} dismissableBackButton={false}>
+        <Dialog.Title>Actualizamos nuestros documentos</Dialog.Title>
+        <Dialog.Content style={styles.content}>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-            Para usar NotesIA necesitamos tu consentimiento para tratar tus datos según estos
-            documentos.
+            Para seguir usando NotesIA, acepta la versión vigente.
           </Text>
-        </View>
-        {pending.map((document) => (
-          <Card key={document.id} mode="contained">
-            <Card.Content style={styles.document}>
-              <Text variant="titleMedium" style={styles.bold}>
-                {required[document.type as keyof typeof required]} · versión {document.version}
-              </Text>
-              <Text selectable variant="bodyMedium">
-                {document.content}
-              </Text>
-            </Card.Content>
-          </Card>
-        ))}
-        <Checkbox.Item
-          label="He leído y acepto estos documentos"
-          status={agreed ? "checked" : "unchecked"}
-          onPress={() => setAgreed((value) => !value)}
-          position="leading"
-          style={styles.checkbox}
-          labelStyle={styles.checkboxLabel}
-        />
-        <Button
-          mode="contained"
-          icon="check"
-          disabled={!agreed || accept.isPending}
-          loading={accept.isPending}
-          onPress={() => accept.mutate(pending.map((document) => document.id))}
-        >
-          Aceptar y continuar
-        </Button>
-        <Button mode="text" icon="logout" onPress={() => logout.mutate()}>
-          Cerrar sesión
-        </Button>
-      </ScrollView>
-    </SafeAreaView>
+          <LegalConsentCheckbox
+            documents={documents}
+            checked={agreed}
+            onToggle={() => setAgreed((value) => !value)}
+            error={error}
+          />
+        </Dialog.Content>
+        <Dialog.Actions>
+          <Button icon="logout" onPress={() => logout.mutate()} disabled={logout.isPending}>
+            Cerrar sesión
+          </Button>
+          <Button
+            mode="contained"
+            icon="check"
+            disabled={!agreed || accepting}
+            loading={accepting}
+            onPress={onAccept}
+          >
+            Aceptar
+          </Button>
+        </Dialog.Actions>
+      </Dialog>
+    </Portal>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
-  content: { padding: layout.pagePadding, gap: layout.sectionGap },
-  heading: { gap: 6 },
-  bold: { fontWeight: "700" },
-  document: { gap: 8 },
-  checkbox: { paddingHorizontal: 0 },
-  checkboxLabel: { textAlign: "left" },
+  blocked: { flex: 1, backgroundColor: heroColors.background },
+  content: { gap: 12 },
+  pill: { borderRadius: 999 },
+  pillContent: { minHeight: 52 },
 });

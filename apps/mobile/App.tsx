@@ -6,15 +6,15 @@ import {
 } from "@react-navigation/native-stack";
 import {
   MutationCache,
+  QueryCache,
   QueryClient,
   QueryClientProvider,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
-import { ActivityIndicator, Text } from "react-native-paper";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { OfflineQueuedError } from "@/core/api/client";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { ApiError, OfflineQueuedError } from "@/core/api/client";
 import { getProfile } from "@/core/api/profile";
 import { getCurrentUser } from "@/core/auth/auth-client";
 import { clearPrivateCache } from "@/core/auth/query-cache";
@@ -26,6 +26,7 @@ import { ActivityFormScreen } from "@/features/activities/ActivityFormScreen";
 import { ActivityListScreen } from "@/features/activities/ActivityListScreen";
 import { AgendaScreen } from "@/features/activities/AgendaScreen";
 import { AiAssistantScreen } from "@/features/ai/AiAssistantScreen";
+import { HeroStatus } from "@/features/auth/AuthHero";
 import { AuthScreen } from "@/features/auth/AuthScreen";
 import { AvailabilityScreen } from "@/features/availability/AvailabilityScreen";
 import { EventFormScreen } from "@/features/calendar/EventFormScreen";
@@ -52,13 +53,28 @@ import { adoptDeviceTimeZone } from "@/shared/time-zones";
 
 configureZodSpanish();
 
-const queryClient = new QueryClient({
+// Se publicó una versión nueva de los términos mientras la app estaba abierta:
+// al refrescar lo que falta aceptar, ConsentGate bloquea la app con su diálogo.
+const isConsentRequired = (error: unknown) =>
+  error instanceof ApiError && error.code === "CONSENT_REQUIRED";
+const refreshConsent = () => {
+  void queryClient.invalidateQueries({ queryKey: ["privacy-documents"] });
+  void queryClient.invalidateQueries({ queryKey: ["consents"] });
+};
+
+const queryClient: QueryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
+  queryCache: new QueryCache({
+    onError: (error) => {
+      if (isConsentRequired(error)) refreshConsent();
+    },
+  }),
   // Todo error de una acción (guardar, borrar, completar…) se avisa una sola vez,
   // como toast. Las pantallas solo marcan campos; no repiten el mensaje.
   mutationCache: new MutationCache({
     onError: (error) => {
-      if (error instanceof OfflineQueuedError) showToast(error.message, "info");
+      if (isConsentRequired(error)) refreshConsent();
+      else if (error instanceof OfflineQueuedError) showToast(error.message, "info");
       else showToast(userMessage(error));
     },
   }),
@@ -105,19 +121,17 @@ function Main() {
   useEffect(() => {
     if (session.isSuccess && !session.data) void clearPrivateCache(currentQueryClient);
   }, [currentQueryClient, session.isSuccess, session.data]);
-  if (session.isPending) {
-    return (
-      <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator accessibilityLabel="Cargando sesión" />
-      </SafeAreaView>
-    );
-  }
+  if (session.isPending) return <HeroStatus label="Cargando sesión" />;
   if (session.isError) {
     return (
-      <SafeAreaView style={{ flex: 1, justifyContent: "center", padding: 24, gap: 12 }}>
-        <Text accessibilityRole="alert">{session.error.message}</Text>
-        <Button onPress={() => void session.refetch()}>Reintentar</Button>
-      </SafeAreaView>
+      <HeroStatus
+        message={userMessage(session.error)}
+        action={
+          <Button mode="contained" onPress={() => void session.refetch()}>
+            Reintentar
+          </Button>
+        }
+      />
     );
   }
   if (!session.data) return <AuthScreen />;

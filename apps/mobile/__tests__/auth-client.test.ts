@@ -93,11 +93,14 @@ test("registers a pending account without creating a session", async () => {
   });
 
   await expect(
-    signUp("Ana", "ana@example.test", "a-secure-password", "avatar-coffee-cup"),
+    signUp("Ana", "ana@example.test", "a-secure-password", "avatar-coffee-cup", ["doc-1"]),
   ).resolves.toEqual({
     email: "ana@example.test",
   });
   expect(mockCookie).toBeNull();
+  // La aceptación de términos viaja con el registro.
+  const [, init] = (global.fetch as jest.Mock).mock.calls[0];
+  expect(JSON.parse(init.body)).toMatchObject({ acceptedDocuments: ["doc-1"] });
 });
 
 test("identifies the fixed email verification callback", () => {

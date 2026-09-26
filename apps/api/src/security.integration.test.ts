@@ -187,6 +187,10 @@ beforeAll(async () => {
   }
   if (!ready) throw new Error("API did not become ready for security tests");
   const register = async (accountEmail: string) => {
+    // El registro exige aceptar la versión vigente de términos y privacidad.
+    const documents = (await (
+      await fetch(`${baseUrl}/v1/privacy/documents?language=es`)
+    ).json()) as Array<{ id: string; type: string }>;
     const registration = await fetch(`${baseUrl}/v1/auth/sign-up/email`, {
       method: "POST",
       headers: { "content-type": "application/json", origin: baseUrl },
@@ -194,6 +198,7 @@ beforeAll(async () => {
         name: "Seguridad",
         email: accountEmail,
         password: "SecurityIntegration2026!",
+        acceptedDocuments: documents.filter(({ type }) => type !== "ai").map(({ id }) => id),
       }),
       signal: AbortSignal.timeout(5000),
     });
