@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { KeyRound } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ export function TwoFactorEnrollment() {
   const verify = useMutation({
     mutationFn: authApi.verifyTotp,
     onSuccess: async () => {
+      toast.success("Verificación en dos pasos activada");
       setSetup(null);
       verificationForm.reset();
       await queryClient.invalidateQueries();

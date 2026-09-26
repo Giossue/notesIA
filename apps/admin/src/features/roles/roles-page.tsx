@@ -4,6 +4,7 @@ import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-q
 import { UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
 import { DataTable } from "@/components/data-table";
@@ -105,6 +106,7 @@ function AssignRoleDialog() {
   const mutation = useMutation({
     mutationFn: ({ userId, ...values }: NewRoleValues) => adminApi.assignRole(userId, values),
     onSuccess: async () => {
+      toast.success("Rol asignado");
       form.reset();
       setOpen(false);
       await Promise.all([
@@ -223,6 +225,7 @@ function ChangeRoleDialog({
   const mutation = useMutation({
     mutationFn: (values: RoleUpdateValues) => adminApi.assignRole(role.userId, values),
     onSuccess: async () => {
+      toast.success("Rol actualizado");
       setOpen(false);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: rolesQueryKey }),
@@ -300,6 +303,7 @@ function RemoveRoleDialog({
   const mutation = useMutation({
     mutationFn: (values: RoleRemoveValues) => adminApi.removeRole(role.userId, values),
     onSuccess: async () => {
+      toast.success("Rol quitado");
       setOpen(false);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: rolesQueryKey }),

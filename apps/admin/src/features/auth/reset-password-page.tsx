@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,10 @@ export function ResetPasswordPage() {
   });
   const reset = useMutation({
     mutationFn: ({ password }: Values) => authApi.resetPassword(token, password),
-    onSuccess: () => form.reset(),
+    onSuccess: () => {
+      toast.success("Contraseña actualizada");
+      form.reset();
+    },
   });
   return (
     <AuthLayout>

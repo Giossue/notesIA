@@ -3,6 +3,7 @@ import { adminDocumentCreateSchema } from "@notesia/contracts";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 import { PageError, PageLoading } from "@/components/async-state";
 import { DataTable } from "@/components/data-table";
@@ -80,7 +81,10 @@ function EditDocumentDialog({
       });
       return adminApi.publishDocument(created.id, { confirmation: "PUBLICAR" });
     },
-    onSuccess: () => setOpen(false),
+    onSuccess: () => {
+      toast.success(`Se publicó la versión ${nextVersion} de ${name.toLocaleLowerCase("es")}`);
+      setOpen(false);
+    },
     // También si falla la publicación: el borrador creado ya ocupa su número de versión.
     onSettled: () => queryClient.invalidateQueries({ queryKey: documentsQueryKey }),
   });

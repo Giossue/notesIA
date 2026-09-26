@@ -3,6 +3,7 @@ import { adminUserSuspensionSchema } from "@notesia/contracts";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import type { z } from "zod";
 import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
 import { DataTable } from "@/components/data-table";
@@ -53,7 +54,8 @@ function SuspensionDialog({
   });
   const mutation = useMutation({
     mutationFn: (values: SuspensionValues) => adminApi.setSuspension(user.id, values),
-    onSuccess: async () => {
+    onSuccess: async (_result, values) => {
+      toast.success(values.suspended ? "Cuenta suspendida" : "Cuenta reactivada");
       setOpen(false);
       form.reset();
       await Promise.all([

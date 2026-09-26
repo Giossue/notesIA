@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, CircleHelp, Coins, DollarSign, PlugZap, Route } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 import { EmptyResult, PageError, PageLoading } from "@/components/async-state";
 import { DataTable } from "@/components/data-table";
@@ -98,6 +99,9 @@ function ProviderCard({ provider, current }: { provider: Provider; current?: Adm
         apiKey: values.apiKey || undefined,
       }),
     onSuccess: async (result) => {
+      toast.success(
+        `${providerLabels[provider]} ${result.enabled ? "guardado y activo" : "guardado, sin usar"}`,
+      );
       form.reset({ apiKey: "", enabled: result.enabled, confirmation: "GUARDAR" });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: aiProvidersQuery.queryKey }),
@@ -382,6 +386,7 @@ function AssistantEditor({
       });
     },
     onSuccess: async () => {
+      toast.success(`${copy.title}: cambios guardados`);
       test.reset();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: aiRoutesQuery.queryKey }),
@@ -391,6 +396,7 @@ function AssistantEditor({
   });
   const test = useMutation({
     mutationFn: () => adminApi.testAiRoute(useCase),
+    onSuccess: () => toast.success("La IA respondió bien: la conexión y el modelo funcionan"),
     onSettled: () => void queryClient.invalidateQueries({ queryKey: auditQueryKey }),
   });
   return (
@@ -533,18 +539,6 @@ function AssistantEditor({
                 />
               )}
             />
-            {test.isSuccess && (
-              <Alert>
-                <AlertTitle>La IA respondió bien</AlertTitle>
-                <AlertDescription>La conexión y el modelo funcionan</AlertDescription>
-              </Alert>
-            )}
-            {test.isError && (
-              <Alert variant="destructive">
-                <AlertTitle>La prueba falló</AlertTitle>
-                <AlertDescription>{test.error.message}</AlertDescription>
-              </Alert>
-            )}
           </FieldGroup>
         </CardContent>
         <CardFooter className="flex gap-2">

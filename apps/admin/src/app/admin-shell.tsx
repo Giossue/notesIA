@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Outlet, useNavigate } from "@tanstack/react-router";
 import { NotebookPen } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
+import { toast } from "sonner";
 import {
   Sidebar,
   SidebarContent,
@@ -36,6 +37,7 @@ export function AdminShell({ session, children }: { session?: AuthSession; child
   const signOut = useMutation({
     mutationFn: authApi.signOut,
     onSuccess: async () => {
+      toast.success("Sesión cerrada");
       queryClient.clear();
       await navigate({ to: "/login" });
     },
