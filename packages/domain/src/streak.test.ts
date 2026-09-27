@@ -25,12 +25,26 @@ test("hoy sin completar no rompe la racha de ayer", () => {
   expect(computeStreak(["2026-10-05", "2026-10-06", today], today).current).toBe(3);
 });
 
-test("un día sin tareas corta la racha", () => {
-  // Falta el martes 6: la racha vuelve a empezar el miércoles.
+test("un día con tareas pendientes y sin completar corta la racha", () => {
   const streak = computeStreak(["2026-10-04", "2026-10-05", today], today);
   expect(streak.current).toBe(1);
   expect(streak.best).toBe(2);
   expect(streak.week[1]).toEqual({ date: "2026-10-06", status: "missed" });
+});
+
+test("un día sin tareas conserva la racha sin sumar", () => {
+  const streak = computeStreak(["2026-10-04", "2026-10-05", today], today, ["2026-10-06"]);
+  expect(streak).toMatchObject({ current: 3, best: 3, todayDone: true, todayRest: false });
+  expect(streak.week[1]).toEqual({ date: "2026-10-06", status: "rest" });
+  expect(computeStreak(["2026-10-05"], today, ["2026-10-06"], true)).toMatchObject({
+    current: 1,
+    todayDone: false,
+    todayRest: true,
+  });
+});
+
+test("descansar antes de empezar no crea una racha", () => {
+  expect(computeStreak([], today, ["2026-10-05", "2026-10-06"], true).current).toBe(0);
 });
 
 test("semanas perfectas seguidas hasta la semana pasada", () => {

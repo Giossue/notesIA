@@ -10519,6 +10519,8 @@ components:
           maximum: 9007199254740991
         todayDone:
           type: boolean
+        todayRest:
+          type: boolean
         perfectWeeks:
           type: integer
           minimum: 0
@@ -10538,6 +10540,7 @@ components:
                 type: string
                 enum:
                   - done
+                  - rest
                   - missed
                   - pending
                   - future
@@ -10550,6 +10553,7 @@ components:
         - current
         - best
         - todayDone
+        - todayRest
         - perfectWeeks
         - week
       additionalProperties: false

@@ -75,7 +75,16 @@ async function insertNotice(
                 `SELECT profile.usuario_id FROM dominio.perfiles_usuario profile
            WHERE profile.usuario_id = $2 AND NOT EXISTS (
              SELECT 1 FROM dominio.dias_racha d WHERE d.usuario_id = profile.usuario_id
-               AND d.fecha = timezone(profile.zona_horaria, $8::timestamptz)::date)`
+               AND d.fecha = timezone(profile.zona_horaria, $8::timestamptz)::date)
+             AND EXISTS (SELECT 1 FROM dominio.actividades a
+               WHERE a.usuario_id = profile.usuario_id
+                 AND a.estado IN ('backlog','planned','in_progress')
+                 AND a.eliminado_en IS NULL AND a.archivado_en IS NULL
+                 AND (a.inicio_minimo IS NULL OR a.inicio_minimo <
+                   ((timezone(profile.zona_horaria, $8::timestamptz)::date + 1)::timestamp
+                     AT TIME ZONE profile.zona_horaria))
+                 AND (a.ocurre_el IS NULL OR a.ocurre_el <=
+                   timezone(profile.zona_horaria, $8::timestamptz)::date))`
               : "SELECT $2::uuid AS usuario_id";
       const inserted = await connection.query<{ created: number }>(
         `WITH enabled AS (
@@ -122,8 +131,73 @@ async function insertNotice(
 }
 
 export function createNotificationSchedulerRepository(pool: Pool) {
+  let nextRestCheck = 0;
   return {
     async processDue(now: Date = new Date(), limit = 50) {
+      // Evaluar días pendientes en lotes de siete; el cursor permite recuperar
+      // descansos tras reiniciar el worker sin repetir días ya revisados.
+      if (now.getTime() >= nextRestCheck) {
+        const advanced = await pool.query(
+          `WITH days AS (
+           SELECT profile.usuario_id, day_slot.day::date AS day,
+             (day_slot.day AT TIME ZONE profile.zona_horaria) AS day_start,
+             ((day_slot.day + interval '1 day') AT TIME ZONE profile.zona_horaria) AS day_end
+           FROM dominio.perfiles_usuario profile
+           LEFT JOIN dominio.progreso_descanso_racha progress
+             ON progress.usuario_id = profile.usuario_id
+           CROSS JOIN LATERAL (
+             SELECT min(d.fecha) AS first_done FROM dominio.dias_racha d
+             WHERE d.usuario_id = profile.usuario_id AND NOT d.es_descanso
+           ) first_streak
+           CROSS JOIN LATERAL (
+             SELECT greatest(coalesce(progress.evaluado_hasta + 1, first_streak.first_done + 1),
+               first_streak.first_done + 1) AS start_day,
+               timezone(profile.zona_horaria, $1::timestamptz)::date - 1 AS yesterday
+           ) period
+           CROSS JOIN LATERAL generate_series(period.start_day::timestamp,
+             least(period.yesterday, period.start_day + 6)::timestamp,
+             interval '1 day') AS day_slot(day)
+         ), rest_days AS (
+           INSERT INTO dominio.dias_racha (usuario_id, fecha, es_descanso)
+           SELECT day_slot.usuario_id, day_slot.day, true FROM days day_slot
+           WHERE NOT EXISTS (SELECT 1 FROM dominio.dias_racha d
+             WHERE d.usuario_id = day_slot.usuario_id AND d.fecha = day_slot.day)
+             AND NOT EXISTS (SELECT 1 FROM dominio.actividades a
+             WHERE a.usuario_id = day_slot.usuario_id AND a.creado_en < day_slot.day_end
+               AND (a.inicio_minimo IS NULL OR a.inicio_minimo < day_slot.day_end)
+               AND (a.ocurre_el IS NULL OR a.ocurre_el <= day_slot.day)
+               AND (a.eliminado_en IS NULL OR a.eliminado_en >= day_slot.day_start)
+               AND (a.archivado_en IS NULL OR a.archivado_en >= day_slot.day_start)
+               AND (
+                 coalesce((SELECT h.estado_posterior FROM dominio.historial_actividades h
+                   WHERE h.usuario_id = a.usuario_id AND h.actividad_id = a.id
+                     AND h.creado_en < day_slot.day_end
+                   ORDER BY h.creado_en DESC, h.id DESC LIMIT 1),
+                   CASE
+                     WHEN a.estado = 'completed' AND a.completado_en < day_slot.day_start
+                       THEN 'completed'
+                     WHEN a.estado = 'cancelled' AND a.actualizado_en < day_slot.day_start
+                       THEN 'cancelled'
+                     ELSE 'backlog'
+                   END) IN ('backlog','planned','in_progress')
+                 OR EXISTS (SELECT 1 FROM dominio.historial_actividades h
+                   WHERE h.usuario_id = a.usuario_id AND h.actividad_id = a.id
+                     AND h.creado_en >= day_slot.day_start
+                     AND h.creado_en < day_slot.day_end
+                     AND h.estado_anterior IN ('backlog','planned','in_progress'))
+               ))
+           ON CONFLICT (usuario_id, fecha) DO NOTHING
+           RETURNING usuario_id
+         )
+         INSERT INTO dominio.progreso_descanso_racha (usuario_id, evaluado_hasta)
+         SELECT usuario_id, max(day) FROM days GROUP BY usuario_id
+         ON CONFLICT (usuario_id) DO UPDATE
+           SET evaluado_hasta = greatest(dominio.progreso_descanso_racha.evaluado_hasta,
+             excluded.evaluado_hasta)`,
+          [now],
+        );
+        nextRestCheck = now.getTime() + (advanced.rowCount ? 3000 : 60_000);
+      }
       const deadline = await pool.query<Candidate>(
         `SELECT ${candidateColumns}, NULL::uuid AS "planId", NULL::uuid AS "blockId",
            a.fecha_limite AS "referenceAt"
@@ -211,8 +285,8 @@ export function createNotificationSchedulerRepository(pool: Pool) {
          ) candidates ORDER BY "planId", "activityId" LIMIT $2`,
         [now, limit],
       );
-      // Racha en peligro: desde las 20:00 locales, si ayer se ganó el día y hoy
-      // todavía no. Uno por día.
+      // Racha en peligro desde las 20:00 locales: existe una racha activa,
+      // hoy hay tarea disponible y todavía no se ganó el día. Uno por día.
       const streak = await pool.query<Candidate>(
         `SELECT profile.usuario_id AS "userId", NULL::uuid AS "activityId",
            NULL::uuid AS "planId", NULL::uuid AS "blockId",
@@ -223,13 +297,27 @@ export function createNotificationSchedulerRepository(pool: Pool) {
          CROSS JOIN LATERAL (
            SELECT timezone(profile.zona_horaria, $1::timestamptz)::date AS today
          ) local_day
+         CROSS JOIN LATERAL (
+           SELECT max(d.fecha) AS last_done FROM dominio.dias_racha d
+           WHERE d.usuario_id = profile.usuario_id AND d.fecha < local_day.today
+             AND NOT d.es_descanso
+         ) streak_origin
          WHERE prefs.notificaciones_habilitadas
            AND local_clock.local_minute >= ${STREAK_REMINDER_MINUTE}
-           AND EXISTS (SELECT 1 FROM dominio.dias_racha d
-             WHERE d.usuario_id = profile.usuario_id
-               AND d.fecha = local_day.today - 1)
+           AND streak_origin.last_done IS NOT NULL
+           AND local_day.today - streak_origin.last_done - 1 =
+             (SELECT count(*)::integer FROM dominio.dias_racha d
+              WHERE d.usuario_id = profile.usuario_id AND d.es_descanso
+                AND d.fecha > streak_origin.last_done AND d.fecha < local_day.today)
            AND NOT EXISTS (SELECT 1 FROM dominio.dias_racha d
              WHERE d.usuario_id = profile.usuario_id AND d.fecha = local_day.today)
+           AND EXISTS (SELECT 1 FROM dominio.actividades a
+             WHERE a.usuario_id = profile.usuario_id
+               AND a.estado IN ('backlog','planned','in_progress')
+               AND a.eliminado_en IS NULL AND a.archivado_en IS NULL
+               AND (a.inicio_minimo IS NULL OR a.inicio_minimo <
+                 ((local_day.today + 1)::timestamp AT TIME ZONE profile.zona_horaria))
+               AND (a.ocurre_el IS NULL OR a.ocurre_el <= local_day.today))
            AND NOT EXISTS (SELECT 1 FROM dominio.notificaciones n
              WHERE n.usuario_id = profile.usuario_id AND n.tipo = 'streak_at_risk'
                AND n.referencia_en = (local_day.today::timestamp AT TIME ZONE profile.zona_horaria))

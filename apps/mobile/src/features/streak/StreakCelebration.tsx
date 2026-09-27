@@ -13,7 +13,7 @@ function message(streak: StreakView) {
   if (streak.perfectWeeks > 1) return `¡Llevas ${streak.perfectWeeks} semanas perfectas seguidas!`;
   if (streak.current > 1 && streak.current === streak.best) return "¡Es tu mejor racha!";
   if (streak.current === 1) return "¡Empezaste tu racha! Vuelve mañana para seguir sumando.";
-  return "Completa una tarea cada día para no perderla.";
+  return "Completa una tarea en los días en que tengas algo pendiente para mantenerla.";
 }
 
 /**

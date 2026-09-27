@@ -640,7 +640,7 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
           commitments: row.commitments,
           studyHours: row.studyHours,
           pushDevices: row.pushDevices,
-          streakDays: computeStreak(row.streakDays, today).current,
+          streakDays: computeStreak(row.streakDays, today, row.streakRestDays).current,
         },
         deletionRequestedAt: row.deletionRequestedAt?.toISOString() ?? null,
       }),

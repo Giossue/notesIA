@@ -467,4 +467,10 @@ test("summary counts today, pending, in progress and overdue for the owner only"
   };
   expect(otherBody.pending).toBe(0);
   expect(otherBody.week.due).toBe(0);
+  const ownStreak = await app.request("/v1/streak", { headers: { cookie: cookieA } });
+  const otherStreak = await app.request("/v1/streak", { headers: { cookie: cookieB } });
+  expect(ownStreak.status).toBe(200);
+  expect(otherStreak.status).toBe(200);
+  expect((await ownStreak.json()).todayRest).toBe(false);
+  expect((await otherStreak.json()).todayRest).toBe(true);
 });

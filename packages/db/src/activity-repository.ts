@@ -135,12 +135,29 @@ export function createActivityRepository(pool: Pool) {
         .groupBy(activities.kind);
     },
 
-    /** Días (AAAA-MM-DD locales) en que el estudiante completó alguna actividad. */
+    /** Días locales ganados o de descanso desde la primera tarea completada. */
     async streakDays(userId: string) {
-      const rows = await db.execute<{ day: string }>(
-        sql`SELECT fecha::text AS day FROM dominio.dias_racha WHERE usuario_id = ${userId}`,
+      const rows = await db.execute<{ day: string; isRest: boolean }>(
+        sql`SELECT fecha::text AS day, es_descanso AS "isRest"
+            FROM dominio.dias_racha WHERE usuario_id = ${userId}`,
       );
-      return rows.rows.map((row) => row.day);
+      return {
+        done: rows.rows.filter((row) => !row.isRest).map((row) => row.day),
+        rest: rows.rows.filter((row) => row.isRest).map((row) => row.day),
+      };
+    },
+
+    async hasActionableTask(userId: string, day: string, dayEnd: Date) {
+      const rows = await db.execute<{ available: boolean }>(
+        sql`SELECT EXISTS (
+          SELECT 1 FROM dominio.actividades a
+          WHERE a.usuario_id = ${userId} AND a.estado IN ('backlog','planned','in_progress')
+            AND a.eliminado_en IS NULL AND a.archivado_en IS NULL
+            AND (a.inicio_minimo IS NULL OR a.inicio_minimo < ${dayEnd})
+            AND (a.ocurre_el IS NULL OR a.ocurre_el <= ${day}::date)
+        ) AS available`,
+      );
+      return rows.rows[0]?.available ?? false;
     },
 
     async listForPlanning(userId: string) {

@@ -660,7 +660,7 @@ export const activitySummarySchema = z.object({
       }),
     )
     .length(3),
-  /** Días locales consecutivos con al menos una actividad completada, hasta hoy o ayer. */
+  /** Tareas completadas en días consecutivos de actividad; los descansos no suman ni cortan. */
   streakDays: z.number().int().nonnegative(),
 });
 export const streakSchema = z.object({
@@ -668,12 +668,13 @@ export const streakSchema = z.object({
   current: z.number().int().nonnegative(),
   best: z.number().int().nonnegative(),
   todayDone: z.boolean(),
+  todayRest: z.boolean(),
   perfectWeeks: z.number().int().nonnegative(),
   week: z
     .array(
       z.object({
         date: z.iso.date(),
-        status: z.enum(["done", "missed", "pending", "future"]),
+        status: z.enum(["done", "rest", "missed", "pending", "future"]),
       }),
     )
     .length(7),

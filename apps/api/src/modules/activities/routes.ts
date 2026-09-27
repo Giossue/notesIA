@@ -243,7 +243,7 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
         ...counts,
         week: { ...week, due, completedDue, days: [...days.values()] },
         categories,
-        streakDays: computeStreak(streakDays, day).current,
+        streakDays: computeStreak(streakDays.done, day, streakDays.rest).current,
       }),
     );
   });
@@ -254,8 +254,20 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
     const profile = await dependencies.profiles.get(session.user.id);
     if (!profile) return error(404, "PROFILE_NOT_FOUND", "Perfil no disponible.");
     const today = todayInTimeZone(new Date().toISOString(), profile.timeZone);
-    const days = await dependencies.activities.streakDays(session.user.id);
-    return c.json(streakSchema.parse({ today, ...computeStreak(days, today) }));
+    const [days, hasTask] = await Promise.all([
+      dependencies.activities.streakDays(session.user.id),
+      dependencies.activities.hasActionableTask(
+        session.user.id,
+        today,
+        new Date(localDayBounds(today, profile.timeZone).endsAt),
+      ),
+    ]);
+    return c.json(
+      streakSchema.parse({
+        today,
+        ...computeStreak(days.done, today, days.rest, !hasTask),
+      }),
+    );
   });
 
   app.get("/v1/activities/:id/history", async (c) => {

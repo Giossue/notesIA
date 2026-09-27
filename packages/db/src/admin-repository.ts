@@ -135,6 +135,7 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
         studyHours: number;
         pushDevices: number;
         streakDays: string[];
+        streakRestDays: string[];
         deletionRequestedAt: Date | null;
       }>(
         `SELECT u.id, u.correo AS email, u.nombre AS name,
@@ -157,7 +158,9 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
            (SELECT count(*)::int FROM dominio.dispositivos_push d
             WHERE d.usuario_id = u.id) AS "pushDevices",
            coalesce((SELECT array_agg(d.fecha::text) FROM dominio.dias_racha d
-            WHERE d.usuario_id = u.id), '{}') AS "streakDays",
+            WHERE d.usuario_id = u.id AND NOT d.es_descanso), '{}') AS "streakDays",
+           coalesce((SELECT array_agg(d.fecha::text) FROM dominio.dias_racha d
+            WHERE d.usuario_id = u.id AND d.es_descanso), '{}') AS "streakRestDays",
            (SELECT s.solicitada_en FROM dominio.solicitudes_eliminacion s
             WHERE s.usuario_id = u.id) AS "deletionRequestedAt"
          FROM autenticacion.usuarios u

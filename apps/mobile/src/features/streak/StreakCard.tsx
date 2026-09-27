@@ -7,7 +7,7 @@ import { usePulse } from "@/shared/motion";
 import { StreakWeek } from "./StreakWeek";
 import { daysLabel, flame } from "./streak-colors";
 
-/** Racha actual: la llama se apaga (gris) mientras hoy no haya una tarea completada. */
+/** La llama se enciende al completar; un día sin tareas pausa la racha. */
 export function StreakCard() {
   const theme = useTheme();
   const streak = useQuery({ queryKey: ["streak"], queryFn: getStreak, retry: false });
@@ -32,9 +32,13 @@ export function StreakCard() {
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
             {lit
               ? "¡Racha encendida hoy!"
-              : data.current > 0
-                ? "Completa una tarea hoy para mantenerla."
-                : "Completa una tarea para empezar tu racha."}
+              : data.todayRest
+                ? data.current > 0
+                  ? "Hoy no tienes tareas disponibles. Tu racha se pausa."
+                  : "Hoy no tienes tareas disponibles."
+                : data.current > 0
+                  ? "Completa una tarea hoy para mantenerla."
+                  : "Completa una tarea para empezar tu racha."}
           </Text>
         </View>
       </View>

@@ -46,7 +46,8 @@ El DDL de referencia se encuentra en `database/schema.sql`.
 | `historial_actividades` | Cambios relevantes. |
 | `registros_tiempo` | Tiempo real. |
 | `planificacion_automatica` | Última revisión y día que el worker ya planificó por estudiante. |
-| `dias_racha` | Días (fecha local) en que se completó al menos una actividad. |
+| `dias_racha` | Días ganados y días de descanso de la racha, en fecha local. |
+| `progreso_descanso_racha` | Último día local evaluado por el worker para recuperar descansos pendientes. |
 
 ### Disponibilidad y planificación
 
@@ -138,7 +139,7 @@ El tiempo real se obtiene de `registros_tiempo`; no se acepta como dato autorita
 
 ### `dias_racha`
 
-Clave `(usuario_id, fecha)`, con `fecha` en la zona del perfil al completar. La llena el trigger `actividades_dia_racha` al pasar una actividad a `completed`; no se borra si la actividad se reabre o elimina. La racha y la mejor racha se calculan en `packages/domain` (`computeStreak`), no se guardan; un día sin tareas completadas la corta. El aviso `streak_at_risk` (uno por día, `referencia_en` = inicio del día local) sale desde las 20:00 si el día sigue sin ganarse.
+Clave `(usuario_id, fecha)`, con `fecha` en la zona del perfil. El trigger `actividades_dia_racha` guarda los días ganados al completar una actividad; no los borra al reabrir o eliminarla. El worker registra `es_descanso = true` al día siguiente si no hubo tareas abiertas que ya pudieran trabajarse (excluye tareas con inicio mínimo o instancia futura). `progreso_descanso_racha` permite recuperar en lotes de siete los días no evaluados si el worker estuvo detenido. Un descanso conserva la racha sin sumar; un día con tarea disponible y sin completar la corta. La racha y la mejor racha se calculan en `packages/domain` (`computeStreak`). El aviso `streak_at_risk` (uno por día, `referencia_en` = inicio del día local) sale desde las 20:00 solo si hoy hay una tarea disponible y la racha sigue activa. Las migraciones 0065 y 0066 no reclasifican días anteriores; el rollback borra los descansos registrados.
 
 ### `registros_tiempo`
 

@@ -280,3 +280,148 @@ test("completing an activity earns the day and an unfinished streak is warned on
     await pool.query("DELETE FROM autenticacion.usuarios WHERE id = $1", [streakUserId]);
   }
 });
+
+test("a day without available tasks pauses the streak and sends no warning", async () => {
+  const restUserId = crypto.randomUUID();
+  const futureTaskId = crypto.randomUUID();
+  try {
+    await pool.query(
+      `INSERT INTO autenticacion.usuarios (id, nombre, correo, correo_verificado)
+       VALUES ($1, 'Prueba descanso', $2, false)`,
+      [restUserId, `rest-${restUserId}@example.test`],
+    );
+    await pool.query(
+      "UPDATE dominio.perfiles_usuario SET zona_horaria = 'Etc/UTC' WHERE usuario_id = $1",
+      [restUserId],
+    );
+    await pool.query(
+      `INSERT INTO dominio.dias_racha (usuario_id, fecha)
+       VALUES ($1, '2027-06-01')`,
+      [restUserId],
+    );
+    await pool.query(
+      `INSERT INTO dominio.actividades
+        (id, usuario_id, tipo, titulo, prioridad, inicio_minimo, creado_en)
+       VALUES ($1,$2,'academic_task','Tarea futura','medium',
+         '2027-06-04T00:00:00Z','2027-06-01T09:00:00Z')`,
+      [futureTaskId, restUserId],
+    );
+    const scheduler = createNotificationSchedulerRepository(pool);
+    await scheduler.processDue(new Date("2027-06-02T20:30:00Z"));
+    const warnings = async () => {
+      const result = await pool.query<{ count: number }>(
+        `SELECT count(*)::integer AS count FROM dominio.notificaciones
+         WHERE usuario_id = $1 AND tipo = 'streak_at_risk'`,
+        [restUserId],
+      );
+      return result.rows[0]?.count;
+    };
+    expect(await warnings()).toBe(0);
+    await scheduler.processDue(new Date("2027-06-03T00:05:00Z"));
+    const rest = await pool.query<{ day: string; isRest: boolean }>(
+      `SELECT fecha::text AS day, es_descanso AS "isRest" FROM dominio.dias_racha
+       WHERE usuario_id = $1 ORDER BY fecha`,
+      [restUserId],
+    );
+    expect(rest.rows).toEqual([
+      { day: "2027-06-01", isRest: false },
+      { day: "2027-06-02", isRest: true },
+    ]);
+    await scheduler.processDue(new Date("2027-06-03T20:30:00Z"));
+    expect(await warnings()).toBe(0);
+    await pool.query(
+      `UPDATE dominio.actividades SET inicio_minimo = '2027-06-03T08:00:00Z'
+       WHERE id = $1`,
+      [futureTaskId],
+    );
+    await scheduler.processDue(new Date("2027-06-03T20:35:00Z"));
+    expect(await warnings()).toBe(1);
+  } finally {
+    await pool.query("DELETE FROM autenticacion.usuarios WHERE id = $1", [restUserId]);
+  }
+});
+
+test("an unfinished available task prevents a rest day", async () => {
+  const pendingUserId = crypto.randomUUID();
+  try {
+    await pool.query(
+      `INSERT INTO autenticacion.usuarios (id, nombre, correo, correo_verificado)
+       VALUES ($1, 'Prueba pendiente', $2, false)`,
+      [pendingUserId, `pending-streak-${pendingUserId}@example.test`],
+    );
+    await pool.query(
+      "UPDATE dominio.perfiles_usuario SET zona_horaria = 'Etc/UTC' WHERE usuario_id = $1",
+      [pendingUserId],
+    );
+    await pool.query(
+      `INSERT INTO dominio.dias_racha (usuario_id, fecha) VALUES ($1, '2027-06-01')`,
+      [pendingUserId],
+    );
+    await pool.query(
+      `INSERT INTO dominio.actividades
+        (id, usuario_id, tipo, titulo, prioridad, creado_en)
+       VALUES ($1,$2,'academic_task','Pendiente','medium','2027-06-02T08:00:00Z')`,
+      [crypto.randomUUID(), pendingUserId],
+    );
+    await createNotificationSchedulerRepository(pool).processDue(new Date("2027-06-03T00:05:00Z"));
+    const days = await pool.query<{ day: string }>(
+      "SELECT fecha::text AS day FROM dominio.dias_racha WHERE usuario_id = $1 ORDER BY fecha",
+      [pendingUserId],
+    );
+    expect(days.rows.map((row) => row.day)).toEqual(["2027-06-01"]);
+    await pool.query(
+      `INSERT INTO dominio.dias_racha (usuario_id, fecha, es_descanso)
+       VALUES ($1, '2027-06-03', true)`,
+      [pendingUserId],
+    );
+    await createNotificationSchedulerRepository(pool).processDue(new Date("2027-06-04T20:30:00Z"));
+    const warnings = await pool.query<{ count: number }>(
+      `SELECT count(*)::integer AS count FROM dominio.notificaciones
+       WHERE usuario_id = $1 AND tipo = 'streak_at_risk'`,
+      [pendingUserId],
+    );
+    expect(warnings.rows[0]?.count).toBe(0);
+  } finally {
+    await pool.query("DELETE FROM autenticacion.usuarios WHERE id = $1", [pendingUserId]);
+  }
+});
+
+test("the worker catches up rest days after being offline", async () => {
+  const catchupUserId = crypto.randomUUID();
+  try {
+    await pool.query(
+      `INSERT INTO autenticacion.usuarios (id, nombre, correo, correo_verificado)
+       VALUES ($1, 'Prueba recuperación', $2, false)`,
+      [catchupUserId, `catchup-streak-${catchupUserId}@example.test`],
+    );
+    await pool.query(
+      "UPDATE dominio.perfiles_usuario SET zona_horaria = 'Etc/UTC' WHERE usuario_id = $1",
+      [catchupUserId],
+    );
+    await pool.query(
+      `INSERT INTO dominio.dias_racha (usuario_id, fecha) VALUES ($1, '2027-06-01')`,
+      [catchupUserId],
+    );
+    await createNotificationSchedulerRepository(pool).processDue(new Date("2027-06-06T00:05:00Z"));
+    const days = await pool.query<{ day: string; isRest: boolean }>(
+      `SELECT fecha::text AS day, es_descanso AS "isRest" FROM dominio.dias_racha
+       WHERE usuario_id = $1 ORDER BY fecha`,
+      [catchupUserId],
+    );
+    expect(days.rows).toEqual([
+      { day: "2027-06-01", isRest: false },
+      { day: "2027-06-02", isRest: true },
+      { day: "2027-06-03", isRest: true },
+      { day: "2027-06-04", isRest: true },
+      { day: "2027-06-05", isRest: true },
+    ]);
+    const cursor = await pool.query<{ day: string }>(
+      `SELECT evaluado_hasta::text AS day FROM dominio.progreso_descanso_racha
+       WHERE usuario_id = $1`,
+      [catchupUserId],
+    );
+    expect(cursor.rows[0]?.day).toBe("2027-06-05");
+  } finally {
+    await pool.query("DELETE FROM autenticacion.usuarios WHERE id = $1", [catchupUserId]);
+  }
+});
