@@ -21,6 +21,7 @@ import { layout } from "@/core/theme/layout";
 import { type CategoryColor, categoryColors } from "@/core/theme/theme";
 import type { RootStackParamList } from "@/navigation/types";
 import { kindColor } from "@/shared/activity-kinds";
+import { agendaInfo } from "@/shared/concepts";
 import { EmptyState } from "@/shared/EmptyState";
 import { userMessage } from "@/shared/errors";
 import { shortWeekday } from "@/shared/format";
@@ -287,6 +288,7 @@ export function AgendaScreen() {
       fab={{ date: selectedDay ?? undefined }}
       header={{
         title: "Agenda",
+        info: agendaInfo,
         right: {
           icon: "calendar-month-outline",
           label: "Ver mis compromisos",

@@ -20,3 +20,8 @@ export const streakInfo: HeaderInfo = {
   title: "¿Qué es la racha?",
   text: "Los días seguidos en que completaste al menos una tarea. Si pasa un día sin completar ninguna, vuelve a empezar. Hoy no cuenta como perdido hasta que termine el día.",
 };
+
+export const agendaInfo: HeaderInfo = {
+  title: "¿Qué ves en la agenda?",
+  text: "Tu día a día en un solo lugar: tus compromisos (clases, trabajo, citas), las entregas de tus tareas y las sesiones de estudio que la app arma sola en tu horario libre. Elige un día arriba para verlo; con el botón del calendario ves todos tus compromisos.",
+};
