@@ -18,7 +18,7 @@ export const studyHoursInfo: HeaderInfo = {
 
 export const streakInfo: HeaderInfo = {
   title: "¿Qué es la racha?",
-  text: "Suma un día cuando completas una tarea. Si no tienes ninguna tarea disponible, la racha se pausa: no suma ni se pierde. Si tienes tareas disponibles y no completas ninguna, vuelve a empezar. Hoy no cuenta como perdido hasta que termine el día.",
+  text: "Suma un día cuando completas una tarea. Solo necesitas completar una si alguna pendiente vence hoy. Los días sin tareas pendientes que venzan se pausan: no suman ni rompen la racha, aunque tengas tareas para fechas futuras. Si terminas una tarea antes de su plazo, ese día también suma.",
 };
 
 export const agendaInfo: HeaderInfo = {

@@ -12,8 +12,9 @@ import { daysLabel, flame } from "./streak-colors";
 function message(streak: StreakView) {
   if (streak.perfectWeeks > 1) return `¡Llevas ${streak.perfectWeeks} semanas perfectas seguidas!`;
   if (streak.current > 1 && streak.current === streak.best) return "¡Es tu mejor racha!";
-  if (streak.current === 1) return "¡Empezaste tu racha! Vuelve mañana para seguir sumando.";
-  return "Completa una tarea en los días en que tengas algo pendiente para mantenerla.";
+  if (streak.current === 1)
+    return "¡Empezaste tu racha! Se pausará los días sin tareas que venzan.";
+  return "Completa una tarea cuando venza alguna para mantenerla.";
 }
 
 /**

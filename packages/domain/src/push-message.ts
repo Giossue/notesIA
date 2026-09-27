@@ -77,7 +77,7 @@ export function pushMessage(input: PushMessageInput): { title: string; body: str
     case "streak_at_risk":
       return {
         title: "🔥 Tu racha está en peligro",
-        body: "Completa una tarea hoy para no perderla",
+        body: "Hoy vence una tarea. Completa alguna para no perder tu racha",
       };
     case "report_updated":
       return {

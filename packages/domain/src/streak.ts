@@ -23,7 +23,7 @@ export function weekStart(day: string) {
 
 /**
  * La racha suma solo días ganados. Un día de descanso conserva el valor sin
- * aumentarlo; un día con tareas disponibles y sin completar ninguna la corta.
+ * aumentarlo; un día con una entrega pendiente y sin completar ninguna la corta.
  */
 export function computeStreak(
   doneDays: Iterable<string>,

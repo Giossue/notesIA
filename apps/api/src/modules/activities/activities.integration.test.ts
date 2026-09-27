@@ -473,4 +473,23 @@ test("summary counts today, pending, in progress and overdue for the owner only"
   expect(otherStreak.status).toBe(200);
   expect((await ownStreak.json()).todayRest).toBe(false);
   expect((await otherStreak.json()).todayRest).toBe(true);
+
+  // Una tarea abierta para otro día no exige completar algo hoy.
+  const futureTask = await app.request("/v1/activities", {
+    method: "POST",
+    headers: jsonHeaders(cookieB),
+    body: JSON.stringify({
+      id: crypto.randomUUID(),
+      kind: "exam",
+      title: "Examen próximo",
+      description: null,
+      priority: "medium",
+      startAfterAt: null,
+      deadlineAt: new Date(Date.now() + 3 * 86_400_000).toISOString(),
+      estimatedMinutes: null,
+    }),
+  });
+  expect(futureTask.status).toBe(201);
+  const futureStreak = await app.request("/v1/streak", { headers: { cookie: cookieB } });
+  expect((await futureStreak.json()).todayRest).toBe(true);
 });

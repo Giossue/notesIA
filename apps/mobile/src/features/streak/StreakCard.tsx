@@ -34,10 +34,10 @@ export function StreakCard() {
               ? "¡Racha encendida hoy!"
               : data.todayRest
                 ? data.current > 0
-                  ? "Hoy no tienes tareas disponibles. Tu racha se pausa."
-                  : "Hoy no tienes tareas disponibles."
+                  ? "No tienes tareas pendientes que venzan hoy. Tu racha se pausa."
+                  : "No tienes tareas pendientes que venzan hoy."
                 : data.current > 0
-                  ? "Completa una tarea hoy para mantenerla."
+                  ? "Hoy vence una tarea. Completa alguna para mantener tu racha."
                   : "Completa una tarea para empezar tu racha."}
           </Text>
         </View>

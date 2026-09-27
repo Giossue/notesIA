@@ -147,12 +147,13 @@ export function createActivityRepository(pool: Pool) {
       };
     },
 
-    async hasActionableTask(userId: string, day: string, dayEnd: Date) {
+    async hasTaskDueOnDay(userId: string, day: string, dayStart: Date, dayEnd: Date) {
       const rows = await db.execute<{ available: boolean }>(
         sql`SELECT EXISTS (
           SELECT 1 FROM dominio.actividades a
           WHERE a.usuario_id = ${userId} AND a.estado IN ('backlog','planned','in_progress')
             AND a.eliminado_en IS NULL AND a.archivado_en IS NULL
+            AND a.fecha_limite >= ${dayStart} AND a.fecha_limite < ${dayEnd}
             AND (a.inicio_minimo IS NULL OR a.inicio_minimo < ${dayEnd})
             AND (a.ocurre_el IS NULL OR a.ocurre_el <= ${day}::date)
         ) AS available`,

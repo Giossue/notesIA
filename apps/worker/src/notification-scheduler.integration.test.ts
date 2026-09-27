@@ -241,8 +241,8 @@ test("completing an activity earns the day and an unfinished streak is warned on
       [streakUserId],
     );
     await pool.query(
-      `INSERT INTO dominio.actividades (id, usuario_id, tipo, titulo, prioridad)
-       VALUES ($1,$2,'academic_task','Lectura','medium')`,
+      `INSERT INTO dominio.actividades (id, usuario_id, tipo, titulo, prioridad, fecha_limite)
+       VALUES ($1,$2,'academic_task','Lectura','medium','2027-06-02T23:00:00Z')`,
       [streakActivityId, streakUserId],
     );
     await pool.query(
@@ -281,7 +281,43 @@ test("completing an activity earns the day and an unfinished streak is warned on
   }
 });
 
-test("a day without available tasks pauses the streak and sends no warning", async () => {
+test("the streak warning uses the student's local due date", async () => {
+  const userId = crypto.randomUUID();
+  try {
+    await pool.query(
+      `INSERT INTO autenticacion.usuarios (id, nombre, correo, correo_verificado)
+       VALUES ($1, 'Prueba racha local', $2, false)`,
+      [userId, `local-streak-${userId}@example.test`],
+    );
+    await pool.query(
+      "UPDATE dominio.perfiles_usuario SET zona_horaria = 'America/Guayaquil' WHERE usuario_id = $1",
+      [userId],
+    );
+    await pool.query(
+      "INSERT INTO dominio.dias_racha (usuario_id, fecha) VALUES ($1, '2027-06-01')",
+      [userId],
+    );
+    // 3 de junio en UTC, pero 2 de junio a las 21:00 en Guayaquil.
+    await pool.query(
+      `INSERT INTO dominio.actividades
+        (id, usuario_id, tipo, titulo, prioridad, fecha_limite, creado_en)
+       VALUES ($1,$2,'exam','Examen local','medium',
+         '2027-06-03T02:00:00Z','2027-06-01T12:00:00Z')`,
+      [crypto.randomUUID(), userId],
+    );
+    await createNotificationSchedulerRepository(pool).processDue(new Date("2027-06-03T01:30:00Z"));
+    const result = await pool.query<{ count: number }>(
+      `SELECT count(*)::integer AS count FROM dominio.notificaciones
+       WHERE usuario_id = $1 AND tipo = 'streak_at_risk'`,
+      [userId],
+    );
+    expect(result.rows[0]?.count).toBe(1);
+  } finally {
+    await pool.query("DELETE FROM autenticacion.usuarios WHERE id = $1", [userId]);
+  }
+});
+
+test("future and undated tasks pause the streak and send no warning", async () => {
   const restUserId = crypto.randomUUID();
   const futureTaskId = crypto.randomUUID();
   try {
@@ -301,10 +337,15 @@ test("a day without available tasks pauses the streak and sends no warning", asy
     );
     await pool.query(
       `INSERT INTO dominio.actividades
-        (id, usuario_id, tipo, titulo, prioridad, inicio_minimo, creado_en)
+        (id, usuario_id, tipo, titulo, prioridad, fecha_limite, creado_en)
        VALUES ($1,$2,'academic_task','Tarea futura','medium',
-         '2027-06-04T00:00:00Z','2027-06-01T09:00:00Z')`,
+         '2027-06-04T23:00:00Z','2027-06-01T09:00:00Z')`,
       [futureTaskId, restUserId],
+    );
+    await pool.query(
+      `INSERT INTO dominio.actividades (id, usuario_id, tipo, titulo, prioridad, creado_en)
+       VALUES ($1,$2,'personal','Sin plazo','medium','2027-06-01T09:00:00Z')`,
+      [crypto.randomUUID(), restUserId],
     );
     const scheduler = createNotificationSchedulerRepository(pool);
     await scheduler.processDue(new Date("2027-06-02T20:30:00Z"));
@@ -330,7 +371,7 @@ test("a day without available tasks pauses the streak and sends no warning", asy
     await scheduler.processDue(new Date("2027-06-03T20:30:00Z"));
     expect(await warnings()).toBe(0);
     await pool.query(
-      `UPDATE dominio.actividades SET inicio_minimo = '2027-06-03T08:00:00Z'
+      `UPDATE dominio.actividades SET fecha_limite = '2027-06-03T23:00:00Z'
        WHERE id = $1`,
       [futureTaskId],
     );
@@ -341,7 +382,7 @@ test("a day without available tasks pauses the streak and sends no warning", asy
   }
 });
 
-test("an unfinished available task prevents a rest day", async () => {
+test("an unfinished task due that day prevents a rest day", async () => {
   const pendingUserId = crypto.randomUUID();
   try {
     await pool.query(
@@ -359,8 +400,9 @@ test("an unfinished available task prevents a rest day", async () => {
     );
     await pool.query(
       `INSERT INTO dominio.actividades
-        (id, usuario_id, tipo, titulo, prioridad, creado_en)
-       VALUES ($1,$2,'academic_task','Pendiente','medium','2027-06-02T08:00:00Z')`,
+        (id, usuario_id, tipo, titulo, prioridad, fecha_limite, creado_en)
+       VALUES ($1,$2,'academic_task','Pendiente','medium',
+         '2027-06-02T23:00:00Z','2027-06-02T08:00:00Z')`,
       [crypto.randomUUID(), pendingUserId],
     );
     await createNotificationSchedulerRepository(pool).processDue(new Date("2027-06-03T00:05:00Z"));

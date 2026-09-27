@@ -164,6 +164,8 @@ export function createNotificationSchedulerRepository(pool: Pool) {
              WHERE d.usuario_id = day_slot.usuario_id AND d.fecha = day_slot.day)
              AND NOT EXISTS (SELECT 1 FROM dominio.actividades a
              WHERE a.usuario_id = day_slot.usuario_id AND a.creado_en < day_slot.day_end
+               AND a.fecha_limite >= day_slot.day_start
+               AND a.fecha_limite < day_slot.day_end
                AND (a.inicio_minimo IS NULL OR a.inicio_minimo < day_slot.day_end)
                AND (a.ocurre_el IS NULL OR a.ocurre_el <= day_slot.day)
                AND (a.eliminado_en IS NULL OR a.eliminado_en >= day_slot.day_start)
@@ -286,7 +288,7 @@ export function createNotificationSchedulerRepository(pool: Pool) {
         [now, limit],
       );
       // Racha en peligro desde las 20:00 locales: existe una racha activa,
-      // hoy hay tarea disponible y todavía no se ganó el día. Uno por día.
+      // hoy vence una tarea pendiente y todavía no se ganó el día. Uno por día.
       const streak = await pool.query<Candidate>(
         `SELECT profile.usuario_id AS "userId", NULL::uuid AS "activityId",
            NULL::uuid AS "planId", NULL::uuid AS "blockId",
@@ -315,6 +317,10 @@ export function createNotificationSchedulerRepository(pool: Pool) {
              WHERE a.usuario_id = profile.usuario_id
                AND a.estado IN ('backlog','planned','in_progress')
                AND a.eliminado_en IS NULL AND a.archivado_en IS NULL
+               AND a.fecha_limite >=
+                 (local_day.today::timestamp AT TIME ZONE profile.zona_horaria)
+               AND a.fecha_limite <
+                 ((local_day.today + 1)::timestamp AT TIME ZONE profile.zona_horaria)
                AND (a.inicio_minimo IS NULL OR a.inicio_minimo <
                  ((local_day.today + 1)::timestamp AT TIME ZONE profile.zona_horaria))
                AND (a.ocurre_el IS NULL OR a.ocurre_el <= local_day.today))

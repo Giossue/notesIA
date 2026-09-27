@@ -254,12 +254,14 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
     const profile = await dependencies.profiles.get(session.user.id);
     if (!profile) return error(404, "PROFILE_NOT_FOUND", "Perfil no disponible.");
     const today = todayInTimeZone(new Date().toISOString(), profile.timeZone);
+    const bounds = localDayBounds(today, profile.timeZone);
     const [days, hasTask] = await Promise.all([
       dependencies.activities.streakDays(session.user.id),
-      dependencies.activities.hasActionableTask(
+      dependencies.activities.hasTaskDueOnDay(
         session.user.id,
         today,
-        new Date(localDayBounds(today, profile.timeZone).endsAt),
+        new Date(bounds.startsAt),
+        new Date(bounds.endsAt),
       ),
     ]);
     return c.json(
