@@ -5,22 +5,14 @@ import { getSessionCookie } from "@/core/auth/session-storage";
 import { getApiBaseUrl } from "@/core/config/api";
 import { readApiCache, writeApiCache } from "@/core/offline/cache";
 import { enqueueMutation, type QueueMetadata } from "@/core/offline/outbox";
+import { ApiError } from "./api-error";
 
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly status?: number,
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
+export { ApiError } from "./api-error";
 
 export class OfflineQueuedError extends ApiError {
   constructor() {
     super(
-      "Cambio guardado en este dispositivo. Se enviará al recuperar la conexión.",
+      "Sin internet: lo guardamos en tu teléfono y se enviará cuando vuelva la conexión.",
       "OFFLINE_QUEUED",
     );
     this.name = "OfflineQueuedError";
@@ -109,19 +101,19 @@ export async function requestJson<T extends z.ZodType>(
       try {
         body = await response.json();
       } catch {
-        throw new ApiError("El servidor devolvió una respuesta inesperada.", "INVALID_RESPONSE");
+        throw new ApiError("Algo salió mal. Inténtalo de nuevo en un momento.", "INVALID_RESPONSE");
       }
     if (!response.ok) {
       const parsed = problemSchema.safeParse(body);
       throw new ApiError(
-        parsed.success ? parsed.data.title : "No se pudo completar la solicitud.",
+        parsed.success ? parsed.data.title : "Algo salió mal. Inténtalo de nuevo en un momento.",
         parsed.success ? parsed.data.code : "API_ERROR",
         response.status,
       );
     }
     const parsed = schema.safeParse(body);
     if (!parsed.success)
-      throw new ApiError("El servidor devolvió datos inesperados.", "INVALID_RESPONSE");
+      throw new ApiError("Algo salió mal. Inténtalo de nuevo en un momento.", "INVALID_RESPONSE");
     if (method === "GET") await writeApiCache(path, parsed.data).catch(() => {});
     return parsed.data;
   } catch (error) {
@@ -138,8 +130,11 @@ export async function requestJson<T extends z.ZodType>(
         idempotencyKey: options.idempotencyKey,
       });
     if (controller.signal.aborted)
-      throw new ApiError("La conexión tardó demasiado.", "API_TIMEOUT");
-    throw new ApiError("No se pudo contactar al servidor local.", "NETWORK_ERROR");
+      throw new ApiError("El servidor tardó en responder. Inténtalo de nuevo.", "API_TIMEOUT");
+    throw new ApiError(
+      "No hay conexión. Revisa tu internet e inténtalo de nuevo.",
+      "NETWORK_ERROR",
+    );
   } finally {
     clearTimeout(timeout);
   }
@@ -170,7 +165,7 @@ export async function requestText(
         .catch(() => null);
       const parsed = problemSchema.safeParse(body);
       throw new ApiError(
-        parsed.success ? parsed.data.title : "No se pudo completar la solicitud.",
+        parsed.success ? parsed.data.title : "Algo salió mal. Inténtalo de nuevo en un momento.",
         parsed.success ? parsed.data.code : "API_ERROR",
         response.status,
       );
@@ -179,8 +174,11 @@ export async function requestText(
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (controller.signal.aborted)
-      throw new ApiError("La conexión tardó demasiado.", "API_TIMEOUT");
-    throw new ApiError("No se pudo contactar al servidor local.", "NETWORK_ERROR");
+      throw new ApiError("El servidor tardó en responder. Inténtalo de nuevo.", "API_TIMEOUT");
+    throw new ApiError(
+      "No hay conexión. Revisa tu internet e inténtalo de nuevo.",
+      "NETWORK_ERROR",
+    );
   } finally {
     clearTimeout(timeout);
   }

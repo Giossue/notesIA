@@ -43,18 +43,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           key={toast?.id}
           visible={!!toast}
           onDismiss={() => setToast(null)}
-          duration={4000}
+          duration={3500}
           wrapperStyle={{ top: insets.top + 8, bottom: undefined }}
           style={{
             borderRadius: layout.cardRadius,
             backgroundColor: isError ? theme.colors.error : theme.colors.inverseSurface,
           }}
           theme={{ colors: { inverseOnSurface: foreground } }}
-          action={{
-            label: "Cerrar",
-            textColor: foreground,
-            onPress: () => setToast(null),
-          }}
           accessibilityLiveRegion="polite"
         >
           {toast?.message}

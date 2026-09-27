@@ -93,9 +93,10 @@ function encodeCursor(row: EventRow, onDay: boolean) {
 }
 
 function resultResponse(result: Awaited<ReturnType<CalendarEventRepository["update"]>>) {
-  if (result.kind === "not_found") return error(404, "EVENT_NOT_FOUND", "Evento no encontrado.");
+  if (result.kind === "not_found")
+    return error(404, "EVENT_NOT_FOUND", "Compromiso no encontrado.");
   if (result.kind === "conflict")
-    return error(409, "VERSION_CONFLICT", "El evento cambió. Actualízalo antes de continuar.");
+    return error(409, "VERSION_CONFLICT", "El compromiso cambió. Actualízalo antes de continuar.");
   return Response.json(toEvent(result.row));
 }
 
@@ -105,7 +106,7 @@ export function registerCalendarEventRoutes(app: Hono, dependencies: Dependencie
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const archivedQuery = c.req.query("archived");
     if (archivedQuery !== undefined && archivedQuery !== "true" && archivedQuery !== "false")
-      return error(422, "VALIDATION_FAILED", "Filtro de eventos inválido.");
+      return error(422, "VALIDATION_FAILED", "Filtro de compromisos inválido.");
     const on = c.req.query("on");
     if (on && !z.iso.date().safeParse(on).success)
       return error(422, "VALIDATION_FAILED", "Fecha de agenda inválida.");
@@ -124,7 +125,7 @@ export function registerCalendarEventRoutes(app: Hono, dependencies: Dependencie
       return error(422, "VALIDATION_FAILED", "Rango de agenda inválido; máximo 31 días.");
     const byDate = Boolean(on || from);
     if (byDate && archivedQuery === "true")
-      return error(422, "VALIDATION_FAILED", "La agenda solo muestra eventos activos.");
+      return error(422, "VALIDATION_FAILED", "La agenda solo muestra compromisos activos.");
 
     const rawCursor = c.req.query("cursor");
     let cursor: bigint | { startsAt: Date; id: string } | null = null;
@@ -173,23 +174,23 @@ export function registerCalendarEventRoutes(app: Hono, dependencies: Dependencie
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const id = c.req.param("id");
     if (!z.uuid().safeParse(id).success)
-      return error(404, "EVENT_NOT_FOUND", "Evento no encontrado.");
+      return error(404, "EVENT_NOT_FOUND", "Compromiso no encontrado.");
     const row = await dependencies.events.get(session.user.id, id);
-    return row ? c.json(toEvent(row)) : error(404, "EVENT_NOT_FOUND", "Evento no encontrado.");
+    return row ? c.json(toEvent(row)) : error(404, "EVENT_NOT_FOUND", "Compromiso no encontrado.");
   });
 
   app.post("/v1/calendar-events", async (c) => {
     const session = await dependencies.getSession(c.req.raw.headers);
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const parsed = calendarEventCreateSchema.safeParse(await readBody(c.req.raw));
-    if (!parsed.success) return error(422, "VALIDATION_FAILED", "Revisa los datos del evento.");
+    if (!parsed.success) return error(422, "VALIDATION_FAILED", "Revisa los datos del compromiso.");
     const result = await dependencies.events.create(
       session.user.id,
       parsed.data.id,
       toFields(parsed.data),
     );
     if (result.kind === "conflict")
-      return error(409, "EVENT_CONFLICT", "No se pudo guardar el evento.");
+      return error(409, "EVENT_CONFLICT", "No se pudo guardar el compromiso.");
     return c.json(toEvent(result.row), result.kind === "created" ? 201 : 200);
   });
 
@@ -198,9 +199,9 @@ export function registerCalendarEventRoutes(app: Hono, dependencies: Dependencie
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const id = c.req.param("id");
     if (!z.uuid().safeParse(id).success)
-      return error(404, "EVENT_NOT_FOUND", "Evento no encontrado.");
+      return error(404, "EVENT_NOT_FOUND", "Compromiso no encontrado.");
     const parsed = calendarEventUpdateSchema.safeParse(await readBody(c.req.raw));
-    if (!parsed.success) return error(422, "VALIDATION_FAILED", "Revisa los datos del evento.");
+    if (!parsed.success) return error(422, "VALIDATION_FAILED", "Revisa los datos del compromiso.");
     const result = await dependencies.events.update(session.user.id, id, {
       ...toFields(parsed.data),
       version: parsed.data.version,
@@ -214,12 +215,16 @@ export function registerCalendarEventRoutes(app: Hono, dependencies: Dependencie
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const id = c.req.param("id");
     if (!z.uuid().safeParse(id).success)
-      return error(404, "EVENT_NOT_FOUND", "Evento no encontrado.");
+      return error(404, "EVENT_NOT_FOUND", "Compromiso no encontrado.");
     const parsed = calendarEventVersionSchema.safeParse(await readBody(c.req.raw));
     if (!parsed.success) return error(422, "VALIDATION_FAILED", "Versión inválida.");
     const result = await dependencies.events.delete(session.user.id, id, parsed.data);
     if (result.kind === "conflict")
-      return error(409, "VERSION_CONFLICT", "El evento cambió. Actualízalo antes de continuar.");
+      return error(
+        409,
+        "VERSION_CONFLICT",
+        "El compromiso cambió. Actualízalo antes de continuar.",
+      );
     return c.body(null, 204);
   });
 
@@ -229,7 +234,7 @@ export function registerCalendarEventRoutes(app: Hono, dependencies: Dependencie
       if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
       const id = c.req.param("id");
       if (!z.uuid().safeParse(id).success)
-        return error(404, "EVENT_NOT_FOUND", "Evento no encontrado.");
+        return error(404, "EVENT_NOT_FOUND", "Compromiso no encontrado.");
       const parsed = calendarEventVersionSchema.safeParse(await readBody(c.req.raw));
       if (!parsed.success) return error(422, "VALIDATION_FAILED", "Versión inválida.");
       const result = await dependencies.events.setArchived(session.user.id, id, {

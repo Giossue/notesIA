@@ -13,7 +13,7 @@ function Trigger() {
   return <Button onPress={() => toast.show("No se pudo guardar la tarea.")}>Guardar</Button>;
 }
 
-test("el toast muestra el error y se puede cerrar", async () => {
+test("el toast muestra el mensaje sin botón de cerrar", async () => {
   await render(
     <PaperProvider>
       <ToastProvider>
@@ -24,6 +24,6 @@ test("el toast muestra el error y se puede cerrar", async () => {
   const user = userEvent.setup();
   await user.press(screen.getByText("Guardar"));
   expect(await screen.findByText("No se pudo guardar la tarea.")).toBeOnTheScreen();
-  await user.press(screen.getByText("Cerrar"));
-  expect(screen.queryByText("No se pudo guardar la tarea.")).toBeNull();
+  // Se va solo a los pocos segundos: no hay botón de cerrar.
+  expect(screen.queryByText("Cerrar")).toBeNull();
 });

@@ -14,12 +14,12 @@ const tabs: { route: MainTab; label: string; icon: string }[] = [
   { route: "Home", label: "Inicio", icon: "home-outline" },
   {
     route: "Agenda",
-    label: "Calendario",
+    label: "Agenda",
     icon: "calendar-blank-outline",
   },
   {
     route: "Progress",
-    label: "Estadísticas",
+    label: "Progreso",
     icon: "chart-bar",
   },
   { route: "Profile", label: "Perfil", icon: "account-outline" },
