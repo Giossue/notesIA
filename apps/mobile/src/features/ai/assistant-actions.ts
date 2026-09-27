@@ -90,7 +90,7 @@ const eventKindLabels = {
   appointment: "Cita",
   personal: "Personal",
   unavailable: "No disponible",
-  other: "Compromiso",
+  other: "Hora ocupada",
 };
 const transitionLabels = {
   complete: "Marcar como completada",
@@ -182,7 +182,7 @@ export function describeAction(action: AssistantAction): {
     case "create_event":
       return {
         icon: "calendar-plus",
-        heading: "Crear compromiso",
+        heading: "Agregar hora ocupada",
         title: action.event.title,
         details: [
           eventKindLabels[action.event.kind],
@@ -196,7 +196,7 @@ export function describeAction(action: AssistantAction): {
       const { changes } = action;
       return {
         icon: "pencil-outline",
-        heading: "Editar compromiso",
+        heading: "Editar hora ocupada",
         title: action.title,
         details: [
           ...(changes.title ? [`Nuevo nombre: ${changes.title}`] : []),
@@ -209,7 +209,7 @@ export function describeAction(action: AssistantAction): {
     case "archive_event":
       return {
         icon: "delete-outline",
-        heading: "Eliminar compromiso",
+        heading: "Eliminar hora ocupada",
         title: action.title,
         details: [],
       };

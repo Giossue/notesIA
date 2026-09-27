@@ -1,6 +1,8 @@
 import type { availabilityRuleSchema, preferencesSchema } from "@notesia/contracts";
 import { shiftLocalDate } from "@notesia/domain";
 import { useNetInfo } from "@react-native-community/netinfo";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -17,6 +19,8 @@ import {
 } from "@/core/api/availability";
 import { getPreferences, updatePreferences } from "@/core/api/preferences";
 import { layout } from "@/core/theme/layout";
+import { BusyTimeList } from "@/features/calendar/BusyTimeList";
+import type { RootStackParamList } from "@/navigation/types";
 import { studyHoursInfo } from "@/shared/concepts";
 import { userMessage } from "@/shared/errors";
 import { DateField, FormSection, TimeField } from "@/shared/fields";
@@ -41,6 +45,7 @@ type Slot = HourSlot & { rule?: Rule };
 type Window = { key: string; start: string; end: string };
 
 export function AvailabilityScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const theme = useTheme();
   const rules = useQuery({
     queryKey: ["availability-rules"],
@@ -59,11 +64,11 @@ export function AvailabilityScreen() {
   return (
     <ScreenLayout
       keyboardShouldPersistTaps="handled"
-      header={{ title: "Mi horario de estudio", info: studyHoursInfo }}
+      header={{ title: "Horario", info: studyHoursInfo }}
     >
       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-        Indica cuándo puedes estudiar cada semana. El planificador solo propone sesiones en esos
-        horarios.
+        Marca cuándo aceptarías estudiar y las horas en que estás ocupado. La app planifica en el
+        tiempo que queda libre.
       </Text>
       {(rules.isPending || preferences.isPending) && !failed && (
         <ActivityIndicator accessibilityLabel="Cargando horario" />
@@ -94,6 +99,19 @@ export function AvailabilityScreen() {
         ) : (
           <Text accessibilityRole="alert">Horario guardado.</Text>
         ))}
+      <Divider />
+      <View style={styles.group}>
+        <Text variant="titleMedium">Horas ocupadas</Text>
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+          Clases, trabajo u otros momentos que no quieres usar para estudiar. También puedes
+          repetirlos cada semana. Aquí verás los próximos 30 días; en Agenda puedes abrir otras
+          fechas.
+        </Text>
+        <Button mode="outlined" icon="plus" onPress={() => navigation.navigate("EventForm", {})}>
+          Agregar hora ocupada
+        </Button>
+        <BusyTimeList />
+      </View>
     </ScreenLayout>
   );
 }
@@ -219,7 +237,10 @@ function ScheduleForm({
 
   return (
     <View style={styles.form}>
-      <FormSection title="Días y horas">
+      <FormSection
+        title="Franjas posibles para estudiar"
+        hint="La app restará las horas ocupadas de estas franjas."
+      >
         <WeeklyHoursEditor days={days} onChangeDay={updateDay} />
       </FormSection>
 

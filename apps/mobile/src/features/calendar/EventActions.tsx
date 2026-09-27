@@ -42,13 +42,13 @@ export function EventActions({ event }: { event: CalendarEvent }) {
         onPress={() => setConfirmOpen(true)}
         contentStyle={sharedStyles.actionContent}
       >
-        Eliminar compromiso
+        Eliminar hora ocupada
       </Button>
       <Portal>
         <Dialog visible={confirmOpen} onDismiss={() => setConfirmOpen(false)}>
-          <Dialog.Title>Eliminar compromiso</Dialog.Title>
+          <Dialog.Title>Eliminar hora ocupada</Dialog.Title>
           <Dialog.Content>
-            <Text>El compromiso se borrará y esa hora quedará libre en la agenda.</Text>
+            <Text>Esta hora quedará libre para el plan de estudio.</Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setConfirmOpen(false)}>Cancelar</Button>

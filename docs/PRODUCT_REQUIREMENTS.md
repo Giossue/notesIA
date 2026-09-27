@@ -16,7 +16,7 @@
 |---|---|---|
 | RF-ACAD-01 | MVP | Crear, editar, archivar y consultar materias. |
 | RF-ACAD-02 | MVP | Registrar periodos académicos opcionales. |
-| RF-ACAD-03 | MVP | Registrar clases y compromisos fijos. |
+| RF-ACAD-03 | MVP | Registrar horas ocupadas dentro de Horario; restan capacidad a las franjas de estudio. |
 | RF-ACAD-04 | MVP | Ver agenda diaria y calendario semanal/mensual. |
 | RF-ACAD-05 | POST | Importar horario desde imagen/PDF con revisión. |
 
@@ -38,7 +38,7 @@
 
 | ID | Nivel | Requisito |
 |---|---|---|
-| RF-AVL-01 | MVP | Definir ventanas semanales. |
+| RF-AVL-01 | MVP | Definir franjas semanales en que acepta estudiar y horas ocupadas en una sola sección Horario. |
 | RF-AVL-02 | MVP | Excepciones por fecha. |
 | RF-AVL-03 | MVP | Detectar solapamientos. |
 | RF-AVL-04 | MVP | Configurar jornada y duración de sesiones. |

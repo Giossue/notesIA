@@ -19,16 +19,14 @@ import { DateField, FormSection, TimeField } from "@/shared/fields";
 import { Button, Card, TextInput } from "@/shared/paper";
 import { useHideSplash } from "@/shared/splash";
 import { Tabs } from "@/shared/Tabs";
-import type { Commitment, CommitmentKind, WeekSetup } from "./save-week";
+import type { Commitment, WeekSetup } from "./save-week";
 import { useLocalToday, useSaveWeek } from "./useSaveWeek";
 
-type Kind = CommitmentKind;
-const kindLabels: Record<Kind, string> = { class: "Clase", work: "Trabajo", other: "Otro" };
 const letters = ["L", "M", "M", "J", "V", "S", "D"];
 
 /**
  * Configuración inicial, una sola vez después de registrarse: cuándo puede
- * estudiar y qué compromisos fijos tiene (clases, trabajo). Con eso la app arma
+ * estudiar y cuándo está ocupado (clases, trabajo). Con eso la app arma
  * sola el plan de estudio.
  */
 export function OnboardingScreen({
@@ -65,19 +63,19 @@ export function OnboardingScreen({
     <View key="hours" style={styles.section}>
       <StepTitle
         icon="book-clock-outline"
-        title="¿Cuándo puedes estudiar?"
-        text="Marca las horas libres de cada día que quieres dedicar a estudiar. La app solo pondrá sesiones de estudio en esos horarios."
+        title="¿Cuándo aceptarías estudiar?"
+        text="Marca una o varias franjas por día. En el siguiente paso podrás señalar las horas ocupadas para excluirlas."
       />
       <WeeklyHoursEditor days={days} onChangeDay={updateDay} emptyText="Sin estudio este día." />
       <FormSection title="Máximo de estudio al día">
         <Tabs value={daily} onValueChange={setDaily} buttons={[...dailyChoices]} />
       </FormSection>
     </View>,
-    <View key="commitments" style={styles.section}>
+    <View key="busy-hours" style={styles.section}>
       <StepTitle
         icon="calendar-lock-outline"
-        title="Tus compromisos fijos"
-        text="Clases, trabajo u otras cosas que se repiten cada semana. En esas horas estás ocupado y la app no te pondrá a estudiar."
+        title="¿Cuándo estás ocupado?"
+        text="Agrega clases, trabajo u otras horas ocupadas. La app evitará planificar estudio en ellas. Puedes omitir este paso y agregarlas después en Horario."
       />
       {commitments.map((item) => (
         <Card key={item.key} mode="contained">
@@ -85,8 +83,8 @@ export function OnboardingScreen({
             <View style={styles.flex}>
               <Text variant="titleMedium">{item.title}</Text>
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                {kindLabels[item.kind]} · {item.days.map((day) => letters[day - 1]).join(" ")} ·{" "}
-                {item.start}–{item.end} · hasta {item.until}
+                {item.days.map((day) => letters[day - 1]).join(" ")} · {item.start}–{item.end} ·
+                hasta {item.until}
               </Text>
             </View>
             <IconButton
@@ -211,7 +209,7 @@ function Intro({ name }: { name: string }) {
   const theme = useTheme();
   const points = [
     { icon: "book-clock-outline", text: "Cuándo puedes estudiar cada semana." },
-    { icon: "calendar-lock-outline", text: "Tus clases y compromisos fijos." },
+    { icon: "calendar-lock-outline", text: "Horas ocupadas, como clases o trabajo." },
     { icon: "calendar-check-outline", text: "Con eso, la app arma sola tu plan de estudio." },
   ];
   return (
@@ -261,7 +259,6 @@ function CommitmentForm({
 }) {
   const theme = useTheme();
   const [title, setTitle] = useState("");
-  const [kind, setKind] = useState<Kind>("class");
   const [selected, setSelected] = useState<number[]>([]);
   const [start, setStart] = useState("08:00");
   const [end, setEnd] = useState("10:00");
@@ -275,7 +272,7 @@ function CommitmentForm({
     onAdd({
       key: uuidv4(),
       title: title.trim(),
-      kind,
+      kind: "other",
       days: [...selected].sort(),
       start,
       end,
@@ -289,22 +286,14 @@ function CommitmentForm({
     <Card mode="outlined">
       <Card.Content style={styles.form}>
         <Text variant="titleMedium" style={styles.bold}>
-          Agregar compromiso
+          Agregar hora ocupada
         </Text>
         <TextInput
           label="Nombre"
           mode="outlined"
           value={title}
           onChangeText={setTitle}
-          accessibilityLabel="Nombre del compromiso"
-        />
-        <Tabs
-          value={kind}
-          onValueChange={setKind}
-          buttons={(Object.keys(kindLabels) as Kind[]).map((value) => ({
-            value,
-            label: kindLabels[value],
-          }))}
+          accessibilityLabel="Nombre de la hora ocupada"
         />
         <View style={styles.weekdays}>
           {letters.map((letter, index) => {

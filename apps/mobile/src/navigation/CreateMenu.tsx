@@ -11,7 +11,7 @@ import type { RootStackParamList } from "./types";
 
 export const FAB_SIZE = 64;
 
-/** Menú de creación (tarea, evento) que abre el botón +. */
+/** Menú de creación desde la navegación principal. */
 export function CreateMenu({
   open,
   onClose,
@@ -39,13 +39,6 @@ export function CreateMenu({
       route: "ActivityForm",
       open: () => navigation.navigate("ActivityForm", { date }),
       color: categories.blue,
-    },
-    {
-      icon: "calendar-plus",
-      label: "Nuevo compromiso",
-      route: "EventForm",
-      open: () => navigation.navigate("EventForm", { date }),
-      color: categories.orange,
     },
     {
       icon: "robot",

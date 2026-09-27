@@ -1,11 +1,12 @@
-import { utcToLocalDateTime } from "@notesia/domain";
+import { shiftLocalDate, todayInTimeZone, utcToLocalDateTime } from "@notesia/domain";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { StyleSheet, View } from "react-native";
 import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 import { listCalendarEvents } from "@/core/api/calendar-events";
+import { getProfile } from "@/core/api/profile";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { EmptyState } from "@/shared/EmptyState";
@@ -21,16 +22,27 @@ const kindLabels = {
   other: "Otro",
 };
 
-/** Lista de compromisos (clases, trabajo, citas). */
-export function CommitmentList() {
+/** Horas ocupadas que el planificador resta de la franja de estudio. */
+export function BusyTimeList() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
+  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
+  const today = profile.data
+    ? todayInTimeZone(new Date().toISOString(), profile.data.timeZone)
+    : null;
+  const through = today ? shiftLocalDate(today, 30) : null;
   const events = useInfiniteQuery({
-    queryKey: ["calendar-events", false],
-    queryFn: ({ pageParam }) => listCalendarEvents({ archived: false, cursor: pageParam }),
+    queryKey: ["calendar-events", "upcoming", today, through],
+    queryFn: ({ pageParam }) =>
+      listCalendarEvents({
+        from: today ?? undefined,
+        through: through ?? undefined,
+        cursor: pageParam,
+      }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
+    enabled: !!today,
     retry: false,
   });
   const items = events.data?.pages.flatMap((page) => page.items) ?? [];
@@ -42,8 +54,14 @@ export function CommitmentList() {
           Sin conexión. Se muestran los datos guardados en esta sesión.
         </Text>
       )}
-      {events.isPending && !offline && (
-        <ActivityIndicator accessibilityLabel="Cargando compromisos" />
+      {(profile.isPending || (today && events.isPending)) && !offline && (
+        <ActivityIndicator accessibilityLabel="Cargando horas ocupadas" />
+      )}
+      {profile.isError && (
+        <View style={styles.message}>
+          <Text accessibilityRole="alert">{userMessage(profile.error)}</Text>
+          <Button onPress={() => void profile.refetch()}>Reintentar perfil</Button>
+        </View>
       )}
       {events.isError && (
         <View style={styles.message}>
@@ -51,25 +69,31 @@ export function CommitmentList() {
           <Button onPress={() => void events.refetch()}>Reintentar</Button>
         </View>
       )}
-      {!events.isPending && !events.isError && items.length === 0 && (
-        <EmptyState
-          variant="centered"
-          icon="calendar-lock-outline"
-          message="Aún no tienes compromisos."
-        />
-      )}
+      {!profile.isPending &&
+        !profile.isError &&
+        !events.isPending &&
+        !events.isError &&
+        items.length === 0 && (
+          <EmptyState
+            variant="centered"
+            icon="calendar-lock-outline"
+            message="No hay horas ocupadas en los próximos 30 días."
+          />
+        )}
       {items.map((item) => (
         <Card
           key={item.id}
           mode="contained"
           onPress={() => navigation.navigate("EventForm", { id: item.id })}
-          accessibilityLabel={`Abrir compromiso ${item.title}`}
+          accessibilityLabel={`Abrir hora ocupada ${item.title}`}
         >
           <Card.Content style={sharedStyles.listItem}>
             <Text variant="titleMedium">{item.title}</Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              {kindLabels[item.kind]}
-            </Text>
+            {item.kind !== "unavailable" && item.kind !== "other" && (
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                {kindLabels[item.kind]}
+              </Text>
+            )}
             <Text variant="bodyMedium">{when(item.startsAt, item.endsAt, item.timeZone)}</Text>
           </Card.Content>
         </Card>
@@ -89,7 +113,7 @@ export function CommitmentList() {
   );
 }
 
-/** "lun 28 sep · 07:00 – 09:00" en la hora del compromiso. */
+/** "lun 28 sep · 07:00 – 09:00" en la hora del bloque ocupado. */
 function when(startsAt: string, endsAt: string, timeZone: string) {
   const start = utcToLocalDateTime(startsAt, timeZone);
   const end = utcToLocalDateTime(endsAt, timeZone);

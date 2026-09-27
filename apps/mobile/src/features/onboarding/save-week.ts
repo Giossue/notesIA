@@ -15,7 +15,7 @@ import {
 import { saveTimeZone } from "@/shared/time-zones";
 
 export type CommitmentKind = "class" | "work" | "other";
-/** Un compromiso fijo: se repite cada semana en los días elegidos hasta `until`. */
+/** Hora ocupada: se repite cada semana en los días elegidos hasta `until`. */
 export type Commitment = {
   key: string;
   title: string;
@@ -28,7 +28,7 @@ export type Commitment = {
 /** La semana tal como se guarda, venga del agente o del formulario. */
 export type WeekSetup = { days: HourSlot[][]; daily: string; commitments: Commitment[] };
 
-/** Tope de semanas que se crean por compromiso: un año. */
+/** Tope de semanas que se crean por hora ocupada: un año. */
 const MAX_WEEKS = 52;
 
 /** Primera fecha desde `from` que cae en el día de la semana (1 = lunes). */
@@ -39,7 +39,7 @@ export function firstOnWeekday(from: string, weekday: number) {
   return shiftLocalDate(from, (weekday - current + 7) % 7);
 }
 
-/** Borrador del agente → semana editable (los compromisos sin fecha de fin usan `defaultUntil`). */
+/** Borrador del agente → semana editable (los bloques sin fin usan `defaultUntil`). */
 export function fromDraft(draft: OnboardingDraft, defaultUntil: string): WeekSetup {
   return {
     days: weekdays.map((_, index) =>
@@ -62,7 +62,7 @@ export function fromDraft(draft: OnboardingDraft, defaultUntil: string): WeekSet
 
 /**
  * Guarda la semana: zona horaria del teléfono, horario de estudio, máximo diario,
- * cada compromiso semana por semana y, al final, marca terminada la
+ * cada hora ocupada semana por semana y, al final, marca terminada la
  * configuración. `eventIds` conserva los ids entre reintentos para no duplicar.
  */
 export async function saveWeek({
@@ -117,7 +117,7 @@ export async function saveWeek({
     version: preferences.version,
   });
   step();
-  // De a varios a la vez: un ciclo completo puede ser un centenar de compromisos.
+  // De a varios a la vez: una semana típica puede producir muchos bloques.
   for (let index = 0; index < occurrences.length; index += 8) {
     await Promise.all(
       occurrences.slice(index, index + 8).map(async ({ item, date }) => {

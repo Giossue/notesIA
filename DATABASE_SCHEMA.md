@@ -35,7 +35,7 @@ El DDL de referencia se encuentra en `database/schema.sql`.
 
 | Tabla | Función |
 |---|---|
-| `eventos_calendario` | Clases y compromisos fijos. |
+| `eventos_calendario` | Horas ocupadas: clases, trabajo y otros bloqueos del horario. |
 
 ### Actividades
 
@@ -135,7 +135,7 @@ El tiempo real se obtiene de `registros_tiempo`; no se acepta como dato autorita
 
 ### Onboarding y plan automático
 
-`perfiles_usuario.configuracion_inicial_en` se marca al terminar la configuración inicial (horario de estudio y compromisos fijos). Desde entonces el worker rehace y aplica el plan de hoy a 7 días cada vez que cambia `revisiones_planificacion.revision` o empieza un día nuevo, sin aviso `plan_applied`; `planificacion_automatica` guarda la revisión y el día ya planificados para no repetir el cálculo.
+`perfiles_usuario.configuracion_inicial_en` se marca al terminar la configuración inicial (franjas de estudio y horas ocupadas opcionales). Desde entonces el worker rehace y aplica el plan de hoy a 7 días cada vez que cambia `revisiones_planificacion.revision` o empieza un día nuevo, sin aviso `plan_applied`; `planificacion_automatica` guarda la revisión y el día ya planificados para no repetir el cálculo.
 
 ### `dias_racha`
 

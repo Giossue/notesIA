@@ -21,7 +21,7 @@ visual y la identidad final de la interfaz quedan para una etapa posterior.
 ## Flujos disponibles en el móvil
 
 - Registro, reenvío de verificación, acceso, recuperación y cierre de sesión.
-- Perfil, materias, periodos, actividades, subtareas, series y eventos fijos.
+- Perfil, materias, periodos, tareas, subtareas, series y horas ocupadas del horario.
 - Agenda por día, semana o mes con plazos, eventos y bloques del plan.
 - Disponibilidad semanal, excepciones y capacidad.
 - Planificación, riesgo, edición de bloques, aplicación, rechazo e historial.

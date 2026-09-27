@@ -39,13 +39,13 @@ const unavailable = {
   provider_unavailable: "El servicio de IA no responde ahora.",
 };
 
-/** Lo mínimo para guardar: un horario de estudio y fecha de fin en cada compromiso. */
+/** Lo mínimo para guardar: una franja de estudio y fin de cada bloque repetido. */
 const ready = (draft: OnboardingDraft) =>
   draft.studyHours.length > 0 && draft.commitments.every((item) => item.until !== null);
 
 /**
  * Configuración inicial conversada: el estudiante cuenta su semana por voz o
- * texto, el agente arma el horario y los compromisos y pregunta solo lo que
+ * texto, el agente arma el horario y las horas ocupadas y pregunta lo que
  * falte. Nada se guarda hasta que el estudiante revisa el resumen y pulsa Guardar.
  */
 export function OnboardingAgentScreen({
@@ -65,7 +65,7 @@ export function OnboardingAgentScreen({
     {
       id: 0,
       role: "assistant",
-      text: `¡Hola, ${firstName}! Armemos tu semana. Cuéntame qué clases o trabajo tienes (días y horas) y en qué momentos puedes estudiar. Puedes hablarme o escribirme.`,
+      text: `¡Hola, ${firstName}! Armemos tu horario. Dime en qué horas aceptarías estudiar y cuándo estás ocupado, por ejemplo en clases o trabajo. Puedes hablarme o escribirme.`,
     },
   ]);
   const [draft, setDraft] = useState<OnboardingDraft>(emptyDraft);
@@ -370,7 +370,7 @@ function WeekSummary({ draft }: { draft: OnboardingDraft }) {
           ? "sin definir (3 h)"
           : (daily?.label ?? `${Math.round(draft.maxDailyMinutes / 60)} h`)}
       </Text>
-      <Text variant="labelLarge">Compromisos fijos</Text>
+      <Text variant="labelLarge">Horas ocupadas</Text>
       {draft.commitments.length === 0 ? (
         <Text variant="bodySmall" style={muted}>
           Ninguno por ahora.

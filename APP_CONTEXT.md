@@ -79,7 +79,7 @@ El estudiante puede tener toda la información registrada y aun así no saber si
 ### Organización académica
 
 - materias y periodos académicos fueron retirados del producto (sus tablas y columnas se eliminaron en la migración 0052);
-- clases y compromisos fijos;
+- franjas de estudio y horas ocupadas (clases, trabajo u otros bloqueos);
 - actividades académicas, exámenes, personales y rutinas;
 - subtareas;
 - recurrencia básica;
@@ -196,6 +196,10 @@ erDiagram
 - Las excepciones tienen prioridad sobre reglas semanales.
 - Eventos fijos y bloques bloqueados restan capacidad.
 - Un bloque no puede ubicarse fuera de disponibilidad.
+- En la app, **Horario** reúne las franjas en que el estudiante acepta estudiar y
+  las horas ocupadas (clases, trabajo u otros intervalos). Los datos de
+  `eventos_calendario` se presentan como horas ocupadas; el planificador los
+  resta de las franjas de estudio. **Tareas** es la otra sección de organización.
 
 ### Planes
 

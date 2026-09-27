@@ -83,6 +83,8 @@ test("la agenda muestra eventos y entregas del día en la zona horaria del perfi
   // Hora de inicio (y fin del evento) en la columna izquierda de la lista.
   expect(screen.getByText("22:00")).toBeOnTheScreen();
   expect(screen.getAllByText("23:00")).toHaveLength(2);
+  await fireEvent.press(screen.getByLabelText("Editar horario"));
+  expect(mockNavigate).toHaveBeenCalledWith("Availability");
 });
 
 test("permite elegir mes y año, conserva el día posible y vuelve a hoy", async () => {

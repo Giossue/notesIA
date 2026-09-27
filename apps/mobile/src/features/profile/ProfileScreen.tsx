@@ -51,8 +51,8 @@ export function ProfileScreen() {
     {
       icon: "clock-outline",
       color: categories.blue,
-      title: "Mi horario de estudio",
-      subtitle: "Cuándo puedes estudiar cada semana",
+      title: "Horario",
+      subtitle: "Horas para estudiar y horas ocupadas",
       onPress: () => navigation.navigate("Availability"),
     },
     {

@@ -12,7 +12,7 @@ export function updateProfile(input: ProfileUpdate) {
   });
 }
 
-/** Termina la configuración inicial (horario de estudio y compromisos). */
+/** Termina la configuración inicial (franja de estudio y horas ocupadas). */
 export function completeOnboarding() {
   return requestJson("/me/onboarding/complete", profileSchema, { method: "POST" });
 }

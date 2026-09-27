@@ -26,7 +26,7 @@ flowchart LR
 
 - experiencia del estudiante;
 - caché y mutaciones offline permitidas;
-- agenda, actividades, disponibilidad, preview y ejecución;
+- agenda, tareas, horario (franjas de estudio y horas ocupadas), preview y ejecución;
 - almacenamiento seguro de sesión;
 - nunca contiene secretos ni reglas de autorización.
 

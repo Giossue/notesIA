@@ -155,7 +155,7 @@ export function ExportCard() {
     <ActionCard
       icon="download-outline"
       title="Exportar mis datos"
-      text="Descarga un Excel con toda tu información: tareas, compromisos, tiempo registrado, avisos y más."
+      text="Descarga un Excel con toda tu información: tareas, horas ocupadas, tiempo registrado, avisos y más."
     >
       <Button
         mode="contained"

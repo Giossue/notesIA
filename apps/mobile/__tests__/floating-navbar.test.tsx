@@ -56,7 +56,7 @@ describe("FloatingNavBar", () => {
     await user.press(screen.getByLabelText("Crear"));
     expect(await screen.findByLabelText("Nueva tarea")).toBeOnTheScreen();
     expect(screen.queryByLabelText("Nueva materia")).toBeNull();
-    expect(screen.getByLabelText("Nuevo compromiso")).toBeOnTheScreen();
+    expect(screen.queryByLabelText("Nuevo compromiso")).toBeNull();
     await user.press(screen.getByText("Nueva tarea", { includeHiddenElements: true }));
     expect(mockNavigate).toHaveBeenCalledWith("ActivityForm", {});
   });

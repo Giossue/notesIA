@@ -6,14 +6,14 @@ export const taskInfo: HeaderInfo = {
   text: "Algo que tienes que hacer y tiene entrega: un trabajo, un examen, algo personal o una rutina. Le pones fecha y tiempo estimado, y la app reparte sesiones de estudio en tu horario para que llegues a tiempo.",
 };
 
-export const commitmentInfo: HeaderInfo = {
-  title: "¿Qué es un compromiso?",
-  text: "Un momento en que ya estás ocupado: una clase, tu trabajo o una cita. Tiene hora de inicio y de fin, y la app no te pone a estudiar en esas horas.",
+export const busyTimeInfo: HeaderInfo = {
+  title: "¿Qué es una hora ocupada?",
+  text: "Una hora en la que no puedes estudiar, por ejemplo durante una clase o tu trabajo. La app evita poner sesiones de estudio en ese intervalo.",
 };
 
 export const studyHoursInfo: HeaderInfo = {
-  title: "¿Qué es tu horario de estudio?",
-  text: "Las horas libres de cada día en que puedes estudiar. La app solo pone sesiones de estudio dentro de ese horario y nunca encima de tus compromisos. El máximo al día limita cuánto estudio te propone por día.",
+  title: "¿Cómo funciona tu horario?",
+  text: "Marca las franjas en que aceptarías estudiar y las horas en que estás ocupado. La app propone sesiones solo en el tiempo que queda libre. El máximo diario limita cuánto estudio te propone.",
 };
 
 export const streakInfo: HeaderInfo = {
@@ -23,5 +23,5 @@ export const streakInfo: HeaderInfo = {
 
 export const agendaInfo: HeaderInfo = {
   title: "¿Qué ves en la agenda?",
-  text: "Tu día a día en un solo lugar: tus compromisos (clases, trabajo, citas), las entregas de tus tareas y las sesiones de estudio que la app arma sola en tu horario libre. Elige un día arriba para verlo o toca el mes y año para saltar a otra fecha; con el botón del calendario ves todos tus compromisos.",
+  text: "Tu día a día en un solo lugar: horas ocupadas, entregas de tareas y sesiones de estudio. Elige un día arriba o toca el mes y año para saltar a otra fecha. Puedes editar las horas ocupadas desde Horario.",
 };

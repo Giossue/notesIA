@@ -54,7 +54,7 @@ export const profileSchema = z.object({
   language: z.enum(["es", "en"]),
   timeZone: z.string(),
   avatar: avatarIdSchema,
-  /** Ya eligió su horario de estudio y compromisos al empezar. */
+  /** Ya eligió sus franjas de estudio y horas ocupadas al empezar. */
   onboardingCompleted: z.boolean(),
   version: z.number().int().positive(),
   updatedAt: z.iso.datetime(),
@@ -1224,7 +1224,7 @@ export const onboardingDraftSchema = z.strictObject({
     )
     .max(28),
   maxDailyMinutes: z.number().int().min(30).max(720).nullable(),
-  /** Compromisos fijos semanales (clases, trabajo); `until` null = falta preguntarlo. */
+  /** Horas ocupadas semanales (clases, trabajo); `until` null = falta preguntarlo. */
   commitments: z
     .array(
       z.strictObject({

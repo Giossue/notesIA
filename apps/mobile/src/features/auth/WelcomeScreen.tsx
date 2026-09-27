@@ -18,7 +18,7 @@ const slides = [
   {
     image: require("../../../assets/welcome/1.png"),
     title: "Organiza tus tareas",
-    text: "Tareas, clases y compromisos en un solo lugar, con fechas y prioridades claras.",
+    text: "Organiza tus tareas y tu horario de estudio en un solo lugar.",
   },
   {
     image: require("../../../assets/welcome/2.png"),

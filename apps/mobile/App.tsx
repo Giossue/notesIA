@@ -99,12 +99,9 @@ function ActivityFormRoute({ route }: NativeStackScreenProps<RootStackParamList,
   );
 }
 
-/** Tareas y compromisos son una sola pantalla; cada ruta abre su pestaña. */
+/** Lista de tareas desde el inicio y la navegación interna. */
 function TaskListsRoute() {
-  return <ListsScreen initial="tasks" />;
-}
-function CommitmentListsRoute() {
-  return <ListsScreen initial="commitments" />;
+  return <ListsScreen />;
 }
 
 function EventFormRoute({ route }: NativeStackScreenProps<RootStackParamList, "EventForm">) {
@@ -236,7 +233,6 @@ function Main() {
               <Stack.Screen name="Activities" component={TaskListsRoute} />
               <Stack.Screen name="ActivityForm" component={ActivityFormRoute} />
               <Stack.Screen name="Agenda" options={tabScreen} component={AgendaScreen} />
-              <Stack.Screen name="Events" component={CommitmentListsRoute} />
               <Stack.Screen name="EventForm" component={EventFormRoute} />
               <Stack.Screen name="Profile" options={tabScreen} component={ProfileScreen} />
               <Stack.Screen name="Availability" component={AvailabilityScreen} />

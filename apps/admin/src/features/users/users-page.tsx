@@ -247,7 +247,7 @@ function UserDetailDialog({
                 <DetailRow label="Tareas">
                   {data.counts.activities} ({data.counts.completedActivities} completadas)
                 </DetailRow>
-                <DetailRow label="Compromisos">{data.counts.commitments}</DetailRow>
+                <DetailRow label="Horas ocupadas">{data.counts.commitments}</DetailRow>
                 <DetailRow label="Tramos de horario de estudio">{data.counts.studyHours}</DetailRow>
                 <DetailRow label="Racha actual">
                   {data.counts.streakDays} {data.counts.streakDays === 1 ? "día" : "días"}

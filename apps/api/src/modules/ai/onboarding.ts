@@ -69,7 +69,7 @@ export function normalizeDraft(raw: RawDraft, today: string): OnboardingDraft {
   });
 }
 
-/** Lo mínimo para guardar: un horario de estudio y fecha de fin en cada compromiso. */
+/** Lo mínimo para guardar: una franja de estudio y fin de cada bloque ocupado. */
 export const draftReady = (draft: OnboardingDraft) =>
   draft.studyHours.length > 0 && draft.commitments.every((item) => item.until !== null);
 

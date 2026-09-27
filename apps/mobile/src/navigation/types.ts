@@ -14,7 +14,6 @@ export type RootStackParamList = {
     date?: string;
   };
   Agenda: TabParams;
-  Events: undefined;
   EventForm: { id?: string /** Día (AAAA-MM-DD) en que empieza. */; date?: string };
   Availability: undefined;
   Notifications: undefined;

@@ -114,7 +114,7 @@ export function AgendaScreen() {
         label: kind.label,
         color: kind.color,
         title: item.title,
-        meta: item.description?.trim() || "Compromiso",
+        meta: item.description?.trim() || "Hora ocupada",
         metaIcon: kind.icon,
         open: () => navigation.navigate("EventForm", { id: item.id }),
       };
@@ -292,8 +292,8 @@ export function AgendaScreen() {
         info: agendaInfo,
         right: {
           icon: "calendar-month-outline",
-          label: "Ver mis compromisos",
-          onPress: () => navigation.navigate("Events"),
+          label: "Editar horario",
+          onPress: () => navigation.navigate("Availability"),
         },
       }}
     >

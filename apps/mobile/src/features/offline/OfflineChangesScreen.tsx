@@ -28,7 +28,7 @@ const entityLabels = {
   progress: "Progreso",
   time_entry: "Registro de tiempo",
   subtask: "Subtarea",
-  event: "Compromiso",
+  event: "Hora ocupada",
 };
 const operationLabels = {
   create: "crear",

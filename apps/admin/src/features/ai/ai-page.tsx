@@ -309,7 +309,7 @@ const routeCopy: Record<
   onboarding_setup: {
     title: "Configuración inicial",
     description:
-      "Al registrarse, el estudiante cuenta su semana por voz o texto y el agente arma su horario y compromisos",
+      "Al registrarse, el estudiante cuenta su semana por voz o texto y el agente arma sus franjas de estudio y horas ocupadas",
     preferred: "deepseek",
     enable: "Activar configuración conversada",
   },

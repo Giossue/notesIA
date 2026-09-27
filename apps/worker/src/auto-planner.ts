@@ -21,7 +21,7 @@ export const AUTO_PLAN_DAYS = 7;
 type Candidate = { userId: string; today: string };
 
 /**
- * Plan automático: cuando cambian las tareas, los compromisos, el horario de
+ * Plan automático: cuando cambian las tareas, las horas ocupadas, el horario de
  * estudio o las preferencias (la revisión de planificación), o empieza un día
  * nuevo, rehace el plan de hoy a 7 días con el planificador determinístico y lo
  * aplica sin pedir confirmación ni avisar "Plan aplicado". Lo que no alcance lo

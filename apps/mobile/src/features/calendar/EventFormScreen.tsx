@@ -20,9 +20,9 @@ import {
 import { getProfile } from "@/core/api/profile";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
-import { commitmentInfo } from "@/shared/concepts";
+import { busyTimeInfo } from "@/shared/concepts";
 import { userMessage } from "@/shared/errors";
-import { DateField, DateTimeField, FormSection, SelectField } from "@/shared/fields";
+import { DateField, DateTimeField, FormSection } from "@/shared/fields";
 import { Button, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { Tabs } from "@/shared/Tabs";
@@ -40,15 +40,6 @@ const formSchema = z.object({
   timeZone: z.string().trim().min(1, "Indica la zona horaria."),
 });
 type FormValues = z.infer<typeof formSchema>;
-
-const kindLabels: Record<FormValues["kind"], string> = {
-  class: "Clase",
-  work: "Trabajo",
-  appointment: "Cita",
-  personal: "Personal",
-  unavailable: "No disponible",
-  other: "Otro",
-};
 
 function toUtc(value: string, timeZone: string) {
   try {
@@ -74,10 +65,10 @@ export function EventFormScreen({ id, date }: { id?: string; date?: string }) {
   return (
     <ScreenLayout
       keyboardShouldPersistTaps="handled"
-      header={{ title: id ? "Compromiso" : "Nuevo compromiso", info: commitmentInfo }}
+      header={{ title: id ? "Hora ocupada" : "Agregar hora ocupada", info: busyTimeInfo }}
     >
       {(profile.isPending || (id && event.isPending)) && (
-        <ActivityIndicator accessibilityLabel="Cargando compromiso" />
+        <ActivityIndicator accessibilityLabel="Cargando hora ocupada" />
       )}
       {profile.isError && (
         <View style={styles.message}>
@@ -88,7 +79,7 @@ export function EventFormScreen({ id, date }: { id?: string; date?: string }) {
       {id && event.isError && (
         <View style={styles.message}>
           <Text accessibilityRole="alert">{userMessage(event.error)}</Text>
-          <Button onPress={() => void event.refetch()}>Reintentar compromiso</Button>
+          <Button onPress={() => void event.refetch()}>Reintentar hora ocupada</Button>
         </View>
       )}
       {profile.data && (!id || event.data) && (
@@ -145,7 +136,7 @@ function EventForm({
     defaultValues: {
       title: event?.title ?? "",
       description: event?.description ?? "",
-      kind: event?.kind ?? "class",
+      kind: event?.kind ?? "unavailable",
       startsLocal: event
         ? utcToLocalDateTime(event.startsAt, event.timeZone).replace("T", " ")
         : date
@@ -159,7 +150,6 @@ function EventForm({
       timeZone: event?.timeZone ?? profile.timeZone,
     },
   });
-  const kind = watch("kind");
   const save = useMutation({
     mutationFn: async (values: FormValues) => {
       const fields = {
@@ -210,7 +200,7 @@ function EventForm({
         );
         first ??= created;
       }
-      if (!first) throw new Error("No se pudo crear el compromiso.");
+      if (!first) throw new Error("No se pudo guardar la hora ocupada.");
       return first;
     },
     onError: (error) => {
@@ -228,20 +218,20 @@ function EventForm({
 
   return (
     <View style={styles.form}>
-      {event?.archivedAt && <Text>Compromiso archivado. Restáuralo para editarlo.</Text>}
+      {event?.archivedAt && <Text>Hora ocupada archivada. Restáurala para editarla.</Text>}
       <FormSection title="Detalles">
         <Controller
           control={control}
           name="title"
           render={({ field }) => (
             <TextInput
-              label="Título"
+              label="Qué te ocupa"
               mode="outlined"
               value={field.value}
               onChangeText={field.onChange}
               onBlur={field.onBlur}
               error={!!errors.title}
-              accessibilityLabel="Título del compromiso"
+              accessibilityLabel="Nombre de la hora ocupada"
             />
           )}
         />
@@ -258,22 +248,11 @@ function EventForm({
               onChangeText={field.onChange}
               onBlur={field.onBlur}
               error={!!errors.description}
-              accessibilityLabel="Descripción del compromiso"
+              accessibilityLabel="Descripción de la hora ocupada"
             />
           )}
         />
         {errors.description && <HelperText type="error">{errors.description.message}</HelperText>}
-      </FormSection>
-
-      <FormSection title="Clasificación">
-        <SelectField
-          label="Tipo"
-          value={kind}
-          options={(Object.entries(kindLabels) as [FormValues["kind"], string][]).map(
-            ([value, label]) => ({ value, label }),
-          )}
-          onChange={(value) => setValue("kind", value)}
-        />
       </FormSection>
 
       <FormSection title="Horario" hint={`Horas de ${watch("timeZone")}.`}>
@@ -314,7 +293,7 @@ function EventForm({
       {!event && (
         <FormSection
           title="Repetir"
-          hint="Ideal para tu horario de clases: crea el compromiso cada semana hasta la fecha elegida."
+          hint="Se creará una fecha por semana. Podrás editar o quitar cada una por separado."
         >
           <Tabs
             value={repeat}
@@ -332,7 +311,8 @@ function EventForm({
 
       {offline && (
         <Text style={{ color: theme.colors.error }}>
-          Sin conexión: el compromiso se guarda en tu teléfono y se envía cuando vuelva el internet.
+          Sin conexión: la hora ocupada se guarda en tu teléfono y se envía cuando vuelva el
+          internet.
         </Text>
       )}
       {save.isError && !(save.error instanceof OfflineQueuedError) && (
@@ -347,7 +327,7 @@ function EventForm({
         onPress={() => void handleSubmit((values) => save.mutate(values))()}
         contentStyle={sharedStyles.actionContent}
       >
-        Guardar compromiso
+        Guardar hora ocupada
       </Button>
       {event && <EventActions event={event} />}
     </View>

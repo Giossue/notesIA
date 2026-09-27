@@ -26,7 +26,7 @@
 
 - periodos/materias;
 - actividades/subtareas;
-- eventos fijos;
+- horas ocupadas del horario;
 - agenda/calendario;
 - historial.
 
