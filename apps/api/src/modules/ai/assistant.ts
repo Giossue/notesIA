@@ -319,12 +319,16 @@ export async function runAssistantTurn(
     .map((flat) => toAssistantAction(flat, known, timeZone, now))
     .filter((action) => action !== null)
     .slice(0, 5);
+  const promisedCardWithoutAction =
+    actions.length === 0 && /\b(?:propong\w*|conf[ií]rm\w*|tarjeta\w*)\b/i.test(value.reply);
   return {
     kind: "reply",
     source: "ai",
     requiresConfirmation: true,
     promptVersion: result.promptVersion,
-    reply: value.reply,
+    reply: promisedCardWithoutAction
+      ? "No pude preparar una propuesta para confirmar. Intenta pedírmela de nuevo o haz el cambio desde Tareas u Horario."
+      : value.reply,
     actions,
   };
 }

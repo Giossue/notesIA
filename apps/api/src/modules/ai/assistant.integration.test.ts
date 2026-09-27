@@ -177,7 +177,7 @@ test("the assistant looks up the student's data and only proposes changes", asyn
     kind: "reply",
     source: "ai",
     requiresConfirmation: true,
-    promptVersion: 7,
+    promptVersion: 8,
     reply: "Te propongo marcar tu deber de Cálculo como completado y crear el examen.",
     actions: [
       {
@@ -233,4 +233,35 @@ test("the assistant requires the AI consent and falls back to manual on bad outp
   expect(
     await runAssistantTurn(dependencies, userId, { message: "Hola", history: [] }, now),
   ).toEqual({ kind: "manual", reason: "invalid_output" });
+});
+
+test("the assistant does not promise a confirmation card when no action survives", async () => {
+  const provider = fakeProvider([
+    {
+      reply: "Propongo crear el examen. Confírmalo en la tarjeta.",
+      actions: [],
+      queries: [],
+    },
+    {
+      reply: "Propongo crear el examen. Confírmalo en la tarjeta.",
+      actions: [
+        flat({ type: "create_activity", title: "Examen", deadlineAt: "2020-01-01T00:00:00Z" }),
+      ],
+      queries: [],
+    },
+  ]);
+  const dependencies = {
+    gateway: createAiGateway(createAiRepository(runtime), cipher, provider.fetcher),
+    context: createAiContextRepository(runtime),
+  };
+  for (const message of ["Tengo un examen", "Es de cálculo y dura una hora"]) {
+    const result = await runAssistantTurn(dependencies, userId, { message, history: [] }, now);
+    expect(result).toMatchObject({
+      kind: "reply",
+      promptVersion: 8,
+      reply:
+        "No pude preparar una propuesta para confirmar. Intenta pedírmela de nuevo o haz el cambio desde Tareas u Horario.",
+      actions: [],
+    });
+  }
 });
