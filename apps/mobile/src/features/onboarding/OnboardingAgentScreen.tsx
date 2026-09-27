@@ -4,15 +4,7 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  Icon,
-  IconButton,
-  Portal,
-  ProgressBar,
-  Text,
-  useTheme,
-} from "react-native-paper";
+import { Icon, IconButton, Portal, ProgressBar, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { sendOnboardingMessage } from "@/core/api/ai";
 import { appendRecognizedText } from "@/core/speech/dictation";
@@ -27,6 +19,7 @@ import { layout } from "@/core/theme/layout";
 import { plainText } from "@/features/ai/plain-text";
 import { dailyChoices } from "@/features/availability/WeeklyHours";
 import { userMessage } from "@/shared/errors";
+import { TypingDots } from "@/shared/motion";
 import { Button, Card, Dialog, TextInput } from "@/shared/paper";
 import { useHideSplash } from "@/shared/splash";
 import { fromDraft, type WeekSetup } from "./save-week";
@@ -202,9 +195,8 @@ export function OnboardingAgentScreen({
           </View>
         ))}
         {send.isPending && (
-          <View style={styles.thinking}>
-            <ActivityIndicator size="small" />
-            <Text style={{ color: theme.colors.onSurfaceVariant }}>Armando tu semana…</Text>
+          <View style={[styles.bubble, styles.typing, { backgroundColor: theme.colors.surface }]}>
+            <TypingDots color={theme.colors.onSurfaceVariant} />
           </View>
         )}
         {aiDown && (
@@ -426,7 +418,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   mine: { alignSelf: "flex-end" },
-  thinking: { flexDirection: "row", alignItems: "center", gap: 8 },
+  typing: { paddingVertical: 14 },
   composer: {
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 8,

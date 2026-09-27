@@ -5,7 +5,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { ActivityIndicator, Icon, IconButton, Portal, Text, useTheme } from "react-native-paper";
+import { Icon, IconButton, Portal, Text, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -37,6 +37,7 @@ import { speak, stopSpeaking } from "@/core/speech/tts";
 import { layout } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { userMessage } from "@/shared/errors";
+import { TypingDots } from "@/shared/motion";
 import { Button, Card, Dialog, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { UserAvatar } from "@/shared/UserAvatar";
@@ -305,9 +306,13 @@ export function AssistantChatScreen() {
         <MessageBubble key={message.id} message={message} />
       ))}
       {send.isPending && (
-        <View style={styles.thinking}>
-          <ActivityIndicator size="small" />
-          <Text style={{ color: theme.colors.onSurfaceVariant }}>Pensando…</Text>
+        <View style={styles.messageRow}>
+          <View style={[styles.botAvatar, { backgroundColor: theme.colors.primaryContainer }]}>
+            <Icon source="robot" size={18} color={theme.colors.primary} />
+          </View>
+          <View style={[styles.bubble, styles.typing, { backgroundColor: theme.colors.surface }]}>
+            <TypingDots color={theme.colors.onSurfaceVariant} />
+          </View>
         </View>
       )}
       <Portal>
@@ -588,7 +593,7 @@ const styles = StyleSheet.create({
   mine: { alignItems: "flex-end" },
   theirs: { flex: 1, alignItems: "flex-start" },
   bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
-  thinking: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8 },
+  typing: { paddingVertical: 14 },
   card: { borderRadius: layout.cardRadius, alignSelf: "stretch" },
   cardContent: { gap: 6 },
   cardHead: { flexDirection: "row", alignItems: "center", gap: 10 },

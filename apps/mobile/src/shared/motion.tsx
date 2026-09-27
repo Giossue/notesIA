@@ -79,3 +79,58 @@ export function useBounce(trigger: unknown) {
   }, [trigger]);
   return scale;
 }
+
+/** Tres puntos que saltan uno tras otro: la IA está escribiendo. */
+export function TypingDots({ color }: { color: string }) {
+  const dots = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.stagger(
+        140,
+        dots.map((dot) =>
+          Animated.sequence([
+            Animated.timing(dot, {
+              toValue: 1,
+              duration: 260,
+              easing: Easing.out(Easing.quad),
+              useNativeDriver: true,
+            }),
+            Animated.timing(dot, {
+              toValue: 0,
+              duration: 260,
+              easing: Easing.in(Easing.quad),
+              useNativeDriver: true,
+            }),
+            Animated.delay(280),
+          ]),
+        ),
+      ),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [dots]);
+  return (
+    <Animated.View
+      accessibilityRole="progressbar"
+      accessibilityLabel="Escribiendo"
+      style={{ flexDirection: "row", gap: 5, alignItems: "center", height: 16 }}
+    >
+      {dots.map((dot, index) => (
+        <Animated.View
+          // biome-ignore lint/suspicious/noArrayIndexKey: son siempre tres puntos fijos
+          key={index}
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: 4,
+            backgroundColor: color,
+            opacity: dot.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }),
+            transform: [
+              { translateY: dot.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) },
+            ],
+          }}
+        />
+      ))}
+    </Animated.View>
+  );
+}
