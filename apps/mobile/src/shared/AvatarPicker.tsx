@@ -1,7 +1,7 @@
 import { type AvatarId, avatarIds } from "@notesia/contracts";
 import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
-import { Modal, Portal, Text, TouchableRipple, useTheme } from "react-native-paper";
+import { Icon, Modal, Portal, Text, TouchableRipple, useTheme } from "react-native-paper";
 import { layout } from "@/core/theme/layout";
 import { Button } from "./paper";
 import { UserAvatar } from "./UserAvatar";
@@ -17,29 +17,43 @@ const PADDING = 20;
 export function AvatarPicker({
   value,
   onChange,
+  centered = false,
 }: {
   value: AvatarId;
   onChange: (avatar: AvatarId) => void;
+  /** Foto grande al centro con "Cambiar foto" debajo (Editar perfil). */
+  centered?: boolean;
 }) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
 
   return (
-    <View style={styles.current}>
+    <View style={centered ? styles.centered : styles.current}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Cambiar avatar"
         onPress={() => setOpen(true)}
         style={[styles.currentRing, { borderColor: theme.colors.primary }]}
       >
-        <UserAvatar avatar={value} size={72} />
+        <UserAvatar avatar={value} size={centered ? 104 : 72} />
+        {centered && (
+          <View style={[styles.badge, { backgroundColor: theme.colors.primary }]}>
+            <Icon source="pencil" size={16} color={theme.colors.onPrimary} />
+          </View>
+        )}
       </Pressable>
-      <View style={styles.currentText}>
-        <Text variant="titleSmall">Tu avatar</Text>
-        <Button mode="text" icon="pencil-outline" compact onPress={() => setOpen(true)}>
-          Cambiar
+      {centered ? (
+        <Button mode="text" compact onPress={() => setOpen(true)}>
+          Cambiar foto
         </Button>
-      </View>
+      ) : (
+        <View style={styles.currentText}>
+          <Text variant="titleSmall">Tu avatar</Text>
+          <Button mode="text" icon="pencil-outline" compact onPress={() => setOpen(true)}>
+            Cambiar
+          </Button>
+        </View>
+      )}
       <Portal>
         <Modal
           visible={open}
@@ -121,6 +135,17 @@ const styles = StyleSheet.create({
   current: { flexDirection: "row", alignItems: "center", gap: 16 },
   currentRing: { borderWidth: 3, borderRadius: 999, padding: 3 },
   currentText: { alignItems: "flex-start", gap: 2 },
+  centered: { alignItems: "center", gap: 4, alignSelf: "center" },
+  badge: {
+    position: "absolute",
+    right: 2,
+    bottom: 2,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   sheet: { marginHorizontal: 20, borderRadius: layout.cardRadius * 2, padding: PADDING },
   title: { fontWeight: "700", marginBottom: 16 },
   grid: { gap: GAP },

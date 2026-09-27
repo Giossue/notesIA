@@ -61,14 +61,11 @@ function ProfileForm({ profile }: { profile: Profile }) {
 
   return (
     <View style={styles.fields}>
-      <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-        {profile.email}
-      </Text>
       <Controller
         control={control}
         name="avatar"
         render={({ field }) => (
-          <AvatarPicker value={field.value ?? profile.avatar} onChange={field.onChange} />
+          <AvatarPicker centered value={field.value ?? profile.avatar} onChange={field.onChange} />
         )}
       />
       <Controller
@@ -89,6 +86,15 @@ function ProfileForm({ profile }: { profile: Profile }) {
       <HelperText type="error" visible={!!errors.displayName}>
         {errors.displayName?.message}
       </HelperText>
+      {/* El correo identifica la cuenta: se ve, pero no se cambia aquí. */}
+      <TextInput
+        mode="outlined"
+        label="Correo"
+        value={profile.email}
+        editable={false}
+        right={<TextInput.Icon icon="lock-outline" disabled />}
+        accessibilityLabel="Correo, no se puede cambiar"
+      />
       {offline && (
         <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
       )}
