@@ -66,10 +66,6 @@ export function AvailabilityScreen() {
       keyboardShouldPersistTaps="handled"
       header={{ title: "Horario", info: studyHoursInfo }}
     >
-      <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-        Marca cuándo aceptarías estudiar y las horas en que estás ocupado. La app planifica en el
-        tiempo que queda libre.
-      </Text>
       {(rules.isPending || preferences.isPending) && !failed && (
         <ActivityIndicator accessibilityLabel="Cargando horario" />
       )}

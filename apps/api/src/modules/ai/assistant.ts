@@ -319,8 +319,16 @@ export async function runAssistantTurn(
     .map((flat) => toAssistantAction(flat, known, timeZone, now))
     .filter((action) => action !== null)
     .slice(0, 5);
+  // "Propongo priorizar..." también es una respuesta de consejo. Solo se
+  // reemplaza el texto si promete una tarjeta o un cambio que no se validó.
   const promisedCardWithoutAction =
-    actions.length === 0 && /\b(?:propong\w*|conf[ií]rm\w*|tarjeta\w*)\b/i.test(value.reply);
+    actions.length === 0 &&
+    (/\b(?:tarjetas?|conf[ií]rm\w*\s+(?:la|el|los|las)\s+(?:propuesta|cambio|acción))\b/i.test(
+      value.reply,
+    ) ||
+      /\bpropong\w*\s+(?:crear|editar|actualizar|eliminar|borrar|archivar|registrar|mover|agregar|añadir|cambiar)\s+(?:(?:una?|el|la)\s+)?(?:tarea|examen|hora ocupada)\b/i.test(
+        value.reply,
+      ));
   return {
     kind: "reply",
     source: "ai",

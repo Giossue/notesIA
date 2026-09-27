@@ -177,7 +177,7 @@ test("the assistant looks up the student's data and only proposes changes", asyn
     kind: "reply",
     source: "ai",
     requiresConfirmation: true,
-    promptVersion: 8,
+    promptVersion: 9,
     reply: "Te propongo marcar tu deber de Cálculo como completado y crear el examen.",
     actions: [
       {
@@ -249,19 +249,37 @@ test("the assistant does not promise a confirmation card when no action survives
       ],
       queries: [],
     },
+    { reply: "Propongo crear el examen.", actions: [], queries: [] },
   ]);
   const dependencies = {
     gateway: createAiGateway(createAiRepository(runtime), cipher, provider.fetcher),
     context: createAiContextRepository(runtime),
   };
-  for (const message of ["Tengo un examen", "Es de cálculo y dura una hora"]) {
+  for (const message of ["Tengo un examen", "Es de cálculo y dura una hora", "Crea otro examen"]) {
     const result = await runAssistantTurn(dependencies, userId, { message, history: [] }, now);
     expect(result).toMatchObject({
       kind: "reply",
-      promptVersion: 8,
+      promptVersion: 9,
       reply:
         "No pude preparar una propuesta para confirmar. Intenta pedírmela de nuevo o haz el cambio desde Tareas u Horario.",
       actions: [],
     });
   }
+});
+
+test("the assistant keeps advice that says propongo without a confirmation card", async () => {
+  const reply =
+    "Propongo priorizar la entrega más urgente y dividir las otras en pasos pequeños. Revisa la Agenda para ver el tiempo disponible.";
+  const provider = fakeProvider([{ reply, actions: [], queries: [] }]);
+  const dependencies = {
+    gateway: createAiGateway(createAiRepository(runtime), cipher, provider.fetcher),
+    context: createAiContextRepository(runtime),
+  };
+  const result = await runAssistantTurn(
+    dependencies,
+    userId,
+    { message: "Tengo tres entregas el mismo día, ¿qué hago?", history: [] },
+    now,
+  );
+  expect(result).toMatchObject({ kind: "reply", promptVersion: 9, reply, actions: [] });
 });

@@ -13,6 +13,10 @@ Si cambian las fuentes de un plan, la explicación de riesgo devuelve `409` y ex
 una vista previa nueva antes de consultar IA.
 Ninguna respuesta modifica actividades, subtareas ni planes. Una sugerencia indica
 `source: "ai"` y `requiresConfirmation: true`.
+En el chat, una pregunta sobre cómo organizar entregas puede responderse con
+orientación sin acciones. Las tarjetas de confirmación solo aparecen cuando el
+servidor valida una propuesta de cambio; una respuesta que promete una tarjeta
+sin propuesta válida se reemplaza por un mensaje de error seguro.
 
 `apps/api/src/modules/ai` contiene la frontera y adaptadores HTTP para OpenAI
 Responses, Anthropic Messages y DeepSeek Chat Completions. El modelo se configura
