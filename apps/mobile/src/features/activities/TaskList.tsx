@@ -11,12 +11,10 @@ import { getProfile } from "@/core/api/profile";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { kindLabel } from "@/shared/activity-kinds";
-import { taskInfo } from "@/shared/concepts";
 import { EmptyState } from "@/shared/EmptyState";
 import { userMessage } from "@/shared/errors";
 import { FadeUp } from "@/shared/motion";
 import { Button, Card } from "@/shared/paper";
-import { ScreenLayout } from "@/shared/ScreenLayout";
 import { Tabs } from "@/shared/Tabs";
 
 const statusLabels = {
@@ -27,7 +25,8 @@ const statusLabels = {
   cancelled: "Cancelada",
 };
 
-export function ActivityListScreen() {
+/** Lista de tareas: todas, hechas o archivadas. */
+export function TaskList() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
@@ -52,10 +51,7 @@ export function ActivityListScreen() {
   const items = activities.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <ScreenLayout
-      header={{ title: "Tareas", info: taskInfo }}
-      fab={{ label: "Nueva tarea", onPress: () => navigation.navigate("ActivityForm", {}) }}
-    >
+    <>
       <Tabs
         value={view}
         onValueChange={setView}
@@ -125,7 +121,7 @@ export function ActivityListScreen() {
           Cargar más
         </Button>
       )}
-    </ScreenLayout>
+    </>
   );
 }
 

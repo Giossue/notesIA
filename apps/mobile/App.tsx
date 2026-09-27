@@ -23,14 +23,13 @@ import { OfflineSyncProvider } from "@/core/offline/OfflineSyncProvider";
 import { PushRegistrationProvider } from "@/core/push/PushRegistrationProvider";
 import { AppearanceProvider } from "@/core/theme/AppearanceProvider";
 import { ActivityFormScreen } from "@/features/activities/ActivityFormScreen";
-import { ActivityListScreen } from "@/features/activities/ActivityListScreen";
 import { AgendaScreen } from "@/features/activities/AgendaScreen";
+import { ListsScreen } from "@/features/activities/ListsScreen";
 import { AssistantChatScreen } from "@/features/ai/AssistantChatScreen";
 import { HeroStatus } from "@/features/auth/AuthHero";
 import { AuthScreen } from "@/features/auth/AuthScreen";
 import { AvailabilityScreen } from "@/features/availability/AvailabilityScreen";
 import { EventFormScreen } from "@/features/calendar/EventFormScreen";
-import { EventsScreen } from "@/features/calendar/EventsScreen";
 import { HomeScreen } from "@/features/home/HomeScreen";
 import { AlertsScreen } from "@/features/notifications/AlertsScreen";
 import { NotificationsScreen } from "@/features/notifications/NotificationsScreen";
@@ -98,6 +97,14 @@ function ActivityFormRoute({ route }: NativeStackScreenProps<RootStackParamList,
   return (
     <ActivityFormScreen id={route.params.id} draft={route.params.draft} date={route.params.date} />
   );
+}
+
+/** Tareas y compromisos son una sola pantalla; cada ruta abre su pestaña. */
+function TaskListsRoute() {
+  return <ListsScreen initial="tasks" />;
+}
+function CommitmentListsRoute() {
+  return <ListsScreen initial="commitments" />;
 }
 
 function EventFormRoute({ route }: NativeStackScreenProps<RootStackParamList, "EventForm">) {
@@ -226,10 +233,10 @@ function Main() {
               <Stack.Screen name="Home" options={tabScreen} component={HomeScreen} />
               <Stack.Screen name="Progress" options={tabScreen} component={ProgressScreen} />
               <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
-              <Stack.Screen name="Activities" component={ActivityListScreen} />
+              <Stack.Screen name="Activities" component={TaskListsRoute} />
               <Stack.Screen name="ActivityForm" component={ActivityFormRoute} />
               <Stack.Screen name="Agenda" options={tabScreen} component={AgendaScreen} />
-              <Stack.Screen name="Events" component={EventsScreen} />
+              <Stack.Screen name="Events" component={CommitmentListsRoute} />
               <Stack.Screen name="EventForm" component={EventFormRoute} />
               <Stack.Screen name="Profile" options={tabScreen} component={ProfileScreen} />
               <Stack.Screen name="Availability" component={AvailabilityScreen} />

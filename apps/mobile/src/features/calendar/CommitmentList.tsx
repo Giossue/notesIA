@@ -8,11 +8,9 @@ import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 import { listCalendarEvents } from "@/core/api/calendar-events";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
-import { commitmentInfo } from "@/shared/concepts";
 import { EmptyState } from "@/shared/EmptyState";
 import { userMessage } from "@/shared/errors";
 import { Button, Card } from "@/shared/paper";
-import { ScreenLayout } from "@/shared/ScreenLayout";
 
 const kindLabels = {
   class: "Clase",
@@ -23,7 +21,8 @@ const kindLabels = {
   other: "Otro",
 };
 
-export function EventsScreen() {
+/** Lista de compromisos (clases, trabajo, citas). */
+export function CommitmentList() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
@@ -37,10 +36,7 @@ export function EventsScreen() {
   const items = events.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <ScreenLayout
-      header={{ title: "Mis compromisos", info: commitmentInfo }}
-      fab={{ label: "Nuevo compromiso", onPress: () => navigation.navigate("EventForm", {}) }}
-    >
+    <>
       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
         Clases, trabajo y citas: las horas en que estás ocupado. Tu plan de estudio no se pone
         encima.
@@ -93,7 +89,7 @@ export function EventsScreen() {
           Cargar más
         </Button>
       )}
-    </ScreenLayout>
+    </>
   );
 }
 
