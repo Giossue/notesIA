@@ -149,6 +149,22 @@ const tabRoutes: MainTab[] = ["Home", "Progress", "Profile"];
 
 function Main() {
   const [route, setRoute] = useState<string | undefined>();
+  // La barra se oculta en cuanto se pide ir a otra pantalla, no cuando esta ya
+  // cargó: así no se ve un instante encima de la pantalla nueva.
+  useEffect(
+    () =>
+      navigationRef.addListener("__unsafe_action__", (event) => {
+        const action = event.data.action as {
+          type: string;
+          payload?: { name?: string; routes?: { name: string }[] };
+        };
+        if ((action.type === "NAVIGATE" || action.type === "PUSH") && action.payload?.name)
+          setRoute(action.payload.name);
+        else if (action.type === "RESET" && action.payload?.routes?.length)
+          setRoute(action.payload.routes.at(-1)?.name);
+      }),
+    [],
+  );
   const currentQueryClient = useQueryClient();
   const session = useQuery({
     queryKey: ["session"],
