@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Planificador Estudiantil</string>
+    <string name="app_name">NotesIA</string>
     <string name="notification_channel_id" translatable="false">avisos</string>
     <string name="notification_channel_name">Avisos</string>
     <string name="notification_channel_description">Plazos próximos, bloques de estudio y actividades en riesgo</string>
