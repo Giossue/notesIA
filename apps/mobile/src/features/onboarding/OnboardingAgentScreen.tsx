@@ -24,6 +24,7 @@ import {
 } from "@/core/speech/speech-recognition";
 import { speak, stopSpeaking } from "@/core/speech/tts";
 import { layout } from "@/core/theme/layout";
+import { plainText } from "@/features/ai/plain-text";
 import { dailyChoices } from "@/features/availability/WeeklyHours";
 import { userMessage } from "@/shared/errors";
 import { Button, Card, Dialog, TextInput } from "@/shared/paper";
@@ -196,7 +197,7 @@ export function OnboardingAgentScreen({
                       : theme.colors.onSurface,
               }}
             >
-              {message.text}
+              {message.role === "user" ? message.text : plainText(message.text)}
             </Text>
           </View>
         ))}

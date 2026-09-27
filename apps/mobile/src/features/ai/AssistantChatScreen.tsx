@@ -41,6 +41,7 @@ import { Button, Card, Dialog, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { UserAvatar } from "@/shared/UserAvatar";
 import { applyAssistantAction, describeAction } from "./assistant-actions";
+import { plainText } from "./plain-text";
 
 const fallbackMessages = {
   not_configured: "El asistente aún no está configurado. Puedes crear tus tareas a mano.",
@@ -415,7 +416,7 @@ function MessageBody({ message, mine }: { message: ChatMessage; mine: boolean })
                 : theme.colors.onSurface,
           }}
         >
-          {message.text}
+          {message.role === "user" ? message.text : plainText(message.text)}
         </Text>
       </View>
       {!mine && message.actions.length > 0 && (

@@ -43,6 +43,21 @@ export function localIso(date: Date, timeZone: string) {
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}${sign}${hours}:${minutes}`;
 }
 
+/** "miércoles 30 sep, 23:59": el día ya calculado, para que el modelo no lo deduzca. */
+export function localLabel(date: Date, timeZone: string) {
+  return new Intl.DateTimeFormat("es", {
+    timeZone,
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  })
+    .format(date)
+    .replaceAll(".", "");
+}
+
 /** Fecha del modelo en ISO UTC, solo dentro de una ventana razonable (ayer a dos años). */
 function modelDate(value: string | null, now: Date) {
   if (!value) return null;
@@ -94,6 +109,7 @@ export async function resolveQueries(
           estimatedMinutes: row.estimatedMinutes,
           startAfterAt: row.startAfterAt ? localIso(row.startAfterAt, timeZone) : null,
           deadlineAt: row.deadlineAt ? localIso(row.deadlineAt, timeZone) : null,
+          deadlineLabel: row.deadlineAt ? localLabel(row.deadlineAt, timeZone) : null,
         });
       }
     } else {
@@ -110,6 +126,7 @@ export async function resolveQueries(
           title: redactInput(row.title.slice(0, 120)),
           kind: row.kind,
           startsAt: localIso(row.startsAt, timeZone),
+          startsLabel: localLabel(row.startsAt, timeZone),
           endsAt: localIso(row.endsAt, timeZone),
         });
       }
