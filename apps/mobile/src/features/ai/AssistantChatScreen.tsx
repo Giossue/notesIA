@@ -244,11 +244,6 @@ export function AssistantChatScreen() {
       ) : (
         <View style={styles.composerRow}>
           <IconButton
-            icon={voice ? "volume-high" : "volume-off"}
-            onPress={toggleVoice}
-            accessibilityLabel={voice ? "Silenciar respuestas" : "Leer respuestas en voz alta"}
-          />
-          <IconButton
             icon={listening ? "stop" : "microphone"}
             mode={listening ? "contained" : undefined}
             onPress={() => void dictate()}
@@ -295,6 +290,11 @@ export function AssistantChatScreen() {
           icon: "plus",
           label: "Nueva conversación",
           onPress: () => setConfirmNew(true),
+        },
+        rightExtra: {
+          icon: voice ? "volume-high" : "volume-off",
+          label: voice ? "Silenciar respuestas" : "Leer respuestas en voz alta",
+          onPress: toggleVoice,
         },
       }}
       keyboardShouldPersistTaps="handled"

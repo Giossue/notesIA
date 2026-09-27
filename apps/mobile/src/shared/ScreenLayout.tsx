@@ -13,6 +13,8 @@ type SheetHeader = {
   /** Por defecto, volver atrás. `null` deja el hueco vacío. */
   left?: HeaderAction | null;
   right?: HeaderAction;
+  /** Segunda acción a la derecha, junto a `right`. */
+  rightExtra?: HeaderAction;
   /** Contenido extra dentro del panel, bajo el título (por ejemplo, los días de la Agenda). */
   extra?: ReactNode;
 };
@@ -130,7 +132,15 @@ function SheetTitle({ header }: { header: SheetHeader }) {
     header.left === undefined
       ? { icon: "chevron-left", label: "Volver", onPress: () => navigation.goBack() }
       : (header.left ?? undefined);
-  return <ScreenHeader compact title={header.title} left={left} right={header.right} />;
+  return (
+    <ScreenHeader
+      compact
+      title={header.title}
+      left={left}
+      right={header.right}
+      rightExtra={header.rightExtra}
+    />
+  );
 }
 
 const styles = StyleSheet.create({

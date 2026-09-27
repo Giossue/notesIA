@@ -9,12 +9,15 @@ export function ScreenHeader({
   title,
   left,
   right,
+  rightExtra,
   children,
   compact,
 }: {
   title?: string;
   left?: HeaderAction;
   right?: HeaderAction;
+  /** Segunda acción a la derecha, junto a `right`. */
+  rightExtra?: HeaderAction;
   /** Sustituye al título centrado (por ejemplo, un saludo). */
   children?: ReactNode;
   /** Pegado al borde superior y con menos aire debajo, para dar espacio al contenido. */
@@ -23,6 +26,8 @@ export function ScreenHeader({
   return (
     <View style={[styles.row, compact && styles.compact]}>
       {left ? <HeaderButton {...left} /> : <View style={styles.slot} />}
+      {/* Con dos acciones a la derecha, un hueco igual a la izquierda mantiene el título centrado. */}
+      {rightExtra && <View style={styles.slot} />}
       <View style={styles.middle}>
         {children ?? (
           <Text
@@ -35,6 +40,7 @@ export function ScreenHeader({
           </Text>
         )}
       </View>
+      {rightExtra && <HeaderButton {...rightExtra} />}
       {right ? <HeaderButton {...right} /> : <View style={styles.slot} />}
     </View>
   );
