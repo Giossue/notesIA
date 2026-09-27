@@ -75,7 +75,8 @@ export async function resolveQueries(
     if (from && to && (to <= from || to.getTime() - from.getTime() > MAX_RANGE_MS)) to = null;
     if (query.type === "activities") {
       const rows = await context.assistantActivities(userId, {
-        text: query.text?.slice(0, 80) ?? null,
+        // Cadena vacía = sin filtro.
+        text: query.text?.trim().slice(0, 80) || null,
         open: !query.includeDone,
         from,
         to,

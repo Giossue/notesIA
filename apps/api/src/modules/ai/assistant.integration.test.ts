@@ -177,7 +177,7 @@ test("the assistant looks up the student's data and only proposes changes", asyn
     kind: "reply",
     source: "ai",
     requiresConfirmation: true,
-    promptVersion: 3,
+    promptVersion: 4,
     reply: "Te propongo marcar tu deber de Cálculo como completado y crear el examen.",
     actions: [
       {
