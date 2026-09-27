@@ -974,6 +974,43 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /admin/announcements:
+    get:
+      operationId: getAdminAnnouncements
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnnouncementPage"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: postAdminAnnouncements
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAnnouncementCreateInput"
+      responses:
+        "201":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnnouncement"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /admin/assistant-suggestions:
     get:
       operationId: getAdminAssistantSuggestions
@@ -2776,6 +2813,51 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Notification"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /notifications/read-all:
+    post:
+      operationId: postNotificationsReadAll
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationReadAllInput"
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationUnread"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /notifications/unread-count:
+    get:
+      operationId: getNotificationsUnreadCount
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationUnread"
         default:
           description: Error
           content:
@@ -4746,6 +4828,118 @@ components:
         - transitions
         - items
       additionalProperties: false
+    AdminAnnouncement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        title:
+          type: string
+        body:
+          type: string
+        recipientEmail:
+          type:
+            - string
+            - "null"
+        recipients:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        authorEmail:
+          type:
+            - string
+            - "null"
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+      required:
+        - id
+        - title
+        - body
+        - recipientEmail
+        - recipients
+        - authorEmail
+        - createdAt
+      additionalProperties: false
+    AdminAnnouncementCreateInput:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        title:
+          type: string
+          minLength: 1
+          maxLength: 60
+        body:
+          type: string
+          minLength: 1
+          maxLength: 300
+        recipientEmail:
+          anyOf:
+            - type: string
+              format: email
+              pattern: ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+            - type: "null"
+      required:
+        - id
+        - title
+        - body
+        - recipientEmail
+      additionalProperties: false
+    AdminAnnouncementPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              title:
+                type: string
+              body:
+                type: string
+              recipientEmail:
+                type:
+                  - string
+                  - "null"
+              recipients:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+              authorEmail:
+                type:
+                  - string
+                  - "null"
+              createdAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            required:
+              - id
+              - title
+              - body
+              - recipientEmail
+              - recipients
+              - authorEmail
+              - createdAt
+            additionalProperties: false
+        nextCursor:
+          type:
+            - string
+            - "null"
+      required:
+        - items
+        - nextCursor
+      additionalProperties: false
     AdminAssistantSuggestion:
       type: object
       properties:
@@ -4869,6 +5063,7 @@ components:
                   - assistant_suggestion.created
                   - assistant_suggestion.updated
                   - assistant_suggestion.deleted
+                  - announcement.sent
               targetId:
                 type: string
                 format: uuid
@@ -4936,6 +5131,17 @@ components:
                         required:
                           - kind
                           - text
+                        additionalProperties: false
+                      - type: object
+                        properties:
+                          kind:
+                            type: string
+                            const: announcement
+                          title:
+                            type: string
+                        required:
+                          - kind
+                          - title
                         additionalProperties: false
                   - type: "null"
               recordedAt:
@@ -8866,6 +9072,11 @@ components:
             - risk_alert
             - streak_at_risk
             - report_updated
+            - announcement
+        title:
+          type: string
+        body:
+          type: string
         planId:
           anyOf:
             - type: string
@@ -8913,6 +9124,8 @@ components:
       required:
         - id
         - type
+        - title
+        - body
         - planId
         - reportId
         - activityId
@@ -8943,6 +9156,11 @@ components:
                   - risk_alert
                   - streak_at_risk
                   - report_updated
+                  - announcement
+              title:
+                type: string
+              body:
+                type: string
               planId:
                 anyOf:
                   - type: string
@@ -8990,6 +9208,8 @@ components:
             required:
               - id
               - type
+              - title
+              - body
               - planId
               - reportId
               - activityId
@@ -9061,6 +9281,26 @@ components:
         - blockLeadMinutes
         - riskCooldownMinutes
         - version
+      additionalProperties: false
+    NotificationReadAllInput:
+      type: object
+      properties:
+        until:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+      required:
+        - until
+      additionalProperties: false
+    NotificationUnread:
+      type: object
+      properties:
+        count:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      required:
+        - count
       additionalProperties: false
     OnboardingTurnRequestInput:
       type: object

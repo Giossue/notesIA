@@ -146,6 +146,7 @@ export const adminAuditSchema = z.object({
     "assistant_suggestion.created",
     "assistant_suggestion.updated",
     "assistant_suggestion.deleted",
+    "announcement.sent",
   ]),
   targetId: z.uuid(),
   /** Correo de quien hizo la acción (null si la cuenta ya no existe). */
@@ -164,6 +165,7 @@ export const adminAuditSchema = z.object({
         provider: z.enum(["openai", "anthropic", "deepseek"]),
       }),
       z.object({ kind: z.literal("suggestion"), text: z.string() }),
+      z.object({ kind: z.literal("announcement"), title: z.string() }),
     ])
     .nullable(),
   recordedAt: z.iso.datetime(),
@@ -1045,16 +1047,21 @@ export const timeStatisticsSchema = z.object({
   ),
 });
 
+export const notificationTypes = [
+  "plan_applied",
+  "deadline_reminder",
+  "block_reminder",
+  "risk_alert",
+  "streak_at_risk",
+  "report_updated",
+  "announcement",
+] as const;
 export const notificationSchema = z.object({
   id: z.uuid(),
-  type: z.enum([
-    "plan_applied",
-    "deadline_reminder",
-    "block_reminder",
-    "risk_alert",
-    "streak_at_risk",
-    "report_updated",
-  ]),
+  type: z.enum(notificationTypes),
+  /** Mismo texto que el push. */
+  title: z.string(),
+  body: z.string(),
   planId: z.uuid().nullable(),
   reportId: z.uuid().nullable(),
   activityId: z.uuid().nullable(),
@@ -1088,6 +1095,9 @@ export const notificationPageSchema = z.object({
   items: z.array(notificationSchema),
   nextCursor: z.string().nullable(),
 });
+export const notificationUnreadSchema = z.object({ count: z.number().int().nonnegative() });
+/** Marca como leídos los avisos creados hasta `until` (lo que el estudiante ya vio). */
+export const notificationReadAllSchema = z.strictObject({ until: z.iso.datetime() });
 export { configureZodSpanish } from "./zod-es";
 
 /**
@@ -1343,3 +1353,27 @@ export const adminAssistantSuggestionUpdateSchema = adminAssistantSuggestionCrea
   version: z.number().int().positive(),
 });
 export type AdminAssistantSuggestion = z.infer<typeof adminAssistantSuggestionSchema>;
+
+/** Aviso escrito desde el panel, para un estudiante (por correo) o para todos. */
+export const adminAnnouncementCreateSchema = z.strictObject({
+  /** Lo genera el panel: reintentar con el mismo id no duplica el envío. */
+  id: z.uuid(),
+  title: z.string().trim().min(1, "Escribe un título.").max(60),
+  body: z.string().trim().min(1, "Escribe el mensaje.").max(300),
+  recipientEmail: z.email().nullable(),
+});
+export const adminAnnouncementSchema = z.object({
+  id: z.uuid(),
+  title: z.string(),
+  body: z.string(),
+  recipientEmail: z.string().nullable(),
+  /** Cuántos estudiantes lo recibieron en la app (sin contar los que apagaron los avisos). */
+  recipients: z.number().int().nonnegative(),
+  authorEmail: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+});
+export const adminAnnouncementPageSchema = z.object({
+  items: z.array(adminAnnouncementSchema),
+  nextCursor: z.string().nullable(),
+});
+export type AdminAnnouncement = z.infer<typeof adminAnnouncementSchema>;

@@ -10,6 +10,7 @@ const notification = (type: string) => ({
   activityTitle: "Entrega de Cálculo",
   referenceAt: new Date(Date.now() + 3_600_000),
   timeZone: "America/Guayaquil",
+  announcement: null,
 });
 
 test("FCM HTTP v1 sends the real reminder with high priority and the app channel", async () => {

@@ -249,6 +249,14 @@ add(
   "adminAssistantSuggestionUpdateSchema",
 );
 add("DELETE", "/v1/admin/assistant-suggestions/:id", undefined, undefined, [204]);
+add("GET", "/v1/admin/announcements", "adminAnnouncementPageSchema");
+add(
+  "POST",
+  "/v1/admin/announcements",
+  "adminAnnouncementSchema",
+  "adminAnnouncementCreateSchema",
+  [201],
+);
 add("GET", "/v1/ai/assistant/session", "assistantSessionSchema");
 add("POST", "/v1/ai/assistant/session/new", "assistantSessionSchema");
 add(
@@ -333,6 +341,8 @@ add(
 );
 add("GET", "/v1/notifications", "notificationPageSchema");
 add("POST", "/v1/notifications/:id/read", "notificationSchema", "versionSchema");
+add("GET", "/v1/notifications/unread-count", "notificationUnreadSchema");
+add("POST", "/v1/notifications/read-all", "notificationUnreadSchema", "notificationReadAllSchema");
 add("GET", "/v1/privacy/documents", "privacyDocumentListSchema");
 add("GET", "/v1/me/consents", "consentListSchema");
 add("POST", "/v1/me/consents", "consentRecordSchema", "consentAcceptSchema");

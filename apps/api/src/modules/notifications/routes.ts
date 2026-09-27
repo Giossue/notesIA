@@ -2,12 +2,15 @@ import {
   notificationPageSchema,
   notificationPreferencesSchema,
   notificationPreferencesUpdateSchema,
+  notificationReadAllSchema,
   notificationSchema,
+  notificationUnreadSchema,
   type Problem,
   timeEntryCursorSchema,
   versionSchema,
 } from "@notesia/contracts";
 import type { NotificationPreferenceRepository, NotificationRepository } from "@notesia/db";
+import { pushMessage } from "@notesia/domain";
 import type { Hono } from "hono";
 import { z } from "zod";
 
@@ -28,9 +31,23 @@ function error(status: 401 | 404 | 409 | 422, code: string, title: string): Resp
   return Response.json(body, { status, headers: { "Content-Type": "application/problem+json" } });
 }
 function toNotification(row: Notification) {
+  // Mismo texto que el push; "hoy" y "mañana" se cuentan desde que se creó.
+  const { title, body } = pushMessage({
+    type: row.type,
+    activityTitle: row.activityTitle,
+    referenceAt: row.referenceAt,
+    timeZone: row.timeZone,
+    now: row.createdAt,
+    announcement:
+      row.announcementTitle !== null && row.announcementBody !== null
+        ? { title: row.announcementTitle, body: row.announcementBody }
+        : null,
+  });
   return notificationSchema.parse({
     id: row.id,
     type: row.type,
+    title,
+    body,
     planId: row.planId,
     activityId: row.activityId,
     blockId: row.blockId,
@@ -99,6 +116,27 @@ export function registerNotificationRoutes(app: Hono, dependencies: Dependencies
                 JSON.stringify({ createdAt: last.cursorCreatedAt, id: last.id }),
               ).toString("base64url")
             : null,
+      }),
+    );
+  });
+  app.get("/v1/notifications/unread-count", async (c) => {
+    const session = await dependencies.getSession(c.req.raw.headers);
+    if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
+    return c.json(
+      notificationUnreadSchema.parse({
+        count: await dependencies.notifications.unreadCount(session.user.id),
+      }),
+    );
+  });
+  app.post("/v1/notifications/read-all", async (c) => {
+    const session = await dependencies.getSession(c.req.raw.headers);
+    if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
+    const parsed = notificationReadAllSchema.safeParse(await readBody(c.req.raw));
+    if (!parsed.success) return error(422, "VALIDATION_FAILED", "Fecha inválida.");
+    await dependencies.notifications.markAllRead(session.user.id, new Date(parsed.data.until));
+    return c.json(
+      notificationUnreadSchema.parse({
+        count: await dependencies.notifications.unreadCount(session.user.id),
       }),
     );
   });

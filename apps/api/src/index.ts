@@ -12,6 +12,7 @@ import {
   createAdminRepository,
   createAiContextRepository,
   createAiRepository,
+  createAnnouncementRepository,
   createAssistantSessionRepository,
   createAssistantSuggestionRepository,
   createAvailabilityRepository,
@@ -139,6 +140,7 @@ const app = createApp(
     admin: adminRepository,
     reports: createReportRepository(repositoryPool),
     suggestions: createAssistantSuggestionRepository(repositoryPool),
+    announcements: createAnnouncementRepository(repositoryPool),
     rateLimiter: createAdminRateLimiter(repositoryPool, process.env.BETTER_AUTH_SECRET as string),
     verifyPassword: async (headers, password) => {
       try {

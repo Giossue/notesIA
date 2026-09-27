@@ -4,7 +4,8 @@ export type PushNotificationType =
   | "block_reminder"
   | "risk_alert"
   | "streak_at_risk"
-  | "report_updated";
+  | "report_updated"
+  | "announcement";
 
 export type PushMessageInput = {
   type: PushNotificationType;
@@ -14,6 +15,8 @@ export type PushMessageInput = {
   referenceAt: Date | null;
   timeZone: string;
   now: Date;
+  /** Texto escrito desde el panel, si es un anuncio. */
+  announcement?: { title: string; body: string } | null;
 };
 
 const MAX_TITLE = 60;
@@ -83,5 +86,12 @@ export function pushMessage(input: PushMessageInput): { title: string; body: str
       };
     case "plan_applied":
       return { title: "Plan aplicado", body: "Tu plan de estudio ya está listo" };
+    case "announcement":
+      return {
+        title: input.announcement?.title ?? "Aviso de NotesIA",
+        body: input.announcement?.body ?? "",
+      };
   }
+  // Un tipo nuevo que este código aún no conoce: se avisa sin detalle.
+  return { title: "NotesIA", body: "Tienes un aviso nuevo" };
 }

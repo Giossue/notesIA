@@ -12,6 +12,7 @@ import {
 
 jest.mock("@/core/push/push-registration", () => ({
   disableCurrentPushDevice: jest.fn(async () => {}),
+  forgetPushPrompted: jest.fn(async () => {}),
 }));
 
 let mockCookie: string | null = null;
@@ -55,6 +56,10 @@ test("keeps only the Better Auth session cookie and restores the user", async ()
   expect((global.fetch as jest.Mock).mock.calls[1][1].headers.Cookie).toBe(mockCookie);
   await signOut();
   expect(mockCookie).toBeNull();
+  // La próxima cuenta en este teléfono vuelve a ver la invitación a los avisos.
+  const push = jest.requireMock("@/core/push/push-registration");
+  expect(push.disableCurrentPushDevice).toHaveBeenCalled();
+  expect(push.forgetPushPrompted).toHaveBeenCalled();
 });
 
 test("rejects a successful response without a Better Auth cookie", async () => {

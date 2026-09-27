@@ -1,9 +1,10 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
-import { Animated, StyleSheet, View } from "react-native";
+import { useEffect } from "react";
+import { Animated, AppState, StyleSheet, View } from "react-native";
 import { Icon, Text, TouchableRipple, useTheme } from "react-native-paper";
-import { listNotifications } from "@/core/api/notifications";
+import { unreadNotificationCount } from "@/core/api/notifications";
 import { getProfile } from "@/core/api/profile";
 import type { RootStackParamList } from "@/navigation/types";
 import { usePulse } from "@/shared/motion";
@@ -12,13 +13,20 @@ import { UserAvatar } from "@/shared/UserAvatar";
 export function HomeHeader({ name, dateLabel }: { name: string; dateLabel: string }) {
   const theme = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  // Punto en la campana si hay avisos sin leer entre los más recientes.
-  const recent = useQuery({
+  // Punto en la campana si hay avisos sin leer; se revisa al volver a la app.
+  const unreadCount = useQuery({
     queryKey: ["notifications", "unread"],
-    queryFn: () => listNotifications(),
+    queryFn: unreadNotificationCount,
     retry: false,
   });
-  const unread = recent.data?.items.some((item) => !item.readAt) ?? false;
+  const { refetch } = unreadCount;
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") void refetch();
+    });
+    return () => subscription.remove();
+  }, [refetch]);
+  const unread = (unreadCount.data?.count ?? 0) > 0;
   // El punto de avisos sin leer late suave para llamar la atención.
   const pulse = usePulse(unread, 1.35, 700);
   const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });

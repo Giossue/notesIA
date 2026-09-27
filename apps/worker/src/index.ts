@@ -12,6 +12,7 @@ import {
   createVerificationMailRepository,
   createWorkerHealthRepository,
   purgeExpiredSecureStorage,
+  purgeOldNotifications,
   purgeOldPlans,
   purgeUnverifiedAccounts,
 } from "@notesia/db";
@@ -111,8 +112,16 @@ while (running) {
       const expiredSessions = await purgeExpiredSecureStorage(pool);
       const expiredKeys = await idempotency.purgeExpired();
       const unverified = await purgeUnverifiedAccounts(pool);
+      // Primero los avisos viejos: así sus planes también pueden borrarse.
+      const oldNotices = await purgeOldNotifications(pool);
       const oldPlans = await purgeOldPlans(pool);
-      if (expiredSessions < 500 && expiredKeys < 500 && unverified < 500 && oldPlans < 500)
+      if (
+        expiredSessions < 500 &&
+        expiredKeys < 500 &&
+        unverified < 500 &&
+        oldPlans < 500 &&
+        oldNotices < 500
+      )
         nextStorageCleanup = Date.now() + 60 * 60 * 1000;
     }
     const idle =

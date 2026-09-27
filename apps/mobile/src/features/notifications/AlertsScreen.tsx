@@ -1,13 +1,18 @@
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, Text, useTheme } from "react-native-paper";
+import { Linking, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Switch, Text, useTheme } from "react-native-paper";
 import {
   getNotificationPreferences,
   updateNotificationPreferences,
 } from "@/core/api/notifications";
 import { getPreferences, updatePreferences } from "@/core/api/preferences";
+import {
+  enablePushDevice,
+  getLocalPushDeviceId,
+  PushPermissionBlockedError,
+} from "@/core/push/push-registration";
 import { layout } from "@/core/theme/layout";
 import { clockToMinute, minuteToClock } from "@/features/availability/time";
 import { userMessage } from "@/shared/errors";
@@ -45,6 +50,11 @@ export function AlertsScreen() {
     queryFn: getPreferences,
     retry: false,
   });
+  const device = useQuery({
+    queryKey: ["local-push-device"],
+    queryFn: getLocalPushDeviceId,
+    retry: false,
+  });
   const failed = notifications.isError ? notifications : preferences.isError ? preferences : null;
   return (
     <ScreenLayout header={{ title: "Avisos" }}>
@@ -57,11 +67,12 @@ export function AlertsScreen() {
           <Button onPress={() => void failed.refetch()}>Reintentar</Button>
         </View>
       )}
-      {notifications.data && preferences.data && (
+      {notifications.data && preferences.data && !device.isPending && (
         <AlertsForm
-          key={`${notifications.data.version}-${preferences.data.version}`}
+          key={`${notifications.data.version}-${preferences.data.version}-${Boolean(device.data)}`}
           notifications={notifications.data}
           preferences={preferences.data}
+          hasDevice={Boolean(device.data)}
         />
       )}
     </ScreenLayout>
@@ -71,9 +82,11 @@ export function AlertsScreen() {
 function AlertsForm({
   notifications,
   preferences,
+  hasDevice,
 }: {
   notifications: Awaited<ReturnType<typeof getNotificationPreferences>>;
   preferences: Awaited<ReturnType<typeof getPreferences>>;
+  hasDevice: boolean;
 }) {
   const theme = useTheme();
   const queryClient = useQueryClient();
@@ -81,33 +94,87 @@ function AlertsForm({
   const [lead, setLead] = useState<Lead>(closestLead(notifications.deadlineLeadMinutes));
   const [quietStart, setQuietStart] = useState(minuteToClock(preferences.quietStartMinute));
   const [quietEnd, setQuietEnd] = useState(minuteToClock(preferences.quietEndMinute));
+  const [enabled, setEnabled] = useState(preferences.notificationsEnabled);
+  const [push, setPush] = useState((preferences.pushNotificationsEnabled ?? true) && hasDevice);
   const sameQuiet = quietStart === quietEnd;
   const save = useMutation({
     mutationFn: async () => {
-      const [savedNotifications, savedPreferences] = await Promise.all([
-        updateNotificationPreferences({
-          deadlineLeadMinutes: Number(lead),
-          blockLeadMinutes: notifications.blockLeadMinutes,
-          riskCooldownMinutes: notifications.riskCooldownMinutes,
-          version: notifications.version,
-        }),
-        updatePreferences({
-          minSessionMinutes: preferences.minSessionMinutes,
-          maxSessionMinutes: preferences.maxSessionMinutes,
-          maxDailyMinutes: preferences.maxDailyMinutes,
-          notificationsEnabled: true,
-          pushNotificationsEnabled: true,
-          quietStartMinute: clockToMinute(quietStart),
-          quietEndMinute: clockToMinute(quietEnd),
-          version: preferences.version,
-        }),
-      ]);
-      queryClient.setQueryData(["notification-preferences"], savedNotifications);
-      queryClient.setQueryData(["preferences"], savedPreferences);
+      // Activar el push pide el permiso y registra este teléfono.
+      if (enabled && push && !hasDevice) {
+        await enablePushDevice();
+        void queryClient.invalidateQueries({ queryKey: ["local-push-device"] });
+        void queryClient.invalidateQueries({ queryKey: ["push-devices"] });
+      }
+      // Uno tras otro y solo lo que cambió: si el segundo falla, el primero ya
+      // quedó guardado y en caché, y la pantalla se recarga con lo real.
+      if (Number(lead) !== notifications.deadlineLeadMinutes)
+        queryClient.setQueryData(
+          ["notification-preferences"],
+          await updateNotificationPreferences({
+            deadlineLeadMinutes: Number(lead),
+            blockLeadMinutes: notifications.blockLeadMinutes,
+            riskCooldownMinutes: notifications.riskCooldownMinutes,
+            version: notifications.version,
+          }),
+        );
+      const quietStartMinute = clockToMinute(quietStart);
+      const quietEndMinute = clockToMinute(quietEnd);
+      if (
+        enabled !== preferences.notificationsEnabled ||
+        push !== preferences.pushNotificationsEnabled ||
+        quietStartMinute !== preferences.quietStartMinute ||
+        quietEndMinute !== preferences.quietEndMinute
+      )
+        queryClient.setQueryData(
+          ["preferences"],
+          await updatePreferences({
+            minSessionMinutes: preferences.minSessionMinutes,
+            maxSessionMinutes: preferences.maxSessionMinutes,
+            maxDailyMinutes: preferences.maxDailyMinutes,
+            notificationsEnabled: enabled,
+            pushNotificationsEnabled: push,
+            quietStartMinute,
+            quietEndMinute,
+            version: preferences.version,
+          }),
+        );
     },
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey: ["notification-preferences"] });
+      void queryClient.invalidateQueries({ queryKey: ["preferences"] });
+    },
+    // Aquí se explica debajo del botón; no repetir el toast global.
+    meta: { silent: true },
   });
+  const blocked = save.error instanceof PushPermissionBlockedError;
   return (
     <View style={styles.form}>
+      <FormSection title="Recibir avisos" hint="Recordatorios, alertas y mensajes del equipo.">
+        <View style={styles.switchRow}>
+          <Text variant="bodyLarge" style={styles.flex}>
+            Avisos en la app
+          </Text>
+          <Switch
+            value={enabled}
+            onValueChange={setEnabled}
+            accessibilityLabel="Avisos en la app"
+          />
+        </View>
+        <View style={styles.switchRow}>
+          <Text
+            variant="bodyLarge"
+            style={[styles.flex, !enabled && { color: theme.colors.onSurfaceDisabled }]}
+          >
+            Notificaciones en este teléfono
+          </Text>
+          <Switch
+            value={enabled && push}
+            disabled={!enabled}
+            onValueChange={setPush}
+            accessibilityLabel="Notificaciones en este teléfono"
+          />
+        </View>
+      </FormSection>
       <FormSection
         title="Avísame antes de una entrega"
         hint="Recibirás un aviso con este tiempo de anticipación antes de cada fecha límite."
@@ -136,6 +203,16 @@ function AlertsForm({
         <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
       )}
       {save.isSuccess && <Text accessibilityRole="alert">Avisos guardados.</Text>}
+      {save.isError && (
+        <Text accessibilityRole="alert" style={{ color: theme.colors.error }}>
+          {userMessage(save.error)}
+        </Text>
+      )}
+      {blocked && (
+        <Button icon="open-in-new" onPress={() => void Linking.openSettings()}>
+          Abrir ajustes del teléfono
+        </Button>
+      )}
       <Button
         mode="contained"
         loading={save.isPending}
@@ -152,5 +229,6 @@ const styles = StyleSheet.create({
   group: { gap: layout.itemGap },
   form: { gap: layout.sectionGap },
   row: { flexDirection: "row", gap: 12 },
+  switchRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48 },
   flex: { flex: 1 },
 });

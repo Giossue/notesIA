@@ -329,6 +329,16 @@ export const outboxEvents = domainSchema.table("bandeja_salida", {
   sourceSpanId: char("span_origen_id", { length: 16 }),
 });
 
+export const announcements = domainSchema.table("anuncios", {
+  id: uuid("id").primaryKey(),
+  authorId: uuid("autor_id").references(() => authUsers.id, { onDelete: "set null" }),
+  title: text("titulo").notNull(),
+  body: text("cuerpo").notNull(),
+  recipientId: uuid("destinatario_id").references(() => authUsers.id, { onDelete: "cascade" }),
+  recipients: integer("destinatarios").notNull().default(0),
+  createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const notifications = domainSchema.table("notificaciones", {
   id: uuid("id").primaryKey(),
   userId: uuid("usuario_id")
@@ -345,11 +355,14 @@ export const notifications = domainSchema.table("notificaciones", {
       "risk_alert",
       "streak_at_risk",
       "report_updated",
+      "announcement",
     ],
   }).notNull(),
   planId: uuid("plan_id").references(() => plans.id, { onDelete: "cascade" }),
   activityId: uuid("actividad_id").references(() => activities.id, { onDelete: "cascade" }),
   blockId: uuid("bloque_id").references(() => planBlocks.id, { onDelete: "cascade" }),
+  reportId: uuid("reporte_id"),
+  announcementId: uuid("anuncio_id").references(() => announcements.id, { onDelete: "cascade" }),
   referenceAt: timestamp("referencia_en", { withTimezone: true }),
   readAt: timestamp("leida_en", { withTimezone: true }),
   version: integer("version").notNull().default(1),

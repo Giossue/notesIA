@@ -6,6 +6,9 @@ import {
   adminAiRouteSchema,
   adminAiRouteUpdateSchema,
   adminAiUsageSchema,
+  adminAnnouncementCreateSchema,
+  adminAnnouncementPageSchema,
+  adminAnnouncementSchema,
   adminAssistantSuggestionCreateSchema,
   adminAssistantSuggestionListSchema,
   adminAssistantSuggestionSchema,
@@ -43,6 +46,8 @@ import type {
   AdminReportRow,
   AdminRepository,
   AiRepository,
+  AnnouncementRepository,
+  AnnouncementRow,
   AssistantSuggestionRepository,
   ReportRepository,
 } from "@notesia/db";
@@ -62,6 +67,7 @@ type Dependencies = {
   admin: AdminRepository;
   reports?: ReportRepository;
   suggestions?: AssistantSuggestionRepository;
+  announcements?: AnnouncementRepository;
   rateLimiter: AdminRateLimiter;
   verifyPassword(headers: Headers, password: string): Promise<boolean>;
   ai?: AiRepository;
@@ -255,6 +261,63 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
       if (!id.success) return error(404, "NOT_FOUND", "Sugerencia no encontrada.");
       const removed = await suggestions.remove(access.userId as string, id.data);
       return removed ? c.body(null, 204) : error(404, "NOT_FOUND", "Sugerencia no encontrada.");
+    });
+  }
+
+  if (dependencies.announcements) {
+    const announcements = dependencies.announcements;
+    const toAnnouncement = (row: AnnouncementRow) =>
+      adminAnnouncementSchema.parse({
+        id: row.id,
+        title: row.title,
+        body: row.body,
+        recipientEmail: row.recipientEmail,
+        recipients: row.recipients,
+        authorEmail: row.authorEmail,
+        createdAt: row.createdAt.toISOString(),
+      });
+    app.get("/v1/admin/announcements", async (c) => {
+      const access = await authorize(c.req.raw.headers, c.req.method, dependencies);
+      if (access.response) return access.response;
+      let cursor: { createdAt: string; id: string } | null;
+      try {
+        cursor = cursorFrom(c.req.query("cursor"), "createdAt");
+      } catch {
+        return error(422, "VALIDATION_FAILED", "Cursor inválido.");
+      }
+      const rows = await announcements.list(cursor);
+      const page = rows.slice(0, 20);
+      const last = page.at(-1);
+      return c.json(
+        adminAnnouncementPageSchema.parse({
+          items: page.map(toAnnouncement),
+          nextCursor:
+            rows.length > 20 && last
+              ? encodeCursor(last.cursorCreatedAt, last.id, "createdAt")
+              : null,
+        }),
+        200,
+        { "Cache-Control": "no-store" },
+      );
+    });
+    app.post("/v1/admin/announcements", async (c) => {
+      const access = await authorize(c.req.raw.headers, c.req.method, dependencies);
+      if (access.response) return access.response;
+      if (c.req.header("origin") !== dependencies.allowedOrigin)
+        return error(403, "FORBIDDEN", "Origen no permitido.");
+      const body = adminAnnouncementCreateSchema.safeParse(await readJson(c.req.raw));
+      if (!body.success)
+        return error(
+          422,
+          "VALIDATION_FAILED",
+          "Escribe un título de hasta 60 caracteres y un mensaje de hasta 300.",
+        );
+      const result = await announcements.send(access.userId as string, body.data);
+      if (result.kind === "recipient_not_found")
+        return error(404, "NOT_FOUND", "No hay un estudiante con ese correo.");
+      if (result.kind === "conflict")
+        return error(409, "CONFLICT", "Ese aviso ya se envió con otro texto.");
+      return c.json(toAnnouncement(result.row), 201);
     });
   }
 
@@ -786,7 +849,9 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
                   ? { kind: "provider", provider: row.provider }
                   : row.suggestion
                     ? { kind: "suggestion", text: row.suggestion }
-                    : null,
+                    : row.announcement
+                      ? { kind: "announcement", title: row.announcement }
+                      : null,
             recordedAt: row.recordedAt.toISOString(),
           }),
         ),

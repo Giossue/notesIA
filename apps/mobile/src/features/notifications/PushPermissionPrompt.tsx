@@ -1,31 +1,27 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Linking } from "react-native";
-import * as Keychain from "react-native-keychain";
 import { Portal, Text } from "react-native-paper";
 import {
   enablePushDevice,
   getLocalPushDeviceId,
   PushPermissionBlockedError,
+  rememberPushPrompted,
+  wasPushPrompted,
 } from "@/core/push/push-registration";
 import { userMessage } from "@/shared/errors";
 import { Button, Dialog } from "@/shared/paper";
 
-const promptedService = "ec.notesia.planner.push-prompted";
-
 /**
  * Tras entrar por primera vez, invita a activar los avisos una sola vez. Si
- * dice que no, puede activarlos luego en Notificaciones.
+ * dice que no, puede activarlos luego en Perfil > Avisos.
  */
 export function PushPermissionPrompt() {
   const queryClient = useQueryClient();
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     let mounted = true;
-    void Promise.all([
-      getLocalPushDeviceId(),
-      Keychain.getGenericPassword({ service: promptedService }),
-    ])
+    void Promise.all([getLocalPushDeviceId(), wasPushPrompted()])
       .then(([device, prompted]) => {
         if (mounted && !device && !prompted) setVisible(true);
       })
@@ -34,10 +30,7 @@ export function PushPermissionPrompt() {
       mounted = false;
     };
   }, []);
-  const remember = () =>
-    void Keychain.setGenericPassword("push", "prompted", { service: promptedService }).catch(
-      () => {},
-    );
+  const remember = () => void rememberPushPrompted().catch(() => {});
   const close = () => {
     remember();
     setVisible(false);

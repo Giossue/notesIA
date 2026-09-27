@@ -3,6 +3,7 @@ import {
   Activity,
   BrainCircuit,
   LifeBuoy,
+  Megaphone,
   ScrollText,
   ShieldCheck,
   UserCog,
@@ -10,7 +11,7 @@ import {
 } from "lucide-react";
 
 export type NavItem = {
-  to: "/" | "/users" | "/roles" | "/privacy" | "/ai" | "/audit" | "/reports";
+  to: "/" | "/users" | "/roles" | "/privacy" | "/ai" | "/audit" | "/reports" | "/announcements";
   label: string;
   icon: LucideIcon;
   /** Soporte solo ve lo marcado; el administrador ve todo. */
@@ -25,6 +26,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { to: "/", label: "Salud", icon: Activity },
       { to: "/reports", label: "Reportes", icon: LifeBuoy, support: true },
+      { to: "/announcements", label: "Avisos", icon: Megaphone },
       { to: "/ai", label: "IA", icon: BrainCircuit },
     ],
   },

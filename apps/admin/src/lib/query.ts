@@ -30,6 +30,7 @@ export const usersQueryKey = ["admin", "users"] as const;
 export const rolesQueryKey = ["admin", "roles"] as const;
 export const documentsQueryKey = ["admin", "privacy-documents"] as const;
 export const auditQueryKey = ["admin", "audit"] as const;
+export const announcementsQueryKey = ["admin", "announcements"] as const;
 export const aiProvidersQuery = queryOptions({
   queryKey: ["admin", "ai", "providers"],
   queryFn: adminApi.aiProviders,

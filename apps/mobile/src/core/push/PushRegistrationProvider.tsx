@@ -1,16 +1,18 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect } from "react";
+import { markNotificationReadById } from "@/core/api/notifications";
+import { notificationTarget } from "@/features/notifications/notification-target";
 import { navigateWhenReady, navigationRef } from "@/navigation/navigation-ref";
 import { showToast } from "@/shared/Toast";
 import { type PushEvent, subscribeToPushEvents } from "./push-registration";
 
-/** Abre lo que avisa: la actividad, la agenda (planes), la racha o, si no, la lista de avisos. */
+/** Abre lo que avisa; si no apunta a nada concreto, la lista de avisos. */
 function openPushEvent(event: PushEvent) {
+  const target = notificationTarget(event);
   navigateWhenReady(() => {
-    if (event.activityId) navigationRef.navigate("ActivityForm", { id: event.activityId });
-    else if (event.planId) navigationRef.navigate("Agenda");
-    else if (event.type === "streak_at_risk") navigationRef.navigate("Home");
-    else if (event.reportId) navigationRef.navigate("Reports");
+    if (target?.screen === "ActivityForm")
+      navigationRef.navigate("ActivityForm", { id: target.id });
+    else if (target) navigationRef.navigate(target.screen);
     else navigationRef.navigate("Notifications");
   });
 }
@@ -28,8 +30,12 @@ export function PushRegistrationProvider({ children }: { children: ReactNode }) 
           showToast(event.body ? `${event.title}: ${event.body}` : event.title, "info");
       },
       onOpen: (event) => {
-        void queryClient.invalidateQueries({ queryKey: ["notifications"] });
         openPushEvent(event);
+        // Tocarlo ya es leerlo.
+        const read = event.notificationId
+          ? markNotificationReadById(event.notificationId).catch(() => {})
+          : Promise.resolve();
+        void read.then(() => queryClient.invalidateQueries({ queryKey: ["notifications"] }));
       },
     })
       .then((listener) => {

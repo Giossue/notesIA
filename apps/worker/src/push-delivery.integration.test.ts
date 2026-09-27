@@ -189,3 +189,26 @@ test("token refreshed after claim is used for delivery", async () => {
   expect(switched).toBe(true);
   expect(tokens).toEqual(["current-token"]);
 });
+
+test("a push that waited too long is not sent late", async () => {
+  const { userId, jobId } = await queueDelivery("late-token");
+  // Por ejemplo, esperó toda la noche por el "No molestar" y ya es otro día.
+  await pool.query(
+    `UPDATE dominio.notificaciones SET creada_en = now() - interval '2 days'
+     WHERE usuario_id = $1`,
+    [userId],
+  );
+  let called = false;
+  expect(
+    await deliveries.processOne(async () => {
+      called = true;
+      return "sent";
+    }, daytime),
+  ).toEqual({ kind: "suppressed" });
+  expect(called).toBe(false);
+  const job = await pool.query<{ status: string }>(
+    `SELECT estado AS status FROM dominio.envios_push WHERE id = $1`,
+    [jobId],
+  );
+  expect(job.rows[0]?.status).toBe("done");
+});

@@ -6,6 +6,9 @@ import {
   adminAiRouteSchema,
   adminAiRouteUpdateSchema,
   adminAiUsageSchema,
+  adminAnnouncementCreateSchema,
+  adminAnnouncementPageSchema,
+  adminAnnouncementSchema,
   adminAssistantSuggestionCreateSchema,
   adminAssistantSuggestionListSchema,
   adminAssistantSuggestionSchema,
@@ -59,6 +62,16 @@ export type AdminAiRouteUpdate = z.infer<typeof adminAiRouteUpdateSchema>;
 export type AdminSuggestion = z.infer<typeof adminAssistantSuggestionSchema>;
 
 export const adminApi = {
+  announcements: (cursor?: string | null) =>
+    apiRequest(
+      `/v1/admin/announcements${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+      adminAnnouncementPageSchema,
+    ),
+  sendAnnouncement: (input: z.infer<typeof adminAnnouncementCreateSchema>) =>
+    apiRequest("/v1/admin/announcements", adminAnnouncementSchema, {
+      method: "POST",
+      body: adminAnnouncementCreateSchema.parse(input),
+    }),
   suggestions: () =>
     apiRequest("/v1/admin/assistant-suggestions", adminAssistantSuggestionListSchema),
   createSuggestion: (input: z.infer<typeof adminAssistantSuggestionCreateSchema>) =>

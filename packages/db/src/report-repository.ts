@@ -190,7 +190,9 @@ export function createReportRepository(pool: Pool) {
           await client.query(
             `WITH created AS (
                INSERT INTO dominio.notificaciones (id, usuario_id, tipo, reporte_id, creada_en)
-               VALUES (gen_random_uuid(), $1, 'report_updated', $2, now())
+               SELECT gen_random_uuid(), $1, 'report_updated', $2, now()
+               FROM dominio.preferencias_usuario prefs
+               WHERE prefs.usuario_id = $1 AND prefs.notificaciones_habilitadas
                RETURNING id, usuario_id
              )
              INSERT INTO dominio.envios_push (id, usuario_id, dispositivo_id, notificacion_id)

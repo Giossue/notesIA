@@ -227,8 +227,15 @@ test("a student can consent, plan, work, see risk and revoking AI blocks the app
   const notices = await app.request("/v1/notifications", { headers: { cookie } });
   expect(notices.status).toBe(200);
   expect(await notices.json()).toMatchObject({
-    items: [{ type: "plan_applied", planId: draft.id }],
+    items: [{ type: "plan_applied", planId: draft.id, title: "Plan aplicado" }],
   });
+  const unread = async () =>
+    (await app.request("/v1/notifications/unread-count", { headers: { cookie } })).json();
+  expect(await unread()).toEqual({ count: 1 });
+  const readAll = await post("/v1/notifications/read-all", { until: new Date().toISOString() });
+  expect(readAll.status).toBe(200);
+  expect(await readAll.json()).toEqual({ count: 0 });
+  expect(await unread()).toEqual({ count: 0 });
   const foreignRegistration = await app.request("/v1/auth/sign-up/email", {
     method: "POST",
     headers: { "content-type": "application/json", origin: "http://127.0.0.1:3000" },

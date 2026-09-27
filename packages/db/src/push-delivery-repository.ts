@@ -14,6 +14,9 @@ type DeliveryClaim = {
   reportId: string | null;
   activityTitle: string | null;
   referenceAt: Date | null;
+  announcementTitle: string | null;
+  announcementBody: string | null;
+  stale: boolean;
   attempts: number;
   traceId: string | null;
   sourceSpanId: string | null;
@@ -36,6 +39,7 @@ export type PushNotification = {
   activityTitle: string | null;
   referenceAt: Date | null;
   timeZone: string;
+  announcement: { title: string; body: string } | null;
 };
 export type PushSender = (
   token: string,
@@ -62,12 +66,19 @@ export function createPushDeliveryRepository(pool: Pool, cipher: PushTokenCipher
            -- El aviso de un reporte muestra el título del reporte.
            coalesce(a.titulo, report.titulo) AS "activityTitle",
            n.reporte_id AS "reportId", n.referencia_en AS "referenceAt",
+           announcement.titulo AS "announcementTitle", announcement.cuerpo AS "announcementBody",
+           -- Ya no sirve avisar: pasó lo que anunciaba o el aviso es de otro día.
+           (n.creada_en < now() - interval '1 day'
+             OR (n.tipo IN ('deadline_reminder', 'block_reminder') AND n.referencia_en <= now())
+             OR (n.tipo = 'streak_at_risk' AND n.referencia_en + interval '1 day' <= now()))
+             AS stale,
            c.intentos AS attempts, c.traza_id AS "traceId",
            c.span_origen_id AS "sourceSpanId"
          FROM claimed c
          JOIN dominio.notificaciones n ON n.usuario_id = c.usuario_id AND n.id = c.notificacion_id
          LEFT JOIN dominio.actividades a ON a.usuario_id = n.usuario_id AND a.id = n.actividad_id
-         LEFT JOIN dominio.reportes report ON report.id = n.reporte_id`,
+         LEFT JOIN dominio.reportes report ON report.id = n.reporte_id
+         LEFT JOIN dominio.anuncios announcement ON announcement.id = n.anuncio_id`,
       );
       const row = claimed.rows[0];
       if (!row) return { kind: "empty" as const };
@@ -96,7 +107,7 @@ export function createPushDeliveryRepository(pool: Pool, cipher: PushTokenCipher
           );
           const state = current.rows[0];
           if (!state) return { kind: "empty" as const };
-          if (!state.notificationsEnabled || !state.pushNotificationsEnabled) {
+          if (!state.notificationsEnabled || !state.pushNotificationsEnabled || row.stale) {
             await pool.query(
               `UPDATE dominio.envios_push SET estado = 'done', arrendado_hasta = NULL
            WHERE id = $1 AND estado = 'sending' AND intentos = $2`,
@@ -125,6 +136,10 @@ export function createPushDeliveryRepository(pool: Pool, cipher: PushTokenCipher
               activityTitle: row.activityTitle,
               referenceAt: row.referenceAt,
               timeZone: state.timeZone,
+              announcement:
+                row.announcementTitle !== null && row.announcementBody !== null
+                  ? { title: row.announcementTitle, body: row.announcementBody }
+                  : null,
             });
             if (sent === "unregistered") {
               const removed = await pool.query(

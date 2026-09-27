@@ -38,6 +38,7 @@ export function createFcmSender(options: Options): PushSender {
         referenceAt: notification.referenceAt,
         timeZone: notification.timeZone,
         now: new Date(),
+        announcement: notification.announcement,
       });
       // FCM solo admite textos en data; la app los usa para abrir lo que avisa.
       const data: Record<string, string> = {

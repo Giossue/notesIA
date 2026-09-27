@@ -73,7 +73,7 @@ test("a completed activity does not receive a deadline notice selected earlier",
   expect(result.rows[0]?.count).toBe(0);
 });
 
-test("a quiet-hours change committed before insertion suppresses the selected notice", async () => {
+test("a deadline inside quiet hours is still recorded; only the push waits", async () => {
   await pool.query(
     `INSERT INTO autenticacion.usuarios (id, nombre, correo, correo_verificado)
      VALUES ($1, 'Prueba silencio', $2, false)`,
@@ -83,59 +83,40 @@ test("a quiet-hours change committed before insertion suppresses the selected no
     "UPDATE dominio.perfiles_usuario SET zona_horaria = 'Etc/UTC' WHERE usuario_id = $1",
     [quietChangeUserId],
   );
-  await pool.query(
-    `INSERT INTO dominio.actividades
-     (id, usuario_id, tipo, titulo, prioridad, fecha_limite, minutos_estimados)
-     VALUES ($1,$2,'academic_task','Informe','high','2027-05-05T13:00:00.000Z',60)`,
-    [quietChangeActivityId, quietChangeUserId],
-  );
-  let changed = false;
-  const interleavedPool = {
-    query: async (statement: string, values?: unknown[]) => {
-      if (
-        !changed &&
-        statement.includes("INSERT INTO dominio.notificaciones") &&
-        values?.[1] === quietChangeUserId
-      ) {
-        changed = true;
-        await pool.query(
-          `UPDATE dominio.preferencias_usuario
-           SET minuto_silencio_inicio = 660, minuto_silencio_fin = 780
-           WHERE usuario_id = $1`,
-          [quietChangeUserId],
-        );
-      }
-      return pool.query(statement, values);
-    },
-    connect: () => pool.connect(),
-  } as unknown as Pool;
-  const now = new Date("2027-05-05T12:00:00.000Z");
-  const count = async () => {
-    const result = await pool.query<{ count: number }>(
-      `SELECT count(*)::integer AS count FROM dominio.notificaciones
-       WHERE usuario_id = $1 AND actividad_id = $2 AND tipo = 'deadline_reminder'`,
-      [quietChangeUserId, quietChangeActivityId],
-    );
-    return result.rows[0]?.count;
-  };
-  await createNotificationSchedulerRepository(interleavedPool).processDue(now);
-  expect(changed).toBe(true);
-  expect(await count()).toBe(0);
+  // Silencio de 11:00 a 13:00 y la entrega vence a las 12:30: antes, el aviso
+  // se perdía porque el plazo pasaba antes de que terminara el silencio.
   await pool.query(
     `UPDATE dominio.preferencias_usuario
-     SET minuto_silencio_inicio = 1320, minuto_silencio_fin = 420
+     SET minuto_silencio_inicio = 660, minuto_silencio_fin = 780
      WHERE usuario_id = $1`,
     [quietChangeUserId],
   );
-  await createNotificationSchedulerRepository(pool).processDue(now);
-  expect(await count()).toBe(1);
+  await pool.query(
+    `INSERT INTO dominio.actividades
+     (id, usuario_id, tipo, titulo, prioridad, fecha_limite, minutos_estimados)
+     VALUES ($1,$2,'academic_task','Informe','high','2027-05-05T12:30:00.000Z',60)`,
+    [quietChangeActivityId, quietChangeUserId],
+  );
+  await createNotificationSchedulerRepository(pool).processDue(
+    new Date("2027-05-05T12:00:00.000Z"),
+  );
+  const result = await pool.query<{ count: number }>(
+    `SELECT count(*)::integer AS count FROM dominio.notificaciones
+     WHERE usuario_id = $1 AND actividad_id = $2 AND tipo = 'deadline_reminder'`,
+    [quietChangeUserId, quietChangeActivityId],
+  );
+  expect(result.rows[0]?.count).toBe(1);
 });
 
-test("a time-zone change committing during insertion suppresses a stale notice", async () => {
+test("turning notices off before insertion suppresses the selected notice", async () => {
   await pool.query(
     `INSERT INTO autenticacion.usuarios (id, nombre, correo, correo_verificado)
-     VALUES ($1, 'Prueba zona', $2, false)`,
-    [zoneChangeUserId, `zone-change-${zoneChangeUserId}@example.test`],
+     VALUES ($1, 'Prueba apagado', $2, false)`,
+    [zoneChangeUserId, `off-change-${zoneChangeUserId}@example.test`],
+  );
+  await pool.query(
+    "UPDATE dominio.perfiles_usuario SET zona_horaria = 'Etc/UTC' WHERE usuario_id = $1",
+    [zoneChangeUserId],
   );
   await pool.query(
     `INSERT INTO dominio.actividades
@@ -152,39 +133,17 @@ test("a time-zone change committing during insertion suppresses a stale notice",
         values?.[1] === zoneChangeUserId
       ) {
         changed = true;
-        const writer = await pool.connect();
-        let committed = false;
-        try {
-          await writer.query("BEGIN");
-          await writer.query(
-            `UPDATE dominio.perfiles_usuario SET zona_horaria = 'America/Los_Angeles'
-             WHERE usuario_id = $1`,
-            [zoneChangeUserId],
-          );
-          const insertion = pool.query(statement, values);
-          await Promise.race([
-            insertion.then(
-              () => undefined,
-              () => undefined,
-            ),
-            new Promise<void>((resolve) => setTimeout(resolve, 150)),
-          ]);
-          await writer.query("COMMIT");
-          committed = true;
-          return insertion;
-        } finally {
-          if (!committed) await writer.query("ROLLBACK").catch(() => {});
-          writer.release();
-        }
+        await pool.query(
+          `UPDATE dominio.preferencias_usuario SET notificaciones_habilitadas = false
+           WHERE usuario_id = $1`,
+          [zoneChangeUserId],
+        );
       }
       return pool.query(statement, values);
     },
     connect: () => pool.connect(),
   } as unknown as Pool;
   const now = new Date("2027-06-05T12:00:00.000Z");
-  const scheduler = createNotificationSchedulerRepository(interleavedPool);
-  await scheduler.processDue(now);
-  expect(changed).toBe(true);
   const count = async () => {
     const result = await pool.query<{ count: number }>(
       `SELECT count(*)::integer AS count FROM dominio.notificaciones
@@ -193,9 +152,12 @@ test("a time-zone change committing during insertion suppresses a stale notice",
     );
     return result.rows[0]?.count;
   };
+  await createNotificationSchedulerRepository(interleavedPool).processDue(now);
+  expect(changed).toBe(true);
   expect(await count()).toBe(0);
   await pool.query(
-    "UPDATE dominio.perfiles_usuario SET zona_horaria = 'Etc/UTC' WHERE usuario_id = $1",
+    `UPDATE dominio.preferencias_usuario SET notificaciones_habilitadas = true
+     WHERE usuario_id = $1`,
     [zoneChangeUserId],
   );
   await createNotificationSchedulerRepository(pool).processDue(now);

@@ -7,9 +7,6 @@ type Candidate = {
   planId: string | null;
   blockId: string | null;
   referenceAt: Date | null;
-  timeZone: string;
-  quietStartMinute: number;
-  quietEndMinute: number;
   riskSource?: "snapshot" | "stored";
   levelChangedAt?: Date | null;
 };
@@ -32,23 +29,12 @@ export function isQuietAt(now: Date, timeZone: string, start: number, end: numbe
 /** Hora local (en minutos) desde la que se avisa que la racha está en peligro: 20:00. */
 export const STREAK_REMINDER_MINUTE = 20 * 60;
 
-const candidateColumns = `a.usuario_id AS "userId", a.id AS "activityId",
-  profile.zona_horaria AS "timeZone",
-  prefs.minuto_silencio_inicio AS "quietStartMinute",
-  prefs.minuto_silencio_fin AS "quietEndMinute"`;
-const localClockJoin = (parameter: 1 | 8) => `CROSS JOIN LATERAL (
+const candidateColumns = `a.usuario_id AS "userId", a.id AS "activityId"`;
+const localClockJoin = (parameter: 1) => `CROSS JOIN LATERAL (
   SELECT EXTRACT(HOUR FROM timezone(profile.zona_horaria, $${parameter}::timestamptz))::integer * 60 +
     EXTRACT(MINUTE FROM timezone(profile.zona_horaria, $${parameter}::timestamptz))::integer
     AS local_minute
 ) local_clock`;
-const outsideQuietHours = `NOT (
-  CASE WHEN prefs.minuto_silencio_inicio < prefs.minuto_silencio_fin
-    THEN local_clock.local_minute >= prefs.minuto_silencio_inicio
-      AND local_clock.local_minute < prefs.minuto_silencio_fin
-    ELSE local_clock.local_minute >= prefs.minuto_silencio_inicio
-      OR local_clock.local_minute < prefs.minuto_silencio_fin
-  END
-)`;
 
 async function insertNotice(
   connection: Pool | PoolClient,
@@ -95,9 +81,7 @@ async function insertNotice(
         `WITH enabled AS (
        SELECT prefs.usuario_id FROM dominio.preferencias_usuario prefs
        JOIN dominio.perfiles_usuario profile ON profile.usuario_id = prefs.usuario_id
-       ${localClockJoin(8)}
        WHERE prefs.usuario_id = $2 AND prefs.notificaciones_habilitadas
-         AND ${outsideQuietHours}
        FOR SHARE OF prefs, profile
      ), eligible AS (
        ${eligibleSource}
@@ -147,8 +131,7 @@ export function createNotificationSchedulerRepository(pool: Pool) {
          JOIN dominio.perfiles_usuario profile ON profile.usuario_id = a.usuario_id
          JOIN dominio.preferencias_usuario prefs ON prefs.usuario_id = a.usuario_id
          JOIN dominio.preferencias_avisos notice ON notice.usuario_id = a.usuario_id
-         ${localClockJoin(1)}
-         WHERE prefs.notificaciones_habilitadas AND ${outsideQuietHours}
+         WHERE prefs.notificaciones_habilitadas
            AND a.estado NOT IN ('completed','cancelled')
            AND a.eliminado_en IS NULL AND a.archivado_en IS NULL
            AND a.fecha_limite > $1 AND a.fecha_limite <=
@@ -168,9 +151,8 @@ export function createNotificationSchedulerRepository(pool: Pool) {
          JOIN dominio.perfiles_usuario profile ON profile.usuario_id = b.usuario_id
          JOIN dominio.preferencias_usuario prefs ON prefs.usuario_id = b.usuario_id
          JOIN dominio.preferencias_avisos notice ON notice.usuario_id = b.usuario_id
-         ${localClockJoin(1)}
          WHERE p.estado = 'active' AND prefs.notificaciones_habilitadas
-           AND ${outsideQuietHours}
+          
            AND a.estado NOT IN ('completed','cancelled') AND a.eliminado_en IS NULL
            AND a.archivado_en IS NULL
            AND b.inicia_en > $1 AND b.inicia_en <=
@@ -193,10 +175,9 @@ export function createNotificationSchedulerRepository(pool: Pool) {
            JOIN dominio.perfiles_usuario profile ON profile.usuario_id = r.usuario_id
            JOIN dominio.preferencias_usuario prefs ON prefs.usuario_id = r.usuario_id
            JOIN dominio.preferencias_avisos notice ON notice.usuario_id = r.usuario_id
-           ${localClockJoin(1)}
            WHERE p.estado = 'active' AND p.riesgo_revision_comprobada = revision.revision
              AND r.revision_origen = revision.revision AND r.nivel = 'high'
-             AND prefs.notificaciones_habilitadas AND ${outsideQuietHours}
+             AND prefs.notificaciones_habilitadas
              AND a.estado NOT IN ('completed','cancelled') AND a.eliminado_en IS NULL
              AND a.archivado_en IS NULL
              AND NOT EXISTS (SELECT 1 FROM dominio.notificaciones n
@@ -216,11 +197,10 @@ export function createNotificationSchedulerRepository(pool: Pool) {
            JOIN dominio.perfiles_usuario profile ON profile.usuario_id = r.usuario_id
            JOIN dominio.preferencias_usuario prefs ON prefs.usuario_id = r.usuario_id
            JOIN dominio.preferencias_avisos notice ON notice.usuario_id = r.usuario_id
-           ${localClockJoin(1)}
            WHERE p.estado = 'active' AND p.revision_origen = revision.revision
              AND p.riesgo_revision_comprobada IS DISTINCT FROM revision.revision
              AND r.nivel = 'high' AND prefs.notificaciones_habilitadas
-             AND ${outsideQuietHours}
+            
              AND a.estado NOT IN ('completed','cancelled') AND a.eliminado_en IS NULL
              AND a.archivado_en IS NULL
              AND NOT EXISTS (SELECT 1 FROM dominio.notificaciones n
@@ -235,9 +215,6 @@ export function createNotificationSchedulerRepository(pool: Pool) {
       // todavía no. Uno por día.
       const streak = await pool.query<Candidate>(
         `SELECT profile.usuario_id AS "userId", NULL::uuid AS "activityId",
-           profile.zona_horaria AS "timeZone",
-           prefs.minuto_silencio_inicio AS "quietStartMinute",
-           prefs.minuto_silencio_fin AS "quietEndMinute",
            NULL::uuid AS "planId", NULL::uuid AS "blockId",
            (local_day.today::timestamp AT TIME ZONE profile.zona_horaria) AS "referenceAt"
          FROM dominio.perfiles_usuario profile
@@ -246,7 +223,7 @@ export function createNotificationSchedulerRepository(pool: Pool) {
          CROSS JOIN LATERAL (
            SELECT timezone(profile.zona_horaria, $1::timestamptz)::date AS today
          ) local_day
-         WHERE prefs.notificaciones_habilitadas AND ${outsideQuietHours}
+         WHERE prefs.notificaciones_habilitadas
            AND local_clock.local_minute >= ${STREAK_REMINDER_MINUTE}
            AND EXISTS (SELECT 1 FROM dominio.dias_racha d
              WHERE d.usuario_id = profile.usuario_id
@@ -267,11 +244,6 @@ export function createNotificationSchedulerRepository(pool: Pool) {
         ["streak_at_risk", streak.rows],
       ] as const) {
         for (const row of rows) {
-          try {
-            if (isQuietAt(now, row.timeZone, row.quietStartMinute, row.quietEndMinute)) continue;
-          } catch {
-            continue;
-          }
           if (type !== "risk_alert") {
             created += await insertNotice(pool, type, row, now);
             continue;

@@ -9,6 +9,7 @@ import type {
   AdminRepository,
   AiContextRepository,
   AiRepository,
+  AnnouncementRepository,
   AssistantSessionRepository,
   AssistantSuggestionRepository,
   AvailabilityRepository,
@@ -136,6 +137,7 @@ type AdminDependencies = {
   admin: AdminRepository;
   reports?: ReportRepository;
   suggestions?: AssistantSuggestionRepository;
+  announcements?: AnnouncementRepository;
   rateLimiter: AdminRateLimiter;
   verifyPassword(headers: Headers, password: string): Promise<boolean>;
   ai?: AiRepository;

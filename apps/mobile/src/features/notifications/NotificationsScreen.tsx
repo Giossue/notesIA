@@ -4,22 +4,27 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { StyleSheet, View } from "react-native";
 import { ActivityIndicator, Text, useTheme } from "react-native-paper";
-import { listNotifications, markNotificationRead } from "@/core/api/notifications";
+import {
+  type AppNotification,
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "@/core/api/notifications";
 import { layout } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { EmptyState } from "@/shared/EmptyState";
 import { userMessage } from "@/shared/errors";
 import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
+import { notificationTarget } from "./notification-target";
 
-const labels = {
-  plan_applied: "Plan aplicado",
-  deadline_reminder: "Plazo próximo",
-  block_reminder: "Bloque próximo",
-  risk_alert: "Alerta de riesgo",
-  streak_at_risk: "Tu racha está en peligro",
-  report_updated: "Soporte revisó tu reporte",
-};
+const dateFormat = new Intl.DateTimeFormat("es", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 export function NotificationsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -39,6 +44,19 @@ export function NotificationsScreen() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
   const items = notifications.data?.pages.flatMap((page) => page.items) ?? [];
+  const hasUnread = items.some((item) => !item.readAt);
+  const markAll = useMutation({
+    // Solo hasta el más reciente que se ve: uno que llegue ahora sigue sin leer.
+    mutationFn: () => markAllNotificationsRead(items[0]?.createdAt ?? new Date().toISOString()),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+  const open = (item: AppNotification) => {
+    const target = notificationTarget(item);
+    if (!target) return;
+    if (!item.readAt && !offline) markRead.mutate({ id: item.id, version: item.version });
+    if (target.screen === "ActivityForm") navigation.navigate("ActivityForm", { id: target.id });
+    else navigation.navigate(target.screen);
+  };
   return (
     <ScreenLayout header={{ title: "Notificaciones" }}>
       {offline && (
@@ -62,40 +80,39 @@ export function NotificationsScreen() {
           message="No tienes avisos pendientes."
         />
       )}
-      {items.map((item) => (
-        <Card key={item.id} mode={item.readAt ? "outlined" : "contained"}>
-          <Card.Content style={styles.group}>
-            <Text variant="titleMedium">{labels[item.type]}</Text>
-            <Text>{new Date(item.createdAt).toLocaleString()}</Text>
-            {item.activityId && (
-              <Button
-                onPress={() => {
-                  if (item.activityId)
-                    navigation.navigate("ActivityForm", {
-                      id: item.activityId,
-                    });
-                }}
-              >
-                Abrir tarea
-              </Button>
-            )}
-            {item.reportId && (
-              <Button onPress={() => navigation.navigate("Reports")}>Ver mi reporte</Button>
-            )}
-            {!item.activityId && item.planId && (
-              <Button onPress={() => navigation.navigate("Agenda")}>Abrir agenda</Button>
-            )}
-            {!item.readAt && (
-              <Button
-                disabled={offline || markRead.isPending}
-                onPress={() => markRead.mutate({ id: item.id, version: item.version })}
-              >
-                Marcar como leída
-              </Button>
-            )}
-          </Card.Content>
-        </Card>
-      ))}
+      {hasUnread && (
+        <Button
+          icon="check-all"
+          disabled={offline || markAll.isPending}
+          loading={markAll.isPending}
+          onPress={() => markAll.mutate()}
+        >
+          Marcar todas como leídas
+        </Button>
+      )}
+      {items.map((item) => {
+        const target = notificationTarget(item);
+        return (
+          <Card key={item.id} mode={item.readAt ? "outlined" : "contained"}>
+            <Card.Content style={styles.group}>
+              <Text variant="titleMedium">{item.title}</Text>
+              {!!item.body && <Text variant="bodyMedium">{item.body}</Text>}
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                {dateFormat.format(new Date(item.createdAt))}
+              </Text>
+              {target && <Button onPress={() => open(item)}>{target.label}</Button>}
+              {!item.readAt && (
+                <Button
+                  disabled={offline || markRead.isPending}
+                  onPress={() => markRead.mutate({ id: item.id, version: item.version })}
+                >
+                  Marcar como leída
+                </Button>
+              )}
+            </Card.Content>
+          </Card>
+        );
+      })}
       {notifications.hasNextPage && (
         <Button
           mode="outlined"

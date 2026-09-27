@@ -47,6 +47,7 @@ export const auditActionLabels: Record<string, string> = {
   "assistant_suggestion.created": "Sugerencia del asistente creada",
   "assistant_suggestion.updated": "Sugerencia del asistente editada",
   "assistant_suggestion.deleted": "Sugerencia del asistente eliminada",
+  "announcement.sent": "Aviso enviado a estudiantes",
   "account.reactivated": "Cuenta reactivada",
 };
 

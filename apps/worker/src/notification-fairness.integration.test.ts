@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from "bun:test";
-import { createNotificationSchedulerRepository } from "@notesia/db";
+import { createNotificationSchedulerRepository, isQuietAt } from "@notesia/db";
 import { Pool } from "pg";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -15,19 +15,16 @@ const pool = new Pool({ connectionString: databaseUrl });
 const quietUserId = crypto.randomUUID();
 const activeUserId = crypto.randomUUID();
 const activeActivityId = crypto.randomUUID();
-const dstUserId = crypto.randomUUID();
-const dstActivityId = crypto.randomUUID();
 
 afterAll(async () => {
   await pool.query("DELETE FROM autenticacion.usuarios WHERE id IN ($1, $2)", [
     quietUserId,
     activeUserId,
   ]);
-  await pool.query("DELETE FROM autenticacion.usuarios WHERE id = $1", [dstUserId]);
   await pool.end();
 });
 
-test("quiet candidates cannot starve a due notice for another user", async () => {
+test("quiet hours do not drop reminders: every due notice is created", async () => {
   await pool.query(
     `INSERT INTO autenticacion.usuarios (id, nombre, correo, correo_verificado)
      VALUES ($1, 'Usuario silencioso', $2, false), ($3, 'Usuario activo', $4, false)`,
@@ -64,10 +61,11 @@ test("quiet candidates cannot starve a due notice for another user", async () =>
     [activeActivityId, activeUserId],
   );
 
-  await createNotificationSchedulerRepository(pool).processDue(
-    new Date("2027-12-05T12:00:00.000Z"),
-    50,
-  );
+  // En "No molestar" el aviso igual se crea (el push espera); lo creado deja
+  // de ser candidato, así que la siguiente vuelta llega al otro estudiante.
+  const scheduler = createNotificationSchedulerRepository(pool);
+  await scheduler.processDue(new Date("2027-12-05T12:00:00.000Z"), 50);
+  await scheduler.processDue(new Date("2027-12-05T12:00:30.000Z"), 50);
   const active = await pool.query<{ count: number }>(
     `SELECT count(*)::integer AS count FROM dominio.notificaciones
      WHERE usuario_id = $1 AND actividad_id = $2 AND tipo = 'deadline_reminder'`,
@@ -79,43 +77,11 @@ test("quiet candidates cannot starve a due notice for another user", async () =>
      WHERE usuario_id = $1 AND tipo = 'deadline_reminder'`,
     [quietUserId],
   );
-  expect(quiet.rows[0]?.count).toBe(0);
+  expect(quiet.rows[0]?.count).toBe(51);
 });
 
-test("quiet hours use the local clock across a daylight saving change", async () => {
-  await pool.query(
-    `INSERT INTO autenticacion.usuarios (id, nombre, correo, correo_verificado)
-     VALUES ($1, 'Usuario DST', $2, false)`,
-    [dstUserId, `dst-notice-${dstUserId}@example.test`],
-  );
-  await pool.query(
-    `UPDATE dominio.perfiles_usuario SET zona_horaria = 'America/New_York'
-     WHERE usuario_id = $1`,
-    [dstUserId],
-  );
-  await pool.query(
-    `UPDATE dominio.preferencias_usuario
-     SET minuto_silencio_inicio = 120, minuto_silencio_fin = 240
-     WHERE usuario_id = $1`,
-    [dstUserId],
-  );
-  await pool.query(
-    `INSERT INTO dominio.actividades
-       (id, usuario_id, tipo, titulo, prioridad, fecha_limite, minutos_estimados)
-     VALUES ($1,$2,'academic_task','Avisar DST','medium','2027-03-14T08:20:00.000Z',30)`,
-    [dstActivityId, dstUserId],
-  );
-  const count = async () => {
-    const result = await pool.query<{ count: number }>(
-      `SELECT count(*)::integer AS count FROM dominio.notificaciones
-       WHERE usuario_id = $1 AND actividad_id = $2 AND tipo = 'deadline_reminder'`,
-      [dstUserId, dstActivityId],
-    );
-    return result.rows[0]?.count;
-  };
-  const scheduler = createNotificationSchedulerRepository(pool);
-  await scheduler.processDue(new Date("2027-03-14T07:30:00.000Z"));
-  expect(await count()).toBe(0);
-  await scheduler.processDue(new Date("2027-03-14T08:00:00.000Z"));
-  expect(await count()).toBe(1);
+test("quiet hours use the local clock across a daylight saving change", () => {
+  // 14 mar 2027: Nueva York pasa de 02:00 EST a 03:00 EDT (07:00 UTC).
+  expect(isQuietAt(new Date("2027-03-14T07:30:00.000Z"), "America/New_York", 120, 240)).toBe(true);
+  expect(isQuietAt(new Date("2027-03-14T08:00:00.000Z"), "America/New_York", 120, 240)).toBe(false);
 });

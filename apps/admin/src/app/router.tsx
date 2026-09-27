@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-router";
 import { AdminGate } from "@/app/admin-gate";
 import { AiPage } from "@/features/ai/ai-page";
+import { AnnouncementsPage } from "@/features/announcements/announcements-page";
 import { AuditPage } from "@/features/audit/audit-page";
 import { LoginPage } from "@/features/auth/login-page";
 import { ResetPasswordPage } from "@/features/auth/reset-password-page";
@@ -77,6 +78,11 @@ const reportsRoute = createRoute({
   path: "/reports",
   component: ReportsPage,
 });
+const announcementsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/announcements",
+  component: AnnouncementsPage,
+});
 const auditRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "/audit",
@@ -95,6 +101,7 @@ const routeTree = rootRoute.addChildren([
     aiRoute,
     auditRoute,
     reportsRoute,
+    announcementsRoute,
   ]),
 ]);
 

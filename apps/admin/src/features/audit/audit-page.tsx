@@ -27,6 +27,7 @@ function AuditTarget({ record }: { record: AdminAudit }) {
       </>
     );
   if (target.kind === "suggestion") return <>Sugerencia: «{target.text}»</>;
+  if (target.kind === "announcement") return <>Aviso: «{target.title}»</>;
   return <>{providerLabels[target.provider]}</>;
 }
 

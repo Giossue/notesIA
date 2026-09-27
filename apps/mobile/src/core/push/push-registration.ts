@@ -4,6 +4,21 @@ import { v4 as uuidv4 } from "uuid";
 import { registerPushDevice, removePushDevice } from "@/core/api/push-devices";
 
 const deviceService = "ec.notesia.planner.push-device";
+const promptedService = "ec.notesia.planner.push-prompted";
+
+/** Si ya se invitó a activar los avisos en este teléfono con la cuenta actual. */
+export async function wasPushPrompted() {
+  return Boolean(await Keychain.getGenericPassword({ service: promptedService }));
+}
+
+export async function rememberPushPrompted() {
+  await Keychain.setGenericPassword("push", "prompted", { service: promptedService });
+}
+
+/** Al cerrar sesión: la próxima cuenta que entre en este teléfono verá la invitación. */
+export async function forgetPushPrompted() {
+  await Keychain.resetGenericPassword({ service: promptedService });
+}
 
 export async function getLocalPushDeviceId() {
   const stored = await Keychain.getGenericPassword({ service: deviceService });
@@ -143,6 +158,17 @@ export async function subscribeToPushEvents(handlers: {
     const event = toPushEvent(message);
     if (event) handlers.onMessage(event);
   });
+  // Al arrancar se confirma el token: si cambió sin avisar, el servidor lo recibe.
+  void getLocalPushDeviceId()
+    .then(async (id) => {
+      if (!id) return;
+      await registerPushDevice({
+        id,
+        platform: Platform.OS === "ios" ? "ios" : "android",
+        token: await module.getToken(messaging),
+      });
+    })
+    .catch(() => {});
   const unsubscribeRefresh = module.onTokenRefresh(messaging, (token) => {
     void getLocalPushDeviceId().then((id) => {
       if (!id) return;

@@ -26,6 +26,12 @@ export {
   createAiRepository,
 } from "./ai-repository";
 export type {
+  AnnouncementInput,
+  AnnouncementRepository,
+  AnnouncementRow,
+} from "./announcement-repository";
+export { createAnnouncementRepository } from "./announcement-repository";
+export type {
   AssistantActionState,
   AssistantSession as AssistantSessionRow,
   AssistantSessionEntry,
@@ -55,6 +61,12 @@ export {
   type DatabaseTargetIdentity,
   databaseTargetIdentitySql,
 } from "./local-database-guard";
+export {
+  FINISHED_PUSH_DAYS,
+  NOTIFICATION_DAYS,
+  purgeOldNotifications,
+  READ_NOTIFICATION_DAYS,
+} from "./notification-cleanup";
 export {
   createNotificationPreferenceRepository,
   type NotificationPreferenceRepository,

@@ -49,3 +49,25 @@ test("recorta títulos largos y cubre tareas sin título", () => {
       .body,
   ).toStartWith("«Tu tarea»");
 });
+
+test("un anuncio del panel usa su propio texto y un tipo desconocido no rompe el envío", () => {
+  expect(
+    pushMessage({
+      type: "announcement",
+      activityTitle: null,
+      referenceAt: null,
+      timeZone: zone,
+      now,
+      announcement: { title: "Mantenimiento", body: "Esta noche la app estará en pausa." },
+    }),
+  ).toEqual({ title: "Mantenimiento", body: "Esta noche la app estará en pausa." });
+  expect(
+    pushMessage({
+      type: "algo_nuevo" as never,
+      activityTitle: null,
+      referenceAt: null,
+      timeZone: zone,
+      now,
+    }),
+  ).toEqual({ title: "NotesIA", body: "Tienes un aviso nuevo" });
+});
