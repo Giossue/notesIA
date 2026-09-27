@@ -60,7 +60,7 @@ test("the worker plans automatically after onboarding and replans when data chan
   // Sin onboarding terminado no se planifica.
   expect((await planner.processOne(now, userId)).kind).toBe("empty");
   await pool.query(
-    "UPDATE dominio.perfiles_usuario SET onboarding_completado_en = now() WHERE usuario_id = $1",
+    "UPDATE dominio.perfiles_usuario SET configuracion_inicial_en = now() WHERE usuario_id = $1",
     [userId],
   );
 

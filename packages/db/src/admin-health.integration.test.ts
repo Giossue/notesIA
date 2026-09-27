@@ -94,7 +94,7 @@ test("system health aggregates recent AI failures and known cost without private
     usageIds.push(id);
     await seed.query(
       `INSERT INTO dominio.uso_ia
-       (id, caso, proveedor, modelo_id, version_prompt, estado, tokens_reservados,
+       (id, caso, proveedor, modelo_id, version_instrucciones, estado, tokens_reservados,
         costo_usd, registrado_en)
        VALUES ($1, 'extract_activity', $2, $3, 1, $4, 100, $5, now() - $6::interval)`,
       [id, row.provider, `private-model-${row.provider}`, row.status, row.cost, row.age],

@@ -132,7 +132,7 @@ El tiempo real se obtiene de `registros_tiempo`; no se acepta como dato autorita
 
 ### Onboarding y plan automático
 
-`perfiles_usuario.onboarding_completado_en` se marca al terminar la configuración inicial (horario de estudio y compromisos fijos). Desde entonces el worker rehace y aplica el plan de hoy a 7 días cada vez que cambia `revisiones_planificacion.revision` o empieza un día nuevo, sin aviso `plan_applied`; `planificacion_automatica` guarda la revisión y el día ya planificados para no repetir el cálculo.
+`perfiles_usuario.configuracion_inicial_en` se marca al terminar la configuración inicial (horario de estudio y compromisos fijos). Desde entonces el worker rehace y aplica el plan de hoy a 7 días cada vez que cambia `revisiones_planificacion.revision` o empieza un día nuevo, sin aviso `plan_applied`; `planificacion_automatica` guarda la revisión y el día ya planificados para no repetir el cálculo.
 
 ### `dias_racha`
 

@@ -105,7 +105,7 @@ test("worker marks abandoned AI reservations uncertain without releasing budget"
   const ids = Array.from({ length: 4 }, () => crypto.randomUUID());
   await seed.query(
     `INSERT INTO dominio.uso_ia
-      (id, caso, proveedor, modelo_id, version_prompt, estado, tokens_reservados, registrado_en)
+      (id, caso, proveedor, modelo_id, version_instrucciones, estado, tokens_reservados, registrado_en)
      VALUES ($1, 'extract_activity', 'openai', 'test-model', 1, 'reserved', 100,
                now() - interval '10 minutes'),
             ($2, 'extract_activity', 'openai', 'test-model', 1, 'reserved', 100,

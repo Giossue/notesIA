@@ -58,7 +58,7 @@ export function createAutoPlanner(pool: Pool) {
            ON revision.usuario_id = profile.usuario_id
          LEFT JOIN dominio.planificacion_automatica auto
            ON auto.usuario_id = profile.usuario_id
-         WHERE profile.onboarding_completado_en IS NOT NULL
+         WHERE profile.configuracion_inicial_en IS NOT NULL
            AND ($2::uuid IS NULL OR profile.usuario_id = $2)
            AND EXISTS (SELECT 1 FROM dominio.reglas_disponibilidad rule
              WHERE rule.usuario_id = profile.usuario_id AND rule.archivado_en IS NULL)

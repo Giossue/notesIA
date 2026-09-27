@@ -47,7 +47,7 @@ function safeTotal(value: string) {
 export function createAiRepository(pool: Pool) {
   return {
     async recordFallback(useCase: AiUseCaseName, reason: AiFallbackReason) {
-      await pool.query(`INSERT INTO dominio.fallback_ia (id, caso, motivo) VALUES ($1,$2,$3)`, [
+      await pool.query(`INSERT INTO dominio.sin_respuesta_ia (id, caso, motivo) VALUES ($1,$2,$3)`, [
         crypto.randomUUID(),
         useCase,
         reason,
@@ -60,7 +60,7 @@ export function createAiRepository(pool: Pool) {
         requests: string;
       }>(
         `SELECT caso AS "useCase", motivo AS reason, count(*)::text AS requests
-         FROM dominio.fallback_ia
+         FROM dominio.sin_respuesta_ia
          WHERE registrado_en >= ($1::date::timestamp AT TIME ZONE 'UTC')
            AND registrado_en < ($2::date::timestamp AT TIME ZONE 'UTC')
          GROUP BY caso, motivo ORDER BY caso, motivo`,
@@ -327,7 +327,7 @@ export function createAiRepository(pool: Pool) {
         const id = crypto.randomUUID();
         await client.query(
           `INSERT INTO dominio.uso_ia
-           (id, usuario_id, caso, proveedor, modelo_id, version_prompt, estado, tokens_reservados,
+           (id, usuario_id, caso, proveedor, modelo_id, version_instrucciones, estado, tokens_reservados,
             precio_entrada_usd_millon, precio_salida_usd_millon)
            VALUES ($1,$2,$3,$4,$5,$6,'reserved',$7,$8,$9)`,
           [

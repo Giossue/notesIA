@@ -41,8 +41,8 @@ export function createProfileRepository(pool: Pool) {
     /** Marca terminada la configuración inicial; repetirlo no cambia la fecha. */
     async completeOnboarding(userId: string) {
       await pool.query(
-        `UPDATE dominio.perfiles_usuario SET onboarding_completado_en = now()
-         WHERE usuario_id = $1 AND onboarding_completado_en IS NULL`,
+        `UPDATE dominio.perfiles_usuario SET configuracion_inicial_en = now()
+         WHERE usuario_id = $1 AND configuracion_inicial_en IS NULL`,
         [userId],
       );
       return this.get(userId);

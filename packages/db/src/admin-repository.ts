@@ -137,7 +137,7 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
            r.rol AS role, u.suspendido_en AS "suspendedAt", u.estado_version AS version,
            u.creado_en AS "createdAt", u.actualizado_en AS "updatedAt",
            p.nombre AS "displayName", p.zona_horaria AS "timeZone", p.avatar,
-           p.onboarding_completado_en AS "onboardingCompletedAt",
+           p.configuracion_inicial_en AS "onboardingCompletedAt",
            p.usuario_id IS NOT NULL AS "hasProfile",
            (SELECT count(*)::int FROM dominio.actividades a
             WHERE a.usuario_id = u.id AND a.eliminado_en IS NULL) AS activities,
@@ -271,7 +271,7 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
           pool.query<{ lastSeenAt: Date; seenRecently: boolean }>(
             `SELECT visto_en AS "lastSeenAt",
              visto_en >= now() - interval '2 minutes' AS "seenRecently"
-           FROM dominio.latido_worker WHERE id = true`,
+           FROM dominio.latido_procesos WHERE id = true`,
           ),
           pool.query<AiProviderHealthRow>(
             `SELECT proveedor AS provider,

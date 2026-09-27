@@ -202,7 +202,7 @@ const sections = [
   {
     name: "aiUsage",
     sql: `SELECT id, caso AS "useCase", proveedor AS provider,
-    modelo_id AS "modelId", version_prompt AS "promptVersion", estado AS status,
+    modelo_id AS "modelId", version_instrucciones AS "promptVersion", estado AS status,
     tokens_reservados AS "reservedTokens",
     tokens_entrada AS "inputTokens", tokens_salida AS "outputTokens",
     duracion_ms AS "durationMs", uso_reportado AS "usageReported",

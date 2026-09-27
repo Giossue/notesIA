@@ -453,7 +453,7 @@ test("only an administrator can publish documents and each action is audited", a
     worker: { lastSeenAt: expect.any(String), seenRecently: true },
   });
   await seed.query(
-    "UPDATE dominio.latido_worker SET visto_en = now() - interval '3 minutes' WHERE id = true",
+    "UPDATE dominio.latido_procesos SET visto_en = now() - interval '3 minutes' WHERE id = true",
   );
   const oldHeartbeat = await app.request(healthPath, { headers: { cookie: adminCookie } });
   expect(await oldHeartbeat.json()).toMatchObject({ worker: { seenRecently: false } });
@@ -805,14 +805,14 @@ test("only an administrator can publish documents and each action is audited", a
   const unknownUsageId = crypto.randomUUID();
   await seed.query(
     `INSERT INTO dominio.uso_ia
-     (id, caso, proveedor, modelo_id, version_prompt, estado, tokens_reservados)
+     (id, caso, proveedor, modelo_id, version_instrucciones, estado, tokens_reservados)
      VALUES ($1, 'extract_activity', 'openai', 'test-model-1', 1, 'error', 100)`,
     [unknownUsageId],
   );
   const measuredErrorIds = [crypto.randomUUID(), crypto.randomUUID()];
   await seed.query(
     `INSERT INTO dominio.uso_ia
-     (id, caso, proveedor, modelo_id, version_prompt, estado, tokens_reservados, duracion_ms)
+     (id, caso, proveedor, modelo_id, version_instrucciones, estado, tokens_reservados, duracion_ms)
      VALUES ($1, 'extract_activity', 'openai', 'test-model-1', 1, 'error', 100, 100),
             ($2, 'extract_activity', 'openai', 'test-model-1', 1, 'error', 100, 300)`,
     measuredErrorIds,
@@ -840,7 +840,7 @@ test("only an administrator can publish documents and each action is audited", a
   const uncertainUsageId = crypto.randomUUID();
   await seed.query(
     `INSERT INTO dominio.uso_ia
-     (id, caso, proveedor, modelo_id, version_prompt, estado, tokens_reservados)
+     (id, caso, proveedor, modelo_id, version_instrucciones, estado, tokens_reservados)
      VALUES ($1, 'extract_activity', 'openai', 'test-model-1', 1, 'unknown', 100)`,
     [uncertainUsageId],
   );
