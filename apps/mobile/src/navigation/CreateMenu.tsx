@@ -138,7 +138,7 @@ export function CreateFab({
           accessibilityState={onPress ? undefined : { expanded: open }}
           style={[styles.fab, { backgroundColor: theme.colors.primary }]}
         >
-          <Icon source={open ? "close" : "plus"} size={32} color={theme.colors.onPrimary} />
+          <SpinningPlus open={open} size={32} color={theme.colors.onPrimary} />
         </TouchableRipple>
       </Animated.View>
       <CreateMenu
@@ -187,3 +187,33 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 });
+
+/**
+ * El «+» del botón de crear: al abrir el menú gira con un resorte suave hasta
+ * quedar como una «×», y al cerrar vuelve.
+ */
+export function SpinningPlus({
+  open,
+  size,
+  color,
+}: {
+  open: boolean;
+  size: number;
+  color: string;
+}) {
+  const turn = useRef(new Animated.Value(open ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.spring(turn, {
+      toValue: open ? 1 : 0,
+      friction: 6,
+      tension: 70,
+      useNativeDriver: true,
+    }).start();
+  }, [open, turn]);
+  const rotate = turn.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "135deg"] });
+  return (
+    <Animated.View style={{ transform: [{ rotate }] }}>
+      <Icon source="plus" size={size} color={color} />
+    </Animated.View>
+  );
+}

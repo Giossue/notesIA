@@ -5,7 +5,7 @@ import { StyleSheet, View } from "react-native";
 import { Icon, Surface, Text, TouchableRipple, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { layout } from "@/core/theme/layout";
-import { CreateMenu, FAB_SIZE } from "./CreateMenu";
+import { CreateMenu, FAB_SIZE, SpinningPlus } from "./CreateMenu";
 import type { RootStackParamList } from "./types";
 
 export type MainTab = "Home" | "Agenda" | "Progress" | "Profile";
@@ -111,7 +111,7 @@ export function FloatingNavBar({ active }: { active: MainTab }) {
           },
         ]}
       >
-        <Icon source={createOpen ? "close" : "plus"} size={34} color={theme.colors.onPrimary} />
+        <SpinningPlus open={createOpen} size={34} color={theme.colors.onPrimary} />
       </TouchableRipple>
       <CreateMenu
         open={createOpen}
