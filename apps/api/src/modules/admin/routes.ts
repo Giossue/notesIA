@@ -6,6 +6,10 @@ import {
   adminAiRouteSchema,
   adminAiRouteUpdateSchema,
   adminAiUsageSchema,
+  adminAssistantSuggestionCreateSchema,
+  adminAssistantSuggestionListSchema,
+  adminAssistantSuggestionSchema,
+  adminAssistantSuggestionUpdateSchema,
   adminAuditPageSchema,
   adminAuditSchema,
   adminDocumentCreateSchema,
@@ -39,6 +43,7 @@ import type {
   AdminReportRow,
   AdminRepository,
   AiRepository,
+  AssistantSuggestionRepository,
   ReportRepository,
 } from "@notesia/db";
 import { computeStreak, todayInTimeZone } from "@notesia/domain";
@@ -56,6 +61,7 @@ type Dependencies = {
   } | null>;
   admin: AdminRepository;
   reports?: ReportRepository;
+  suggestions?: AssistantSuggestionRepository;
   rateLimiter: AdminRateLimiter;
   verifyPassword(headers: Headers, password: string): Promise<boolean>;
   ai?: AiRepository;
@@ -196,6 +202,61 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
       { "Cache-Control": "no-store" },
     );
   });
+
+  if (dependencies.suggestions) {
+    const suggestions = dependencies.suggestions;
+    const toSuggestion = (row: Awaited<ReturnType<typeof suggestions.list>>[number]) =>
+      adminAssistantSuggestionSchema.parse({ ...row, updatedAt: row.updatedAt.toISOString() });
+    app.get("/v1/admin/assistant-suggestions", async (c) => {
+      const access = await authorize(c.req.raw.headers, c.req.method, dependencies);
+      if (access.response) return access.response;
+      return c.json(
+        adminAssistantSuggestionListSchema.parse({
+          items: (await suggestions.list()).map(toSuggestion),
+        }),
+        200,
+        { "Cache-Control": "no-store" },
+      );
+    });
+    app.post("/v1/admin/assistant-suggestions", async (c) => {
+      const access = await authorize(c.req.raw.headers, c.req.method, dependencies);
+      if (access.response) return access.response;
+      if (c.req.header("origin") !== dependencies.allowedOrigin)
+        return error(403, "FORBIDDEN", "Origen no permitido.");
+      const body = adminAssistantSuggestionCreateSchema.safeParse(await readJson(c.req.raw));
+      if (!body.success)
+        return error(422, "VALIDATION_FAILED", "Escribe una sugerencia de 3 a 120 caracteres.");
+      const result = await suggestions.create(access.userId as string, body.data);
+      if (result.kind === "duplicate") return error(409, "DUPLICATE", "Esa sugerencia ya existe.");
+      return c.json(toSuggestion(result.row), 201);
+    });
+    app.patch("/v1/admin/assistant-suggestions/:id", async (c) => {
+      const access = await authorize(c.req.raw.headers, c.req.method, dependencies);
+      if (access.response) return access.response;
+      if (c.req.header("origin") !== dependencies.allowedOrigin)
+        return error(403, "FORBIDDEN", "Origen no permitido.");
+      const id = z.uuid().safeParse(c.req.param("id"));
+      const body = adminAssistantSuggestionUpdateSchema.safeParse(await readJson(c.req.raw));
+      if (!id.success || !body.success)
+        return error(422, "VALIDATION_FAILED", "Escribe una sugerencia de 3 a 120 caracteres.");
+      const result = await suggestions.update(access.userId as string, id.data, body.data);
+      if (result.kind === "not_found") return error(404, "NOT_FOUND", "Sugerencia no encontrada.");
+      if (result.kind === "version_conflict")
+        return error(409, "VERSION_CONFLICT", "La sugerencia cambió; actualiza la lista.");
+      if (result.kind === "duplicate") return error(409, "DUPLICATE", "Esa sugerencia ya existe.");
+      return c.json(toSuggestion(result.row));
+    });
+    app.delete("/v1/admin/assistant-suggestions/:id", async (c) => {
+      const access = await authorize(c.req.raw.headers, c.req.method, dependencies);
+      if (access.response) return access.response;
+      if (c.req.header("origin") !== dependencies.allowedOrigin)
+        return error(403, "FORBIDDEN", "Origen no permitido.");
+      const id = z.uuid().safeParse(c.req.param("id"));
+      if (!id.success) return error(404, "NOT_FOUND", "Sugerencia no encontrada.");
+      const removed = await suggestions.remove(access.userId as string, id.data);
+      return removed ? c.body(null, 204) : error(404, "NOT_FOUND", "Sugerencia no encontrada.");
+    });
+  }
 
   if (dependencies.reports) {
     const reports = dependencies.reports;
@@ -723,7 +784,9 @@ export function registerAdminRoutes(app: Hono, dependencies: Dependencies) {
                 ? { kind: "document", type: row.documentType, version: row.documentVersion }
                 : row.provider
                   ? { kind: "provider", provider: row.provider }
-                  : null,
+                  : row.suggestion
+                    ? { kind: "suggestion", text: row.suggestion }
+                    : null,
             recordedAt: row.recordedAt.toISOString(),
           }),
         ),

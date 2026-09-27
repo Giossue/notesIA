@@ -20,7 +20,10 @@ export type AdminAudit = {
     | "role.changed"
     | "role.removed"
     | "account.suspended"
-    | "account.reactivated";
+    | "account.reactivated"
+    | "assistant_suggestion.created"
+    | "assistant_suggestion.updated"
+    | "assistant_suggestion.deleted";
   targetId: string;
   recordedAt: Date;
   actorEmail: string | null;
@@ -28,6 +31,7 @@ export type AdminAudit = {
   documentType: "terms" | "privacy" | "ai" | null;
   documentVersion: number | null;
   provider: "openai" | "anthropic" | "deepseek" | null;
+  suggestion: string | null;
   cursorRecordedAt: string;
 };
 type Cursor = { createdAt: string; id: string };
@@ -367,7 +371,7 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
            a.objetivo_id AS "targetId", a.registrado_en AS "recordedAt",
            actor.correo AS "actorEmail", target.correo AS "targetEmail",
            document.tipo AS "documentType", document.version AS "documentVersion",
-           provider.proveedor AS "provider",
+           provider.proveedor AS "provider", suggestion.texto AS "suggestion",
            to_char(a.registrado_en AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
              AS "cursorRecordedAt"
          FROM dominio.auditoria_admin a
@@ -375,6 +379,7 @@ export function createAdminRepository(pool: Pool, authSecret: string) {
          LEFT JOIN autenticacion.usuarios target ON target.id = a.objetivo_id
          LEFT JOIN dominio.documentos_privacidad document ON document.id = a.objetivo_id
          LEFT JOIN dominio.proveedores_ia provider ON provider.id = a.objetivo_id
+         LEFT JOIN dominio.sugerencias_asistente suggestion ON suggestion.id = a.objetivo_id
          WHERE ($1::timestamptz IS NULL OR (a.registrado_en, a.id) < ($1, $2::uuid))
          ORDER BY a.registrado_en DESC, a.id DESC LIMIT 21`,
         [cursor?.recordedAt ?? null, cursor?.id ?? null],

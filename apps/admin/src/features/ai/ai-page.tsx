@@ -47,6 +47,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type AdminAiProvider, type AdminAiRoute, adminApi } from "@/lib/admin-api";
 import { providerLabels, usageStatusLabels, useCaseLabels } from "@/lib/labels";
 import { aiProvidersQuery, aiRoutesQuery, auditQueryKey, systemHealthQuery } from "@/lib/query";
+import { SuggestionsPanel } from "./suggestions-panel";
 
 type Provider = z.infer<typeof aiProviderSchema>;
 const providers = aiProviderSchema.options;
@@ -780,6 +781,7 @@ export function AiPage() {
         <TabsList>
           <TabsTrigger value="providers">Proveedores</TabsTrigger>
           <TabsTrigger value="assistant">Usos de la IA</TabsTrigger>
+          <TabsTrigger value="suggestions">Sugerencias del chat</TabsTrigger>
           <TabsTrigger value="usage">Uso</TabsTrigger>
         </TabsList>
         <TabsContent value="providers">
@@ -790,6 +792,9 @@ export function AiPage() {
             <RoutePanel useCase="assistant_chat" />
             <RoutePanel useCase="onboarding_setup" />
           </div>
+        </TabsContent>
+        <TabsContent value="suggestions">
+          <SuggestionsPanel />
         </TabsContent>
         <TabsContent value="usage">
           <UsagePanel />

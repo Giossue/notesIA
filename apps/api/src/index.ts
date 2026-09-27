@@ -13,6 +13,7 @@ import {
   createAiContextRepository,
   createAiRepository,
   createAssistantSessionRepository,
+  createAssistantSuggestionRepository,
   createAvailabilityRepository,
   createCalendarEventRepository,
   createIdempotencyRepository,
@@ -137,6 +138,7 @@ const app = createApp(
     getSession,
     admin: adminRepository,
     reports: createReportRepository(repositoryPool),
+    suggestions: createAssistantSuggestionRepository(repositoryPool),
     rateLimiter: createAdminRateLimiter(repositoryPool, process.env.BETTER_AUTH_SECRET as string),
     verifyPassword: async (headers, password) => {
       try {
@@ -155,6 +157,7 @@ const app = createApp(
     gateway: createAiGateway(aiRepository, aiKeyCipher),
     context: createAiContextRepository(repositoryPool),
     sessions: createAssistantSessionRepository(repositoryPool),
+    suggestions: createAssistantSuggestionRepository(repositoryPool),
   },
   {
     getSession,

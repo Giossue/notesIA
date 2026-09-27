@@ -26,6 +26,7 @@ function AuditTarget({ record }: { record: AdminAudit }) {
         {documentLabels[target.type]} · versión {target.version}
       </>
     );
+  if (target.kind === "suggestion") return <>Sugerencia: «{target.text}»</>;
   return <>{providerLabels[target.provider]}</>;
 }
 

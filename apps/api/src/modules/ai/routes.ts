@@ -2,6 +2,7 @@ import {
   aiSuggestionResponseSchema,
   assistantActionStateUpdateSchema,
   assistantSessionSchema,
+  assistantSuggestionsSchema,
   assistantTurnRequestSchema,
   assistantTurnResponseSchema,
   onboardingTurnRequestSchema,
@@ -13,6 +14,7 @@ import {
   ASSISTANT_SESSION_LIMIT,
   type AssistantSessionRepository,
   type AssistantSessionRow,
+  type AssistantSuggestionRepository,
 } from "@notesia/db";
 import type { Hono } from "hono";
 import { z } from "zod";
@@ -27,6 +29,7 @@ type Dependencies = {
   context: AiContextRepository;
   /** Conversaciones guardadas en el servidor; sin esto, el chat no guarda nada. */
   sessions?: AssistantSessionRepository;
+  suggestions?: AssistantSuggestionRepository;
 };
 
 type SessionEntry = AssistantSessionRow["content"][number];
@@ -58,6 +61,17 @@ function error(status: 401 | 403 | 404 | 409 | 422, code: string, title: string)
 }
 
 export function registerAiRoutes(app: Hono, dependencies: Dependencies) {
+  // Tres sugerencias al azar entre las activas, para empezar a conversar.
+  const suggestions = dependencies.suggestions;
+  if (suggestions)
+    app.get("/v1/ai/assistant/suggestions", async (c) => {
+      const session = await dependencies.getSession(c.req.raw.headers);
+      if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
+      return c.json(assistantSuggestionsSchema.parse({ items: await suggestions.random(3) }), 200, {
+        "Cache-Control": "no-store",
+      });
+    });
+
   const sessions = dependencies.sessions;
   if (sessions) {
     // La conversación activa: la app la muestra al abrir el chat (no la guarda el teléfono).

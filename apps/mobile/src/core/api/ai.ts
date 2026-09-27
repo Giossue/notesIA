@@ -2,6 +2,7 @@ import {
   type AssistantMessage,
   assistantActionStateUpdateSchema,
   assistantSessionSchema,
+  assistantSuggestionsSchema,
   assistantTurnRequestSchema,
   assistantTurnResponseSchema,
   type OnboardingDraft,
@@ -49,4 +50,9 @@ export function sendOnboardingMessage(
     body: onboardingTurnRequestSchema.parse({ message, history, draft }),
     timeoutMs: 60_000,
   });
+}
+
+/** Tres sugerencias al azar para empezar a conversar; las gestiona el panel. */
+export function getAssistantSuggestions() {
+  return requestJson("/ai/assistant/suggestions", assistantSuggestionsSchema);
 }

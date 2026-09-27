@@ -974,6 +974,90 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /admin/assistant-suggestions:
+    get:
+      operationId: getAdminAssistantSuggestions
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAssistantSuggestionList"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: postAdminAssistantSuggestions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAssistantSuggestionCreateInput"
+      responses:
+        "201":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAssistantSuggestion"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /admin/assistant-suggestions/{id}:
+    patch:
+      operationId: patchAdminAssistantSuggestionsById
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAssistantSuggestionUpdateInput"
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAssistantSuggestion"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteAdminAssistantSuggestionsById
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Sin contenido
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /admin/audit:
     get:
       operationId: getAdminAudit
@@ -1409,6 +1493,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AssistantSession"
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /ai/assistant/suggestions:
+    get:
+      operationId: getAiAssistantSuggestions
+      responses:
+        "200":
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantSuggestions"
         default:
           description: Error
           content:
@@ -4646,6 +4746,97 @@ components:
         - transitions
         - items
       additionalProperties: false
+    AdminAssistantSuggestion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        text:
+          type: string
+        active:
+          type: boolean
+        version:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 9007199254740991
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+      required:
+        - id
+        - text
+        - active
+        - version
+        - updatedAt
+      additionalProperties: false
+    AdminAssistantSuggestionCreateInput:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 3
+          maxLength: 120
+        active:
+          type: boolean
+      required:
+        - text
+        - active
+      additionalProperties: false
+    AdminAssistantSuggestionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              text:
+                type: string
+              active:
+                type: boolean
+              version:
+                type: integer
+                exclusiveMinimum: 0
+                maximum: 9007199254740991
+              updatedAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            required:
+              - id
+              - text
+              - active
+              - version
+              - updatedAt
+            additionalProperties: false
+      required:
+        - items
+      additionalProperties: false
+    AdminAssistantSuggestionUpdateInput:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 3
+          maxLength: 120
+        active:
+          type: boolean
+        version:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 9007199254740991
+      required:
+        - text
+        - active
+        - version
+      additionalProperties: false
     AdminAuditPage:
       type: object
       properties:
@@ -4675,6 +4866,9 @@ components:
                   - role.removed
                   - account.suspended
                   - account.reactivated
+                  - assistant_suggestion.created
+                  - assistant_suggestion.updated
+                  - assistant_suggestion.deleted
               targetId:
                 type: string
                 format: uuid
@@ -4731,6 +4925,17 @@ components:
                         required:
                           - kind
                           - provider
+                        additionalProperties: false
+                      - type: object
+                        properties:
+                          kind:
+                            type: string
+                            const: suggestion
+                          text:
+                            type: string
+                        required:
+                          - kind
+                          - text
                         additionalProperties: false
                   - type: "null"
               recordedAt:
@@ -7171,6 +7376,17 @@ components:
         - messages
         - messagesLeft
         - limit
+      additionalProperties: false
+    AssistantSuggestions:
+      type: object
+      properties:
+        items:
+          maxItems: 10
+          type: array
+          items:
+            type: string
+      required:
+        - items
       additionalProperties: false
     AssistantTurnRequestInput:
       type: object

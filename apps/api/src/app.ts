@@ -10,6 +10,7 @@ import type {
   AiContextRepository,
   AiRepository,
   AssistantSessionRepository,
+  AssistantSuggestionRepository,
   AvailabilityRepository,
   CalendarEventRepository,
   IdempotencyRepository,
@@ -134,6 +135,7 @@ type AdminDependencies = {
   } | null>;
   admin: AdminRepository;
   reports?: ReportRepository;
+  suggestions?: AssistantSuggestionRepository;
   rateLimiter: AdminRateLimiter;
   verifyPassword(headers: Headers, password: string): Promise<boolean>;
   ai?: AiRepository;
@@ -147,6 +149,7 @@ type AiDependencies = {
   gateway: AiGateway;
   context: AiContextRepository;
   sessions?: AssistantSessionRepository;
+  suggestions?: AssistantSuggestionRepository;
 };
 type AccountExportDependencies = {
   getSession(headers: Headers): Promise<Session | null>;

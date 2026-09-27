@@ -143,6 +143,9 @@ export const adminAuditSchema = z.object({
     "role.removed",
     "account.suspended",
     "account.reactivated",
+    "assistant_suggestion.created",
+    "assistant_suggestion.updated",
+    "assistant_suggestion.deleted",
   ]),
   targetId: z.uuid(),
   /** Correo de quien hizo la acción (null si la cuenta ya no existe). */
@@ -160,6 +163,7 @@ export const adminAuditSchema = z.object({
         kind: z.literal("provider"),
         provider: z.enum(["openai", "anthropic", "deepseek"]),
       }),
+      z.object({ kind: z.literal("suggestion"), text: z.string() }),
     ])
     .nullable(),
   recordedAt: z.iso.datetime(),
@@ -1318,3 +1322,24 @@ export type ReportCreate = z.infer<typeof reportCreateSchema>;
 export type AdminReport = z.infer<typeof adminReportSchema>;
 export type AdminReportDetail = z.infer<typeof adminReportDetailSchema>;
 export type AdminMe = z.infer<typeof adminMeSchema>;
+
+/** Frases de ejemplo que el chat del asistente ofrece al empezar. */
+export const assistantSuggestionsSchema = z.object({ items: z.array(z.string()).max(10) });
+export const adminAssistantSuggestionSchema = z.object({
+  id: z.uuid(),
+  text: z.string(),
+  active: z.boolean(),
+  version: z.number().int().positive(),
+  updatedAt: z.iso.datetime(),
+});
+export const adminAssistantSuggestionListSchema = z.object({
+  items: z.array(adminAssistantSuggestionSchema),
+});
+export const adminAssistantSuggestionCreateSchema = z.strictObject({
+  text: z.string().trim().min(3, "Escribe al menos 3 caracteres.").max(120),
+  active: z.boolean(),
+});
+export const adminAssistantSuggestionUpdateSchema = adminAssistantSuggestionCreateSchema.extend({
+  version: z.number().int().positive(),
+});
+export type AdminAssistantSuggestion = z.infer<typeof adminAssistantSuggestionSchema>;

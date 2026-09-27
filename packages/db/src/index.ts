@@ -35,6 +35,11 @@ export {
   ASSISTANT_SESSION_LIMIT,
   createAssistantSessionRepository,
 } from "./assistant-session-repository";
+export type {
+  AssistantSuggestionRepository,
+  AssistantSuggestionRow,
+} from "./assistant-suggestion-repository";
+export { createAssistantSuggestionRepository } from "./assistant-suggestion-repository";
 export { createSecureStorage, purgeExpiredSecureStorage } from "./auth-secure-storage";
 export {
   type AvailabilityRepository,

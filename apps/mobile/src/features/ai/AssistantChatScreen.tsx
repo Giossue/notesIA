@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { v4 as uuidv4 } from "uuid";
 import {
   getAssistantSession,
+  getAssistantSuggestions,
   reportAssistantAction,
   sendAssistantMessage,
   startAssistantSession,
@@ -51,7 +52,8 @@ const fallbackMessages = {
   invalid_output: "No entendí bien la respuesta. ¿Puedes decirlo de otra forma?",
   provider_unavailable: "El servicio de IA no responde ahora. Inténtalo en un momento.",
 };
-const suggestions = [
+// Si no llegan las del servidor (por ejemplo, sin conexión), se usan estas.
+const fallbackSuggestions = [
   "¿Qué tengo esta semana?",
   "Tengo examen de cálculo el viernes a las 10",
   "Tengo clase de inglés mañana de 8 a 10",
@@ -344,6 +346,15 @@ export function AssistantChatScreen() {
 
 function Welcome({ onPick, disabled }: { onPick(text: string): void; disabled: boolean }) {
   const theme = useTheme();
+  // Cada vez que se abre el chat, tres al azar entre las que activó el panel.
+  const remote = useQuery({
+    queryKey: ["assistant-suggestions"],
+    queryFn: getAssistantSuggestions,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+  });
+  const suggestions = remote.isError ? fallbackSuggestions : (remote.data?.items ?? []);
   return (
     <View style={styles.welcome}>
       <View style={[styles.welcomeIcon, { backgroundColor: theme.colors.primaryContainer }]}>

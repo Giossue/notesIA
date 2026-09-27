@@ -44,6 +44,9 @@ export const auditActionLabels: Record<string, string> = {
   "role.changed": "Rol cambiado",
   "role.removed": "Rol quitado",
   "account.suspended": "Cuenta suspendida",
+  "assistant_suggestion.created": "Sugerencia del asistente creada",
+  "assistant_suggestion.updated": "Sugerencia del asistente editada",
+  "assistant_suggestion.deleted": "Sugerencia del asistente eliminada",
   "account.reactivated": "Cuenta reactivada",
 };
 

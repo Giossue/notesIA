@@ -233,6 +233,22 @@ add("GET", "/v1/calendar-events/:id", "calendarEventSchema");
 add("POST", "/v1/calendar-events", "calendarEventSchema", "calendarEventCreateSchema", [200, 201]);
 add("PATCH", "/v1/calendar-events/:id", "calendarEventSchema", "calendarEventUpdateSchema");
 add("GET", "/v1/streak", "streakSchema");
+add("GET", "/v1/ai/assistant/suggestions", "assistantSuggestionsSchema");
+add("GET", "/v1/admin/assistant-suggestions", "adminAssistantSuggestionListSchema");
+add(
+  "POST",
+  "/v1/admin/assistant-suggestions",
+  "adminAssistantSuggestionSchema",
+  "adminAssistantSuggestionCreateSchema",
+  [201],
+);
+add(
+  "PATCH",
+  "/v1/admin/assistant-suggestions/:id",
+  "adminAssistantSuggestionSchema",
+  "adminAssistantSuggestionUpdateSchema",
+);
+add("DELETE", "/v1/admin/assistant-suggestions/:id", undefined, undefined, [204]);
 add("GET", "/v1/ai/assistant/session", "assistantSessionSchema");
 add("POST", "/v1/ai/assistant/session/new", "assistantSessionSchema");
 add(

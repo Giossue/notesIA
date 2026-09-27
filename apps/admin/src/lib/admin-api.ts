@@ -6,6 +6,10 @@ import {
   adminAiRouteSchema,
   adminAiRouteUpdateSchema,
   adminAiUsageSchema,
+  adminAssistantSuggestionCreateSchema,
+  adminAssistantSuggestionListSchema,
+  adminAssistantSuggestionSchema,
+  adminAssistantSuggestionUpdateSchema,
   adminAuditPageSchema,
   adminDocumentCreateSchema,
   adminDocumentPageSchema,
@@ -52,7 +56,23 @@ export type AdminAiProvider = z.infer<typeof adminAiProviderSchema>;
 export type AdminAiRoute = z.infer<typeof adminAiRouteSchema>;
 export type AdminAiRouteUpdate = z.infer<typeof adminAiRouteUpdateSchema>;
 
+export type AdminSuggestion = z.infer<typeof adminAssistantSuggestionSchema>;
+
 export const adminApi = {
+  suggestions: () =>
+    apiRequest("/v1/admin/assistant-suggestions", adminAssistantSuggestionListSchema),
+  createSuggestion: (input: z.infer<typeof adminAssistantSuggestionCreateSchema>) =>
+    apiRequest("/v1/admin/assistant-suggestions", adminAssistantSuggestionSchema, {
+      method: "POST",
+      body: adminAssistantSuggestionCreateSchema.parse(input),
+    }),
+  updateSuggestion: (id: string, input: z.infer<typeof adminAssistantSuggestionUpdateSchema>) =>
+    apiRequest(`/v1/admin/assistant-suggestions/${id}`, adminAssistantSuggestionSchema, {
+      method: "PATCH",
+      body: adminAssistantSuggestionUpdateSchema.parse(input),
+    }),
+  deleteSuggestion: (id: string) =>
+    apiRequest(`/v1/admin/assistant-suggestions/${id}`, z.null(), { method: "DELETE" }),
   me: () => apiRequest("/v1/admin/me", adminMeSchema),
   reports: (status: ReportStatus | null, cursor?: string | null) => {
     const query = new URLSearchParams();
