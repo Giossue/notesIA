@@ -6,6 +6,7 @@ import { HomeHeader } from "@/features/home/HomeHeader";
 jest.mock("@tanstack/react-query", () => ({ useQuery: jest.fn() }));
 jest.mock("@react-navigation/native", () => ({ useNavigation: () => ({ navigate: jest.fn() }) }));
 jest.mock("@/core/api/notifications", () => ({ listNotifications: jest.fn() }));
+jest.mock("@/core/api/profile", () => ({ getProfile: jest.fn() }));
 
 test("el encabezado saluda con el nombre, la fecha y avisa si hay notificaciones sin leer", async () => {
   (useQuery as jest.Mock).mockReturnValue({ data: { items: [{ readAt: null }] } });
@@ -18,4 +19,5 @@ test("el encabezado saluda con el nombre, la fecha y avisa si hay notificaciones
   expect(screen.getByText("Hola, Josué")).toBeOnTheScreen();
   expect(screen.getByText("Lunes, 28 de abril")).toBeOnTheScreen();
   expect(screen.getByLabelText("Notificaciones, hay avisos sin leer")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Ir a tu perfil")).toBeOnTheScreen();
 });

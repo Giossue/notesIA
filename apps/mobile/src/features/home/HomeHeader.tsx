@@ -4,7 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { StyleSheet, View } from "react-native";
 import { Icon, Text, TouchableRipple, useTheme } from "react-native-paper";
 import { listNotifications } from "@/core/api/notifications";
+import { getProfile } from "@/core/api/profile";
 import type { RootStackParamList } from "@/navigation/types";
+import { UserAvatar } from "@/shared/UserAvatar";
 
 export function HomeHeader({ name, dateLabel }: { name: string; dateLabel: string }) {
   const theme = useTheme();
@@ -16,9 +18,19 @@ export function HomeHeader({ name, dateLabel }: { name: string; dateLabel: strin
     retry: false,
   });
   const unread = recent.data?.items.some((item) => !item.readAt) ?? false;
+  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
 
   return (
     <View style={styles.row}>
+      <TouchableRipple
+        borderless
+        onPress={() => navigation.navigate("Profile", { direction: "right" })}
+        accessibilityRole="button"
+        accessibilityLabel="Ir a tu perfil"
+        style={styles.avatar}
+      >
+        <UserAvatar avatar={profile.data?.avatar} size={48} />
+      </TouchableRipple>
       <View style={styles.copy}>
         <Text variant="headlineSmall" numberOfLines={1} style={styles.name}>
           Hola, {name}
@@ -47,6 +59,7 @@ export function HomeHeader({ name, dateLabel }: { name: string; dateLabel: strin
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  avatar: { borderRadius: 24 },
   copy: { flex: 1, gap: 2, minHeight: 48, justifyContent: "center" },
   name: { fontWeight: "700" },
   bell: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
