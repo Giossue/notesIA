@@ -71,12 +71,9 @@ export function EventsScreen() {
           <Card.Content style={sharedStyles.listItem}>
             <Text variant="titleMedium">{item.title}</Text>
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              {kindLabels[item.kind]} · {item.timeZone}
+              {kindLabels[item.kind]}
             </Text>
-            <Text variant="bodyMedium">
-              {utcToLocalDateTime(item.startsAt, item.timeZone).replace("T", " ")} →{" "}
-              {utcToLocalDateTime(item.endsAt, item.timeZone).replace("T", " ")}
-            </Text>
+            <Text variant="bodyMedium">{when(item.startsAt, item.endsAt, item.timeZone)}</Text>
           </Card.Content>
         </Card>
       ))}
@@ -93,6 +90,17 @@ export function EventsScreen() {
       )}
     </ScreenLayout>
   );
+}
+
+/** "lun 28 sep · 07:00 – 09:00" en la hora del compromiso. */
+function when(startsAt: string, endsAt: string, timeZone: string) {
+  const start = utcToLocalDateTime(startsAt, timeZone);
+  const end = utcToLocalDateTime(endsAt, timeZone);
+  const day = new Date(startsAt)
+    .toLocaleDateString("es", { timeZone, weekday: "short", day: "numeric", month: "short" })
+    .replaceAll(".", "");
+  const endDay = start.slice(0, 10) === end.slice(0, 10) ? "" : " del día siguiente";
+  return `${day} · ${start.slice(11, 16)} – ${end.slice(11, 16)}${endDay}`;
 }
 
 const styles = StyleSheet.create({
