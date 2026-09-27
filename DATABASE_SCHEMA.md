@@ -136,7 +136,7 @@ El tiempo real se obtiene de `registros_tiempo`; no se acepta como dato autorita
 
 ### `dias_racha`
 
-Clave `(usuario_id, fecha)`, con `fecha` en la zona del perfil al completar. La llena el trigger `actividades_dia_racha` al pasar una actividad a `completed`; no se borra si la actividad se reabre o elimina. La racha, la mejor racha y el protector semanal se calculan en `packages/domain` (`computeStreak`), no se guardan. El aviso `streak_at_risk` (uno por día, `referencia_en` = inicio del día local) sale desde las 20:00 si el día sigue sin ganarse.
+Clave `(usuario_id, fecha)`, con `fecha` en la zona del perfil al completar. La llena el trigger `actividades_dia_racha` al pasar una actividad a `completed`; no se borra si la actividad se reabre o elimina. La racha y la mejor racha se calculan en `packages/domain` (`computeStreak`), no se guardan; un día sin tareas completadas la corta. El aviso `streak_at_risk` (uno por día, `referencia_en` = inicio del día local) sale desde las 20:00 si el día sigue sin ganarse.
 
 ### `registros_tiempo`
 

@@ -2,7 +2,6 @@
 export const flame = {
   orange: "#FF9600",
   yellow: "#FFC800",
-  ice: "#49C0F8",
   off: "#9AA0A6",
 } as const;
 

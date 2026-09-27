@@ -662,13 +662,12 @@ export const streakSchema = z.object({
   current: z.number().int().nonnegative(),
   best: z.number().int().nonnegative(),
   todayDone: z.boolean(),
-  freezeAvailable: z.boolean(),
   perfectWeeks: z.number().int().nonnegative(),
   week: z
     .array(
       z.object({
         date: z.iso.date(),
-        status: z.enum(["done", "protected", "missed", "pending", "future"]),
+        status: z.enum(["done", "missed", "pending", "future"]),
       }),
     )
     .length(7),

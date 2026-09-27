@@ -231,8 +231,8 @@ export function createNotificationSchedulerRepository(pool: Pool) {
          ) candidates ORDER BY "planId", "activityId" LIMIT $2`,
         [now, limit],
       );
-      // Racha en peligro: desde las 20:00 locales, si ayer o anteayer se ganó el día
-      // (anteayer por el protector) y hoy todavía no. Uno por día.
+      // Racha en peligro: desde las 20:00 locales, si ayer se ganó el día y hoy
+      // todavía no. Uno por día.
       const streak = await pool.query<Candidate>(
         `SELECT profile.usuario_id AS "userId", NULL::uuid AS "activityId",
            profile.zona_horaria AS "timeZone",
@@ -250,7 +250,7 @@ export function createNotificationSchedulerRepository(pool: Pool) {
            AND local_clock.local_minute >= ${STREAK_REMINDER_MINUTE}
            AND EXISTS (SELECT 1 FROM dominio.dias_racha d
              WHERE d.usuario_id = profile.usuario_id
-               AND d.fecha IN (local_day.today - 1, local_day.today - 2))
+               AND d.fecha = local_day.today - 1)
            AND NOT EXISTS (SELECT 1 FROM dominio.dias_racha d
              WHERE d.usuario_id = profile.usuario_id AND d.fecha = local_day.today)
            AND NOT EXISTS (SELECT 1 FROM dominio.notificaciones n

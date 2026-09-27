@@ -3,14 +3,13 @@ import { StyleSheet, View } from "react-native";
 import { Icon, Text, useTheme } from "react-native-paper";
 import { dayLetters, flame } from "./streak-colors";
 
-/** Fila L M M J V S D con un círculo por día: ✓ ganado, ❄ protegido. */
+/** Fila L M M J V S D con un círculo por día: ✓ si ese día se completó una tarea. */
 export function StreakWeek({ week, size = 34 }: { week: StreakView["week"]; size?: number }) {
   const theme = useTheme();
   return (
     <View style={styles.row}>
       {week.map((day, index) => {
         const done = day.status === "done";
-        const saved = day.status === "protected";
         const pending = day.status === "pending";
         return (
           <View key={day.date} style={styles.day}>
@@ -25,21 +24,18 @@ export function StreakWeek({ week, size = 34 }: { week: StreakView["week"]; size
             </Text>
             <View
               accessibilityLabel={`${dayLetters[index]}: ${
-                done ? "ganado" : saved ? "protegido" : pending ? "pendiente" : "sin tarea"
+                done ? "ganado" : pending ? "pendiente" : "sin tarea"
               }`}
               style={[
                 styles.circle,
                 { width: size, height: size, borderRadius: size / 2 },
                 done
                   ? { backgroundColor: flame.orange }
-                  : saved
-                    ? { backgroundColor: flame.ice }
-                    : { backgroundColor: theme.colors.surfaceVariant },
+                  : { backgroundColor: theme.colors.surfaceVariant },
                 pending && { borderWidth: 2, borderColor: flame.orange },
               ]}
             >
               {done && <Icon source="check-bold" size={size * 0.5} color="#FFFFFF" />}
-              {saved && <Icon source="snowflake" size={size * 0.5} color="#FFFFFF" />}
             </View>
           </View>
         );

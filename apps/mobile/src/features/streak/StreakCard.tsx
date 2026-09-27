@@ -34,21 +34,9 @@ export function StreakCard() {
         </View>
       </View>
       <StreakWeek week={data.week} />
-      <View style={styles.foot}>
-        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-          Mejor racha: {data.best} {daysLabel(data.best)}
-        </Text>
-        <View style={styles.freeze}>
-          <Icon
-            source="snowflake"
-            size={16}
-            color={data.freezeAvailable ? flame.ice : theme.colors.onSurfaceVariant}
-          />
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-            {data.freezeAvailable ? "Protector listo" : "Protector usado esta semana"}
-          </Text>
-        </View>
-      </View>
+      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+        Mejor racha: {data.best} {daysLabel(data.best)}
+      </Text>
     </View>
   );
 }
@@ -58,6 +46,4 @@ const styles = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", gap: 12 },
   flex: { flex: 1, gap: 2 },
   number: { fontWeight: "800" },
-  foot: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  freeze: { flexDirection: "row", alignItems: "center", gap: 4 },
 });

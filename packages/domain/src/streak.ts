@@ -1,15 +1,13 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { shiftLocalDate } from "./time";
 
-export type StreakDayStatus = "done" | "protected" | "missed" | "pending" | "future";
+export type StreakDayStatus = "done" | "missed" | "pending" | "future";
 
 export type Streak = {
   /** Días seguidos ganados; hoy sin completar todavía no la rompe. */
   current: number;
   best: number;
   todayDone: boolean;
-  /** El protector de esta semana sigue libre. */
-  freezeAvailable: boolean;
   /** Semanas completas seguidas (las 7 con tarea) hasta la semana pasada. */
   perfectWeeks: number;
   /** Semana actual, de lunes a domingo. */
@@ -23,15 +21,11 @@ export function weekStart(day: string) {
 }
 
 /**
- * Racha a partir de los días ganados (fechas locales AAAA-MM-DD).
- *
- * Protector: una vez por semana (lunes a domingo) un día sin tareas no corta
- * la racha, si el día siguiente se ganó o es hoy. El día protegido no suma.
+ * Racha a partir de los días ganados (fechas locales AAAA-MM-DD). Un día sin
+ * tareas completadas la corta; hoy todavía no, porque el día no terminó.
  */
 export function computeStreak(doneDays: Iterable<string>, today: string): Streak {
   const done = new Set([...doneDays].filter((day) => day <= today));
-  const protectedDays = new Set<string>();
-  const protectedWeeks = new Set<string>();
   let current = 0;
   let best = 0;
   const first = [...done].sort()[0];
@@ -40,14 +34,7 @@ export function computeStreak(doneDays: Iterable<string>, today: string): Streak
       if (done.has(day)) {
         current += 1;
         best = Math.max(best, current);
-      } else if (day !== today) {
-        const next = shiftLocalDate(day, 1);
-        const week = weekStart(day);
-        if (current > 0 && !protectedWeeks.has(week) && (done.has(next) || next === today)) {
-          protectedWeeks.add(week);
-          protectedDays.add(day);
-        } else current = 0;
-      }
+      } else if (day !== today) current = 0;
     }
   }
 
@@ -56,13 +43,11 @@ export function computeStreak(doneDays: Iterable<string>, today: string): Streak
     const date = shiftLocalDate(monday, index);
     const status: StreakDayStatus = done.has(date)
       ? "done"
-      : protectedDays.has(date)
-        ? "protected"
-        : date === today
-          ? "pending"
-          : date > today
-            ? "future"
-            : "missed";
+      : date === today
+        ? "pending"
+        : date > today
+          ? "future"
+          : "missed";
     return { date, status };
   });
 
@@ -79,7 +64,6 @@ export function computeStreak(doneDays: Iterable<string>, today: string): Streak
     current,
     best,
     todayDone: done.has(today),
-    freezeAvailable: !protectedWeeks.has(monday),
     perfectWeeks,
     week,
   };
