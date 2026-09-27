@@ -28,8 +28,7 @@ export function SubtasksSection({ activity, offline }: { activity: Activity; off
     <View style={{ gap: layout.sectionGap, paddingTop: layout.sectionGap }}>
       <Text variant="titleLarge">Subtareas</Text>
       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-        Divide la actividad en pasos. Su finalización no cambia automáticamente el estado de la
-        actividad.
+        Divide la tarea en pasos. Su finalización no cambia automáticamente el estado de la tarea.
       </Text>
       <Tabs
         value={archived ? "archived" : "active"}
@@ -46,7 +45,7 @@ export function SubtasksSection({ activity, offline }: { activity: Activity; off
       )}
       {activity.archivedAt && (
         <Text style={{ color: theme.colors.onSurfaceVariant }}>
-          Restaura la actividad para modificar sus subtareas.
+          Restaura la tarea para modificar sus subtareas.
         </Text>
       )}
       {!archived && !activity.archivedAt && (

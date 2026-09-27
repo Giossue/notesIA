@@ -17,18 +17,18 @@ import { HeroBackdrop, HeroStatusBar, heroColors } from "./AuthHero";
 const slides = [
   {
     image: require("../../../assets/welcome/1.png"),
-    title: "Organiza tus actividades",
+    title: "Organiza tus tareas",
     text: "Tareas, clases y compromisos en un solo lugar, con fechas y prioridades claras.",
   },
   {
     image: require("../../../assets/welcome/2.png"),
     title: "Planifica tu tiempo",
-    text: "Marca cuándo estás libre y recibe una propuesta de cuándo avanzar en cada actividad.",
+    text: "Marca cuándo estás libre y recibe una propuesta de cuándo avanzar en cada tarea.",
   },
   {
     image: require("../../../assets/welcome/3.png"),
     title: "Registra tu tiempo",
-    text: "Mide cuánto dedicas a cada actividad y revisa tu progreso semana a semana.",
+    text: "Mide cuánto dedicas a cada tarea y revisa tu progreso semana a semana.",
   },
 ] as const;
 

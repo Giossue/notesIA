@@ -9,7 +9,7 @@ import { Menu } from "@/shared/paper";
 export function ActivityPicker({
   value,
   onChange,
-  label = "Actividad",
+  label = "Tarea",
 }: {
   value: string;
   onChange(value: string): void;

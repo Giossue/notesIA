@@ -104,10 +104,10 @@ export function ActivityFormScreen({
   return (
     <ScreenLayout
       keyboardShouldPersistTaps="handled"
-      header={{ title: id ? "Actividad" : "Nueva actividad" }}
+      header={{ title: id ? "Tarea" : "Nueva tarea" }}
     >
       {(profile.isPending || (id && activity.isPending)) && (
-        <ActivityIndicator accessibilityLabel="Cargando actividad" />
+        <ActivityIndicator accessibilityLabel="Cargando tarea" />
       )}
       {profile.isError && (
         <View style={styles.message}>
@@ -118,7 +118,7 @@ export function ActivityFormScreen({
       {id && activity.isError && (
         <View style={styles.message}>
           <Text accessibilityRole="alert">{userMessage(activity.error)}</Text>
-          <Button onPress={() => void activity.refetch()}>Reintentar actividad</Button>
+          <Button onPress={() => void activity.refetch()}>Reintentar tarea</Button>
         </View>
       )}
       {profile.data && (!id || activity.data) && (
@@ -244,7 +244,7 @@ function ActivityForm({
               onChangeText={field.onChange}
               onBlur={field.onBlur}
               error={!!errors.title}
-              accessibilityLabel="Título de la actividad"
+              accessibilityLabel="Título de la tarea"
             />
           )}
         />
@@ -261,7 +261,7 @@ function ActivityForm({
               onChangeText={field.onChange}
               onBlur={field.onBlur}
               error={!!errors.description}
-              accessibilityLabel="Descripción de la actividad"
+              accessibilityLabel="Descripción de la tarea"
             />
           )}
         />
@@ -342,7 +342,7 @@ function ActivityForm({
 
       {offline && (
         <Text style={{ color: theme.colors.error }}>
-          Sin conexión. La actividad quedará pendiente en este dispositivo.
+          Sin conexión. La tarea quedará pendiente en este dispositivo.
         </Text>
       )}
       {!activity && (
@@ -371,7 +371,7 @@ function ActivityForm({
         onPress={() => void handleSubmit((values) => save.mutate(values))()}
         contentStyle={sharedStyles.actionContent}
       >
-        Guardar actividad
+        Guardar tarea
       </Button>
       {activity && <ActivityProgressForm activity={activity} />}
       {activity && <ActivityActions activity={activity} offline={offline} />}

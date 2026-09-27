@@ -226,7 +226,7 @@ export function registerPlanRoutes(app: Hono, dependencies: Dependencies) {
     ]);
     if (!source) return error(404, "NOT_FOUND", "Perfil no disponible.");
     if (source.tooManyActivities)
-      return error(422, "VALIDATION_FAILED", "Hay más de 500 actividades pendientes.");
+      return error(422, "VALIDATION_FAILED", "Hay más de 500 tareas pendientes.");
     const now = (dependencies.now?.() ?? new Date()).toISOString();
     const computed = computePlanning({
       source,
@@ -278,7 +278,7 @@ export function registerPlanRoutes(app: Hono, dependencies: Dependencies) {
     ]);
     if (!source) return error(404, "NOT_FOUND", "Perfil no disponible.");
     if (source.tooManyActivities)
-      return error(422, "VALIDATION_FAILED", "Hay más de 500 actividades pendientes.");
+      return error(422, "VALIDATION_FAILED", "Hay más de 500 tareas pendientes.");
     const now = (dependencies.now?.() ?? new Date()).toISOString();
     const currentPlan =
       active?.sourceRevision === revision &&

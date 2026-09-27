@@ -11,7 +11,7 @@ export const providerLabels = {
 } as const;
 
 export const useCaseLabels = {
-  extract_activity: "Extraer actividad de un texto",
+  extract_activity: "Extraer tarea de un texto",
   estimate_duration: "Estimar duración",
   explain_risk: "Explicar riesgo de atraso",
   explain_replan: "Explicar replanificación",

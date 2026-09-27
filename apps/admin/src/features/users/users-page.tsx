@@ -244,7 +244,7 @@ function UserDetailDialog({
             <section>
               <h3 className="mb-1 font-medium text-sm">Uso de la app</h3>
               <dl>
-                <DetailRow label="Actividades">
+                <DetailRow label="Tareas">
                   {data.counts.activities} ({data.counts.completedActivities} completadas)
                 </DetailRow>
                 <DetailRow label="Compromisos">{data.counts.commitments}</DetailRow>

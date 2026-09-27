@@ -16,7 +16,7 @@ import { DateTimeField } from "@/shared/fields";
 import { Button, TextInput } from "@/shared/paper";
 
 const formSchema = z.object({
-  activityId: z.uuid("Selecciona una actividad."),
+  activityId: z.uuid("Selecciona una tarea."),
   minutes: z
     .string()
     .regex(/^\d+$/, "Escribe minutos enteros.")

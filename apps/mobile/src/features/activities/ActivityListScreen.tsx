@@ -51,8 +51,8 @@ export function ActivityListScreen() {
 
   return (
     <ScreenLayout
-      header={{ title: "Actividades" }}
-      fab={{ label: "Nueva actividad", onPress: () => navigation.navigate("ActivityForm", {}) }}
+      header={{ title: "Tareas" }}
+      fab={{ label: "Nueva tarea", onPress: () => navigation.navigate("ActivityForm", {}) }}
     >
       <Tabs
         value={view}
@@ -69,7 +69,7 @@ export function ActivityListScreen() {
         </Text>
       )}
       {activities.isPending && !offline && (
-        <ActivityIndicator accessibilityLabel="Cargando actividades" />
+        <ActivityIndicator accessibilityLabel="Cargando tareas" />
       )}
       {activities.isError && (
         <View style={styles.message}>
@@ -81,10 +81,10 @@ export function ActivityListScreen() {
         <EmptyState
           message={
             view === "archived"
-              ? "No tienes actividades archivadas."
+              ? "No tienes tareas archivadas."
               : view === "completed"
-                ? "Aún no has completado actividades."
-                : "Aún no tienes actividades. Crea la primera."
+                ? "Aún no has completado tareas."
+                : "Aún no tienes tareas. Crea la primera."
           }
         />
       )}
@@ -93,7 +93,7 @@ export function ActivityListScreen() {
           key={item.id}
           mode="contained"
           onPress={() => navigation.navigate("ActivityForm", { id: item.id })}
-          accessibilityLabel={`Abrir actividad ${item.title}`}
+          accessibilityLabel={`Abrir tarea ${item.title}`}
         >
           <Card.Content style={sharedStyles.listItem}>
             <Text variant="titleMedium">{item.title}</Text>

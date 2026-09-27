@@ -19,7 +19,7 @@ export type PushMessageInput = {
 const MAX_TITLE = 60;
 
 function quote(title: string | null) {
-  const clean = (title ?? "").replace(/\s+/g, " ").trim() || "Tu actividad";
+  const clean = (title ?? "").replace(/\s+/g, " ").trim() || "Tu tarea";
   return `«${clean.length > MAX_TITLE ? `${clean.slice(0, MAX_TITLE - 1)}…` : clean}»`;
 }
 
@@ -68,7 +68,7 @@ export function pushMessage(input: PushMessageInput): { title: string; body: str
       };
     case "risk_alert":
       return {
-        title: "Actividad en riesgo",
+        title: "Tarea en riesgo",
         body: `${activity} podría no terminarse a tiempo. Revisa tu plan`,
       };
     case "streak_at_risk":

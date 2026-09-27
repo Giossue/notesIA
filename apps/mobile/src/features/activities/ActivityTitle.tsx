@@ -8,8 +8,8 @@ export function ActivityTitle({ id, prefix = "" }: { id: string; prefix?: string
     queryFn: () => getActivity(id),
     retry: false,
   });
-  if (activity.isPending) return <Text variant="titleSmall">{prefix}Cargando actividad…</Text>;
-  if (activity.isError) return <Text variant="titleSmall">{prefix}Actividad no disponible</Text>;
+  if (activity.isPending) return <Text variant="titleSmall">{prefix}Cargando tarea…</Text>;
+  if (activity.isError) return <Text variant="titleSmall">{prefix}Tarea no disponible</Text>;
   return (
     <Text variant="titleSmall">
       {prefix}

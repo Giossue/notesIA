@@ -74,9 +74,9 @@ export function registerSubtaskRoutes(app: Hono, dependencies: Dependencies) {
     const session = await dependencies.getSession(c.req.raw.headers);
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const activityId = c.req.param("activityId");
-    if (!validIds(activityId)) return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+    if (!validIds(activityId)) return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
     const parent = await dependencies.activities.get(session.user.id, activityId);
-    if (!parent) return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+    if (!parent) return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
 
     const archivedQuery = c.req.query("archived");
     if (archivedQuery !== undefined && archivedQuery !== "true" && archivedQuery !== "false")
@@ -117,7 +117,7 @@ export function registerSubtaskRoutes(app: Hono, dependencies: Dependencies) {
     const session = await dependencies.getSession(c.req.raw.headers);
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const activityId = c.req.param("activityId");
-    if (!validIds(activityId)) return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+    if (!validIds(activityId)) return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
     const parsed = subtaskCreateSchema.safeParse(await readBody(c.req.raw));
     if (!parsed.success) return error(422, "VALIDATION_FAILED", "Revisa los datos de la subtarea.");
     const result = await dependencies.subtasks.create(session.user.id, activityId, parsed.data.id, {
@@ -125,7 +125,7 @@ export function registerSubtaskRoutes(app: Hono, dependencies: Dependencies) {
       estimatedMinutes: parsed.data.estimatedMinutes,
     });
     if (result.kind === "not_found")
-      return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+      return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
     if (result.kind === "conflict")
       return error(409, "SUBTASK_CONFLICT", "No se pudo guardar la subtarea.");
     return c.json(toSubtask(result.row), result.kind === "created" ? 201 : 200);

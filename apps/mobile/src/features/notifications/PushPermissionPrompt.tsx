@@ -62,7 +62,7 @@ export function PushPermissionPrompt() {
           <Text variant="bodyMedium">
             {blocked
               ? "Las notificaciones están desactivadas para esta app. Actívalas en los Ajustes del teléfono."
-              : "Te enviaremos un aviso antes de cada plazo, cuando toque avanzar en una actividad y si alguna está en riesgo."}
+              : "Te enviaremos un aviso antes de cada plazo, cuando toque avanzar en una tarea y si alguna está en riesgo."}
           </Text>
           {enable.isError && !blocked && (
             <Text variant="bodySmall" style={{ marginTop: 8 }}>

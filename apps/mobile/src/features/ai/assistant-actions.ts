@@ -123,7 +123,7 @@ export function describeAction(action: AssistantAction): {
       const { activity } = action;
       return {
         icon: "plus",
-        heading: "Crear actividad",
+        heading: "Crear tarea",
         title: activity.title,
         details: [
           `${kindLabel(activity.kind)} · prioridad ${priorityLabels[activity.priority]}`,
@@ -138,7 +138,7 @@ export function describeAction(action: AssistantAction): {
       const { changes } = action;
       return {
         icon: "pencil-outline",
-        heading: "Editar actividad",
+        heading: "Editar tarea",
         title: action.title,
         details: [
           ...(changes.title ? [`Nuevo nombre: ${changes.title}`] : []),
@@ -168,7 +168,7 @@ export function describeAction(action: AssistantAction): {
     case "delete_activity":
       return {
         icon: "delete-outline",
-        heading: "Eliminar actividad",
+        heading: "Eliminar tarea",
         title: action.title,
         details: [],
       };

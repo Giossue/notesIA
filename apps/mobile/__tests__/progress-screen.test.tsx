@@ -20,7 +20,7 @@ const days = ["21", "22", "23", "24", "25", "26", "27"].map((day, index) => ({
   due: index === 2 ? 4 : 1,
 }));
 
-test("estadísticas muestra el avance semanal y los tipos de actividad", async () => {
+test("estadísticas muestra el avance semanal y los tipos de tarea", async () => {
   (useQuery as jest.Mock).mockReturnValue({
     data: {
       day: "2026-09-23",

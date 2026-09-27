@@ -47,11 +47,10 @@ function safeTotal(value: string) {
 export function createAiRepository(pool: Pool) {
   return {
     async recordFallback(useCase: AiUseCaseName, reason: AiFallbackReason) {
-      await pool.query(`INSERT INTO dominio.sin_respuesta_ia (id, caso, motivo) VALUES ($1,$2,$3)`, [
-        crypto.randomUUID(),
-        useCase,
-        reason,
-      ]);
+      await pool.query(
+        `INSERT INTO dominio.sin_respuesta_ia (id, caso, motivo) VALUES ($1,$2,$3)`,
+        [crypto.randomUUID(), useCase, reason],
+      );
     },
     async fallbackSummary(from: string, through: string) {
       const result = await pool.query<{

@@ -63,7 +63,7 @@ export function ConnectionScreen() {
             Planificador estudiantil
           </Text>
           <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
-            Organiza tus actividades con un plan que respete tu tiempo.
+            Organiza tus tareas con un plan que respete tu tiempo.
           </Text>
         </View>
 
@@ -101,8 +101,8 @@ export function ConnectionScreen() {
         </Card>
 
         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-          Esta pantalla verifica el entorno de desarrollo. Las actividades y la agenda se añadirán
-          en el siguiente flujo.
+          Esta pantalla verifica el entorno de desarrollo. Las tareas y la agenda se añadirán en el
+          siguiente flujo.
         </Text>
       </ScrollView>
     </SafeAreaView>

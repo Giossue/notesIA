@@ -80,7 +80,7 @@ export function TimeStatisticsPanel() {
             ))}
             <Text variant="titleMedium">Estimado frente a real</Text>
             {statistics.data.activities.length === 0 && (
-              <Text>No hay actividades con tiempo registrado en este periodo.</Text>
+              <Text>No hay tareas con tiempo registrado en este periodo.</Text>
             )}
             {statistics.data.activities.map((activity) => (
               <View key={activity.activityId}>

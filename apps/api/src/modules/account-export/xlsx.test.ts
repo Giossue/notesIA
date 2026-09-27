@@ -18,7 +18,7 @@ test("el Excel trae una hoja en español por sección con datos y escapa el cont
   );
   const workbook = strFromU8(files["xl/workbook.xml"] as Uint8Array);
   expect(workbook).toContain('name="Cuenta"');
-  expect(workbook).toContain('name="Actividades"');
+  expect(workbook).toContain('name="Tareas"');
   // Las secciones vacías no crean hoja.
   expect(workbook).not.toContain('name="Roles"');
   const activities = strFromU8(files["xl/worksheets/sheet2.xml"] as Uint8Array);

@@ -113,7 +113,7 @@ export function ActivityActions({ activity, offline }: { activity: Activity; off
         disabled={offline || archive.isPending}
         onPress={() => setConfirmArchive(true)}
       >
-        {activity.archivedAt ? "Restaurar actividad" : "Archivar actividad"}
+        {activity.archivedAt ? "Restaurar tarea" : "Archivar tarea"}
       </Button>
       <Button
         mode="outlined"
@@ -122,14 +122,14 @@ export function ActivityActions({ activity, offline }: { activity: Activity; off
         disabled={remove.isPending}
         onPress={() => setConfirmDelete(true)}
       >
-        Eliminar actividad
+        Eliminar tarea
       </Button>
       <Portal>
         <Dialog visible={confirmCancel} onDismiss={() => setConfirmCancel(false)}>
-          <Dialog.Title>Cancelar actividad</Dialog.Title>
+          <Dialog.Title>Cancelar tarea</Dialog.Title>
           <Dialog.Content>
             <Text>
-              La actividad dejará de participar en planes, riesgo, temporizador y avisos. Podrás
+              La tarea dejará de participar en planes, riesgo, temporizador y avisos. Podrás
               reactivarla conservando su progreso.
             </Text>
           </Dialog.Content>
@@ -140,19 +140,17 @@ export function ActivityActions({ activity, offline }: { activity: Activity; off
               loading={changeStatus.isPending}
               onPress={() => changeStatus.mutate("cancelled")}
             >
-              Cancelar actividad
+              Cancelar tarea
             </Button>
           </Dialog.Actions>
         </Dialog>
         <Dialog visible={confirmArchive} onDismiss={() => setConfirmArchive(false)}>
-          <Dialog.Title>
-            {activity.archivedAt ? "Restaurar actividad" : "Archivar actividad"}
-          </Dialog.Title>
+          <Dialog.Title>{activity.archivedAt ? "Restaurar tarea" : "Archivar tarea"}</Dialog.Title>
           <Dialog.Content>
             <Text>
               {activity.archivedAt
-                ? "La actividad volverá a aparecer en tu lista."
-                : "La actividad pasará al archivo. Podrás restaurarla después."}
+                ? "La tarea volverá a aparecer en tu lista."
+                : "La tarea pasará al archivo. Podrás restaurarla después."}
             </Text>
           </Dialog.Content>
           <Dialog.Actions>
@@ -163,11 +161,11 @@ export function ActivityActions({ activity, offline }: { activity: Activity; off
           </Dialog.Actions>
         </Dialog>
         <Dialog visible={confirmDelete} onDismiss={() => setConfirmDelete(false)}>
-          <Dialog.Title>Eliminar actividad</Dialog.Title>
+          <Dialog.Title>Eliminar tarea</Dialog.Title>
           <Dialog.Content>
             <Text>
-              Se eliminará la actividad. El historial técnico necesario para sincronización y
-              auditoría se conservará según la política vigente.
+              Se eliminará la tarea. El historial técnico necesario para sincronización y auditoría
+              se conservará según la política vigente.
             </Text>
             {offline && (
               <Text>

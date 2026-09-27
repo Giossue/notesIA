@@ -76,7 +76,7 @@ export function NotificationsScreen() {
                     });
                 }}
               >
-                Abrir actividad
+                Abrir tarea
               </Button>
             )}
             {item.reportId && (

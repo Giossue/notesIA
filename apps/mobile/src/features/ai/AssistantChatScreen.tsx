@@ -43,7 +43,7 @@ import { UserAvatar } from "@/shared/UserAvatar";
 import { applyAssistantAction, describeAction } from "./assistant-actions";
 
 const fallbackMessages = {
-  not_configured: "El asistente aún no está configurado. Puedes crear tus actividades a mano.",
+  not_configured: "El asistente aún no está configurado. Puedes crear tus tareas a mano.",
   rate_limited: "Hiciste muchas consultas seguidas. Espera un momento e inténtalo de nuevo.",
   budget_exhausted: "Se agotó el uso de IA de hoy. Mañana vuelve a estar disponible.",
   invalid_output: "No entendí bien la respuesta. ¿Puedes decirlo de otra forma?",

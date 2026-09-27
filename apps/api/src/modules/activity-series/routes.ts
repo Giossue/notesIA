@@ -81,7 +81,7 @@ export function registerActivitySeriesRoutes(app: Hono, dependencies: Dependenci
       ? await c.req.raw.json().catch(() => null)
       : null;
     const parsed = activitySeriesCreateSchema.safeParse(raw);
-    if (!parsed.success) return problem(422, "VALIDATION_FAILED", "Serie de actividad inválida.");
+    if (!parsed.success) return problem(422, "VALIDATION_FAILED", "Serie de tarea inválida.");
     const profile = await dependencies.profiles.get(session.user.id);
     if (!profile) return problem(404, "PROFILE_NOT_FOUND", "Perfil no disponible.");
     let occurrences: ReturnType<typeof expandRecurrence>;

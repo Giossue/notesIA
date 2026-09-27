@@ -98,7 +98,7 @@ export function ProgressScreen() {
           <View style={[styles.card, styles.chartCard, { backgroundColor: theme.colors.surface }]}>
             <View>
               <Text variant="titleLarge" style={styles.bold}>
-                Actividad de la semana
+                Tarea de la semana
               </Text>
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
                 Tareas completadas por día
@@ -156,7 +156,7 @@ export function ProgressScreen() {
 
           <View style={styles.section}>
             <Text variant="titleLarge" style={styles.bold}>
-              Por tipo de actividad
+              Por tipo de tarea
             </Text>
             <View style={styles.categories}>
               {data.categories.map((row) => {

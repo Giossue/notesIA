@@ -55,7 +55,7 @@ async function requestMicrophonePermission() {
   if (Platform.OS !== "android") return;
   const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO, {
     title: "Permiso para dictar",
-    message: "NotesIA necesita el micrófono únicamente mientras dictas una actividad.",
+    message: "NotesIA necesita el micrófono únicamente mientras dictas una tarea.",
     buttonPositive: "Permitir",
     buttonNegative: "Cancelar",
   });

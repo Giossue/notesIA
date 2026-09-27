@@ -67,7 +67,7 @@ export function TimerPanel({ activityId: fixedActivityId }: { activityId?: strin
         {entry ? (
           <View style={styles.group}>
             <Text>Sesión iniciada: {new Date(entry.startsAt).toLocaleString()}</Text>
-            <ActivityTitle id={entry.activityId} prefix="Actividad: " />
+            <ActivityTitle id={entry.activityId} prefix="Tarea: " />
             <Button
               mode="contained"
               icon="stop"

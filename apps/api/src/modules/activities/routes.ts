@@ -112,14 +112,14 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
 
     const archivedQuery = c.req.query("archived");
     if (archivedQuery !== undefined && archivedQuery !== "true" && archivedQuery !== "false")
-      return error(422, "VALIDATION_FAILED", "Filtro de actividades inválido.");
+      return error(422, "VALIDATION_FAILED", "Filtro de tareas inválido.");
     const statusQuery = c.req.query("status");
     const status = statusQuery ? activityStatusSchema.safeParse(statusQuery) : null;
     if (status && !status.success)
-      return error(422, "VALIDATION_FAILED", "Estado de actividad inválido.");
+      return error(422, "VALIDATION_FAILED", "Estado de tarea inválido.");
     const seriesId = c.req.query("seriesId");
     if (seriesId !== undefined && !z.uuid().safeParse(seriesId).success)
-      return error(422, "VALIDATION_FAILED", "Serie de actividad inválida.");
+      return error(422, "VALIDATION_FAILED", "Serie de tarea inválida.");
     const dueOn = c.req.query("dueOn");
     if (dueOn && !z.iso.date().safeParse(dueOn).success)
       return error(422, "VALIDATION_FAILED", "Fecha de agenda inválida.");
@@ -137,7 +137,7 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
     )
       return error(422, "VALIDATION_FAILED", "Rango de agenda inválido; máximo 31 días.");
     if ((dueOn || dueFrom) && archivedQuery === "true")
-      return error(422, "VALIDATION_FAILED", "La agenda solo muestra actividades activas.");
+      return error(422, "VALIDATION_FAILED", "La agenda solo muestra tareas activas.");
 
     const rawCursor = c.req.query("cursor");
     let cursor: bigint | null = null;
@@ -263,9 +263,9 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const id = c.req.param("id");
     if (!z.uuid().safeParse(id).success)
-      return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+      return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
     const activity = await dependencies.activities.get(session.user.id, id);
-    if (!activity) return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+    if (!activity) return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
 
     const rawCursor = c.req.query("cursor");
     let cursor: bigint | null = null;
@@ -303,25 +303,22 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const id = c.req.param("id");
     if (!z.uuid().safeParse(id).success)
-      return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+      return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
     const row = await dependencies.activities.get(session.user.id, id);
-    return row
-      ? c.json(toActivity(row))
-      : error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+    return row ? c.json(toActivity(row)) : error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
   });
 
   app.post("/v1/activities", async (c) => {
     const session = await dependencies.getSession(c.req.raw.headers);
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const parsed = activityCreateSchema.safeParse(await readBody(c.req.raw));
-    if (!parsed.success)
-      return error(422, "VALIDATION_FAILED", "Revisa los datos de la actividad.");
+    if (!parsed.success) return error(422, "VALIDATION_FAILED", "Revisa los datos de la tarea.");
     const result = await dependencies.activities.create(
       session.user.id,
       parsed.data.id,
       toFields(parsed.data),
     );
-    if (!result) return error(409, "ACTIVITY_CONFLICT", "No se pudo guardar la actividad.");
+    if (!result) return error(409, "ACTIVITY_CONFLICT", "No se pudo guardar la tarea.");
     return c.json(toActivity(result.row), result.created ? 201 : 200);
   });
 
@@ -330,10 +327,9 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const id = c.req.param("id");
     if (!z.uuid().safeParse(id).success)
-      return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+      return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
     const parsed = activityUpdateSchema.safeParse(await readBody(c.req.raw));
-    if (!parsed.success)
-      return error(422, "VALIDATION_FAILED", "Revisa los datos de la actividad.");
+    if (!parsed.success) return error(422, "VALIDATION_FAILED", "Revisa los datos de la tarea.");
     const row = await dependencies.activities.update(session.user.id, id, {
       ...toFields(parsed.data),
       version: parsed.data.version,
@@ -341,8 +337,8 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
     if (row) return c.json(toActivity(row));
     const existing = await dependencies.activities.get(session.user.id, id);
     return existing
-      ? error(409, "VERSION_CONFLICT", "La actividad cambió. Actualízala antes de guardar.")
-      : error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+      ? error(409, "VERSION_CONFLICT", "La tarea cambió. Actualízala antes de guardar.")
+      : error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
   });
 
   app.delete("/v1/activities/:id", async (c) => {
@@ -350,14 +346,14 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const id = c.req.param("id");
     if (!z.uuid().safeParse(id).success)
-      return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+      return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
     const parsed = activityDeleteSchema.safeParse(await readBody(c.req.raw));
     if (!parsed.success) return error(422, "VALIDATION_FAILED", "Eliminación inválida.");
     const result = await dependencies.activities.softDelete(session.user.id, id, parsed.data);
     if (result.kind === "not_found")
-      return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+      return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
     if (result.kind === "conflict")
-      return error(409, "VERSION_CONFLICT", "La actividad cambió. Actualízala antes de eliminar.");
+      return error(409, "VERSION_CONFLICT", "La tarea cambió. Actualízala antes de eliminar.");
     return new Response(null, { status: 204 });
   });
 
@@ -367,7 +363,7 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
       if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
       const id = c.req.param("id");
       if (!z.uuid().safeParse(id).success)
-        return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+        return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
       const parsed = versionSchema.safeParse(await readBody(c.req.raw));
       if (!parsed.success) return error(422, "VALIDATION_FAILED", "Versión inválida.");
       const row = await dependencies.activities.setArchived(
@@ -379,8 +375,8 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
       if (row) return c.json(toActivity(row));
       const existing = await dependencies.activities.get(session.user.id, id);
       return existing
-        ? error(409, "VERSION_CONFLICT", "La actividad cambió. Actualízala antes de continuar.")
-        : error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+        ? error(409, "VERSION_CONFLICT", "La tarea cambió. Actualízala antes de continuar.")
+        : error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
     });
   }
 
@@ -399,7 +395,7 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
       if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
       const id = c.req.param("id");
       if (!z.uuid().safeParse(id).success)
-        return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+        return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
       const parsed = activityTransitionSchema.safeParse(await readBody(c.req.raw));
       if (!parsed.success) return error(422, "VALIDATION_FAILED", "Datos de transición inválidos.");
       const result = await dependencies.activities.transition(session.user.id, id, {
@@ -407,13 +403,9 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
         eventType,
       });
       if (result.kind === "not_found")
-        return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+        return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
       if (result.kind === "conflict")
-        return error(
-          409,
-          "VERSION_CONFLICT",
-          "La actividad cambió. Actualízala antes de continuar.",
-        );
+        return error(409, "VERSION_CONFLICT", "La tarea cambió. Actualízala antes de continuar.");
       return c.json(toActivity(result.row));
     });
   }
@@ -423,14 +415,14 @@ export function registerActivityRoutes(app: Hono, dependencies: Dependencies) {
     if (!session) return error(401, "AUTH_REQUIRED", "Inicia sesión para continuar.");
     const id = c.req.param("id");
     if (!z.uuid().safeParse(id).success)
-      return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+      return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
     const parsed = activityProgressSchema.safeParse(await readBody(c.req.raw));
     if (!parsed.success) return error(422, "VALIDATION_FAILED", "Progreso inválido.");
     const result = await dependencies.activities.setProgress(session.user.id, id, parsed.data);
     if (result.kind === "not_found")
-      return error(404, "ACTIVITY_NOT_FOUND", "Actividad no encontrada.");
+      return error(404, "ACTIVITY_NOT_FOUND", "Tarea no encontrada.");
     if (result.kind === "conflict")
-      return error(409, "VERSION_CONFLICT", "La actividad cambió. Actualízala antes de continuar.");
+      return error(409, "VERSION_CONFLICT", "La tarea cambió. Actualízala antes de continuar.");
     return c.json(toActivity(result.row));
   });
 }

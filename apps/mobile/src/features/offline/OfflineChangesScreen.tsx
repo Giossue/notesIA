@@ -24,7 +24,7 @@ const statusLabels = {
   failed: "Falló",
 };
 const entityLabels = {
-  activity: "Actividad",
+  activity: "Tarea",
   progress: "Progreso",
   time_entry: "Registro de tiempo",
 };

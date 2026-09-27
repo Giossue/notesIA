@@ -28,14 +28,14 @@ test("cada tipo de aviso dice de qué se trata", () => {
     pushMessage({ ...base, type: "block_reminder", referenceAt: new Date("2026-10-03T14:00:00Z") }),
   ).toEqual({ title: "Hora de avanzar", body: "«Entrega de Cálculo» empieza mañana a las 09:00" });
   expect(pushMessage({ ...base, type: "risk_alert", referenceAt: null }).title).toBe(
-    "Actividad en riesgo",
+    "Tarea en riesgo",
   );
   expect(
     pushMessage({ ...base, type: "plan_applied", activityTitle: null, referenceAt: null }),
   ).toEqual({ title: "Plan aplicado", body: "Tu plan de estudio ya está listo" });
 });
 
-test("recorta títulos largos y cubre actividades sin título", () => {
+test("recorta títulos largos y cubre tareas sin título", () => {
   const long = pushMessage({
     type: "risk_alert",
     activityTitle: "x".repeat(200),
@@ -47,5 +47,5 @@ test("recorta títulos largos y cubre actividades sin título", () => {
   expect(
     pushMessage({ type: "risk_alert", activityTitle: "  ", referenceAt: null, timeZone: zone, now })
       .body,
-  ).toStartWith("«Tu actividad»");
+  ).toStartWith("«Tu tarea»");
 });

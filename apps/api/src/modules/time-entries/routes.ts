@@ -100,7 +100,7 @@ export function registerTimeEntryRoutes(app: Hono, dependencies: Dependencies) {
     if (!parsed.success) return error(422, "VALIDATION_FAILED", "Sesión inválida.");
     const activity = await dependencies.activities.get(session.user.id, parsed.data.activityId);
     if (!activity || activity.archivedAt || ["completed", "cancelled"].includes(activity.status))
-      return error(404, "NOT_FOUND", "Actividad no disponible.");
+      return error(404, "NOT_FOUND", "Tarea no disponible.");
     const result = await dependencies.timeEntries.start(
       session.user.id,
       parsed.data.id,
@@ -146,7 +146,7 @@ export function registerTimeEntryRoutes(app: Hono, dependencies: Dependencies) {
       return error(422, "VALIDATION_FAILED", "Tiempo manual inválido.");
     const activity = await dependencies.activities.get(session.user.id, parsed.data.activityId);
     if (!activity || activity.archivedAt || ["completed", "cancelled"].includes(activity.status))
-      return error(404, "NOT_FOUND", "Actividad no disponible.");
+      return error(404, "NOT_FOUND", "Tarea no disponible.");
     const result = await dependencies.timeEntries.manual(
       session.user.id,
       parsed.data.id,

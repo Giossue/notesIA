@@ -56,7 +56,7 @@ const heroCopy = {
   },
   signUp: {
     title: "Empecemos",
-    subtitle: "Crea tu cuenta para organizar tus actividades.",
+    subtitle: "Crea tu cuenta para organizar tus tareas.",
   },
   recover: {
     title: "Recupera tu\nacceso",

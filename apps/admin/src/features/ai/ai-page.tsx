@@ -301,7 +301,7 @@ const routeCopy: Record<
   assistant_chat: {
     title: "Asistente de IA",
     description:
-      "El chat de la app donde los estudiantes escriben o hablan para organizar sus actividades",
+      "El chat de la app donde los estudiantes escriben o hablan para organizar sus tareas",
     preferred: "anthropic",
     enable: "Activar asistente",
   },
