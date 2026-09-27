@@ -37,10 +37,6 @@ export function CommitmentList() {
 
   return (
     <>
-      <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-        Clases, trabajo y citas: las horas en que estás ocupado. Tu plan de estudio no se pone
-        encima.
-      </Text>
       {offline && (
         <Text style={{ color: theme.colors.error }}>
           Sin conexión. Se muestran los datos guardados en esta sesión.
