@@ -6,7 +6,7 @@ import { useState } from "react";
 import { ScrollView, StyleSheet } from "react-native";
 import { List, Portal, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
-import { deleteActivity, setActivityArchived, transitionActivity } from "@/core/api/activities";
+import { deleteActivity, transitionActivity } from "@/core/api/activities";
 import { OfflineQueuedError } from "@/core/api/api-error";
 import { patchCached } from "@/core/offline/optimistic";
 import { sharedStyles } from "@/core/theme/layout";
@@ -157,7 +157,7 @@ export function TaskStatus({ activity, offline }: { activity: Activity; offline:
   );
 }
 
-/** Menú ⋮ de la tarea: editar, ver historial, archivar o eliminar. */
+/** Menú ⋮ de la tarea: editar, ver historial o eliminar. */
 export function TaskMenu({
   activity,
   visible,
@@ -172,20 +172,13 @@ export function TaskMenu({
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const theme = useTheme();
-  const [dialog, setDialog] = useState<"history" | "archive" | "delete" | null>(null);
+  const [dialog, setDialog] = useState<"history" | "delete" | null>(null);
   const [deleteId] = useState(() => uuidv4());
   const leave = () => {
     setDialog(null);
     refreshActivity(queryClient, activity.id);
     navigation.goBack();
   };
-  const archive = useMutation({
-    mutationFn: () => setActivityArchived(activity.id, activity.version, !activity.archivedAt),
-    onSuccess: leave,
-    onError: (error) => {
-      if (error instanceof OfflineQueuedError) leave();
-    },
-  });
   const remove = useMutation({
     mutationFn: () => deleteActivity(activity.id, activity.version, deleteId),
     onSuccess: () => {
@@ -222,16 +215,6 @@ export function TaskMenu({
             onPress={() => open("history")}
           />
           <List.Item
-            title={activity.archivedAt ? "Restaurar" : "Archivar"}
-            left={(props) => (
-              <List.Icon
-                {...props}
-                icon={activity.archivedAt ? "archive-arrow-up-outline" : "archive-outline"}
-              />
-            )}
-            onPress={() => open("archive")}
-          />
-          <List.Item
             title="Eliminar"
             titleStyle={{ color: theme.colors.error }}
             left={(props) => (
@@ -254,27 +237,13 @@ export function TaskMenu({
         </Dialog.Actions>
       </Dialog>
 
-      <Dialog visible={dialog === "archive"} onDismiss={() => setDialog(null)}>
-        <Dialog.Title>{activity.archivedAt ? "Restaurar tarea" : "Archivar tarea"}</Dialog.Title>
-        <Dialog.Content>
-          <Text>
-            {activity.archivedAt
-              ? "La tarea vuelve a tu lista."
-              : "La tarea sale de tu lista y de tu plan. Puedes restaurarla desde el archivo."}
-          </Text>
-        </Dialog.Content>
-        <Dialog.Actions>
-          <Button onPress={() => setDialog(null)}>Cancelar</Button>
-          <Button loading={archive.isPending} onPress={() => archive.mutate()}>
-            {activity.archivedAt ? "Restaurar" : "Archivar"}
-          </Button>
-        </Dialog.Actions>
-      </Dialog>
-
       <Dialog visible={dialog === "delete"} onDismiss={() => setDialog(null)}>
         <Dialog.Title>Eliminar tarea</Dialog.Title>
         <Dialog.Content>
-          <Text>La tarea y sus subtareas se eliminan. Esto no se puede deshacer.</Text>
+          <Text>
+            La tarea y sus subtareas se eliminan y deja de aparecer en tu plan. Si ya la habías
+            completado, sigue contando en tu progreso y tu racha. Esto no se puede deshacer.
+          </Text>
         </Dialog.Content>
         <Dialog.Actions>
           <Button onPress={() => setDialog(null)}>Cancelar</Button>

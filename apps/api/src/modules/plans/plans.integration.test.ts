@@ -339,7 +339,8 @@ test("progress and logged time reduce planned work without double deduction", as
   expect(deleted.status).toBe(204);
   expect(await (await risk()).json()).toMatchObject({ risk: [], unscheduled: [] });
   await scheduler.processDue(new Date("2026-10-07T14:53:00.000Z"));
-  expect(await riskAlerts()).toHaveLength(2);
+  // Al borrar la tarea se quitan sus avisos y no se crean nuevos.
+  expect(await riskAlerts()).toHaveLength(0);
 });
 
 test("preview, edit, apply and history require owner and fresh source revision", async () => {

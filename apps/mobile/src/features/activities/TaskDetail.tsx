@@ -101,11 +101,6 @@ export function TaskDetail({ activity, profile }: { activity: Activity; profile:
             </View>
           )}
         </View>
-        {activity.archivedAt && (
-          <Text style={{ color: theme.colors.onSurfaceVariant }}>
-            Tarea archivada. Restáurala desde el menú ⋮ para modificarla.
-          </Text>
-        )}
       </View>
 
       <View style={styles.section}>

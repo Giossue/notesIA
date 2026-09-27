@@ -106,13 +106,17 @@ export function createActivityRepository(pool: Pool) {
         .where(
           and(
             eq(activities.userId, userId),
-            isNull(activities.deletedAt),
+            // Una tarea completada y después borrada sigue contando: el trabajo se hizo.
+            sql`(${activities.deletedAt} is null or ${activities.status} = 'completed')`,
             sql`(${inRange(activities.completedAt)} or ${inRange(activities.deadlineAt)})`,
           ),
         );
     },
 
-    /** Totales por tipo de actividad (sin canceladas ni archivadas). */
+    /**
+     * Totales por tipo (sin canceladas). Las borradas no cuentan, salvo las que se
+     * completaron antes de borrarlas: el trabajo se hizo.
+     */
     async kindProgress(userId: string) {
       return db
         .select({
@@ -124,7 +128,7 @@ export function createActivityRepository(pool: Pool) {
         .where(
           and(
             eq(activities.userId, userId),
-            isNull(activities.deletedAt),
+            sql`(${activities.deletedAt} is null or ${activities.status} = 'completed')`,
             isNull(activities.archivedAt),
           ),
         )
@@ -255,6 +259,10 @@ export function createActivityRepository(pool: Pool) {
             updatedAt: new Date(),
           })
           .where(and(eq(activities.userId, userId), eq(activities.id, id)));
+        // Sus avisos ya no tienen sentido: se quitan de la lista (y los push pendientes).
+        await tx.execute(
+          sql`DELETE FROM dominio.notificaciones WHERE usuario_id = ${userId} AND actividad_id = ${id}`,
+        );
         await tx.insert(activityHistory).values({
           userId,
           activityId: id,

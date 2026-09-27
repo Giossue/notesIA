@@ -30,7 +30,7 @@ export function TaskList() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const theme = useTheme();
   const offline = useNetInfo().isConnected === false;
-  const [view, setView] = useState<"active" | "completed" | "archived">("active");
+  const [view, setView] = useState<"active" | "completed">("active");
   const profile = useQuery({
     queryKey: ["profile"],
     queryFn: getProfile,
@@ -40,7 +40,7 @@ export function TaskList() {
     queryKey: ["activities", view],
     queryFn: ({ pageParam }) =>
       listActivities({
-        archived: view === "archived",
+        archived: false,
         status: view === "completed" ? "completed" : undefined,
         cursor: pageParam,
       }),
@@ -58,7 +58,6 @@ export function TaskList() {
         buttons={[
           { value: "active", label: "Todas" },
           { value: "completed", label: "Hechas" },
-          { value: "archived", label: "Archivo" },
         ]}
       />
       {offline && (
@@ -80,11 +79,9 @@ export function TaskList() {
           variant="centered"
           icon="checkbox-marked-circle-outline"
           message={
-            view === "archived"
-              ? "No tienes tareas archivadas."
-              : view === "completed"
-                ? "Aún no has completado tareas."
-                : "Aún no tienes tareas. Crea la primera."
+            view === "completed"
+              ? "Aún no has completado tareas."
+              : "Aún no tienes tareas. Crea la primera."
           }
         />
       )}
