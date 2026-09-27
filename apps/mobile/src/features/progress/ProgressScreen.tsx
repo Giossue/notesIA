@@ -5,7 +5,6 @@ import { ActivityIndicator, Icon, Text, useTheme } from "react-native-paper";
 import { getActivitySummary } from "@/core/api/activities";
 import { layout } from "@/core/theme/layout";
 import { categoryColors } from "@/core/theme/theme";
-import { TimeStatisticsPanel } from "@/features/time/TimeStatisticsPanel";
 import { categoryInfo } from "@/shared/activity-kinds";
 import { userMessage } from "@/shared/errors";
 import { percent, shortRange, shortWeekday } from "@/shared/format";
@@ -190,14 +189,6 @@ export function ProgressScreen() {
           </View>
         </>
       )}
-      {/* Tiempo estudiado frente al estimado; se registra desde cada tarea. */}
-      <View style={styles.section}>
-        <SectionTitle
-          title="Tiempo de estudio"
-          subtitle="Lo que estimaste frente a lo que estudiaste"
-        />
-        <TimeStatisticsPanel />
-      </View>
     </ScreenLayout>
   );
 }

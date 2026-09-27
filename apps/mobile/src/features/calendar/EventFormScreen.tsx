@@ -11,6 +11,7 @@ import { StyleSheet, View } from "react-native";
 import { ActivityIndicator, HelperText, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
+import { OfflineQueuedError } from "@/core/api/api-error";
 import {
   createCalendarEvent,
   getCalendarEvent,
@@ -211,6 +212,11 @@ function EventForm({
       if (!first) throw new Error("No se pudo crear el compromiso.");
       return first;
     },
+    onError: (error) => {
+      if (!(error instanceof OfflineQueuedError)) return;
+      void queryClient.invalidateQueries({ queryKey: ["offline-outbox"] });
+      navigation.goBack();
+    },
     onSuccess: (updated) => {
       queryClient.setQueryData(["calendar-event", updated.id], updated);
       void queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
@@ -324,9 +330,11 @@ function EventForm({
       )}
 
       {offline && (
-        <Text style={{ color: theme.colors.error }}>Sin conexión. Conéctate para guardar.</Text>
+        <Text style={{ color: theme.colors.error }}>
+          Sin conexión: el compromiso se guarda en tu teléfono y se envía cuando vuelva el internet.
+        </Text>
       )}
-      {save.isError && (
+      {save.isError && !(save.error instanceof OfflineQueuedError) && (
         <Text accessibilityRole="alert" style={{ color: theme.colors.error }}>
           {userMessage(save.error)}
         </Text>
@@ -334,13 +342,13 @@ function EventForm({
       <Button
         mode="contained"
         loading={save.isPending}
-        disabled={offline || save.isPending || !!event?.archivedAt}
+        disabled={save.isPending || !!event?.archivedAt}
         onPress={() => void handleSubmit((values) => save.mutate(values))()}
         contentStyle={sharedStyles.actionContent}
       >
         Guardar compromiso
       </Button>
-      {event && <EventActions event={event} offline={offline} />}
+      {event && <EventActions event={event} />}
     </View>
   );
 }

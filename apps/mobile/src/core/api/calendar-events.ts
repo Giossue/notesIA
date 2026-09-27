@@ -33,16 +33,26 @@ export function getCalendarEvent(id: string) {
 }
 
 export function createCalendarEvent(input: CalendarEventCreate) {
+  const body = calendarEventCreateSchema.parse(input);
   return requestJson("/calendar-events", calendarEventSchema, {
     method: "POST",
-    body: calendarEventCreateSchema.parse(input),
+    body,
+    queue: { id: body.id, entity: "event", operation: "create", entityId: body.id },
   });
 }
 
 export function updateCalendarEvent(id: string, input: CalendarEventUpdate) {
+  const body = calendarEventUpdateSchema.parse(input);
   return requestJson(`/calendar-events/${encodeURIComponent(id)}`, calendarEventSchema, {
     method: "PATCH",
-    body: calendarEventUpdateSchema.parse(input),
+    body,
+    queue: {
+      id: body.mutationId,
+      entity: "event",
+      operation: "update",
+      entityId: id,
+      baseVersion: body.version,
+    },
   });
 }
 
@@ -50,6 +60,13 @@ export function deleteCalendarEvent(id: string, version: number, mutationId: str
   return requestJson(`/calendar-events/${encodeURIComponent(id)}`, calendarEventSchema.nullable(), {
     method: "DELETE",
     body: calendarEventVersionSchema.parse({ version, mutationId }),
+    queue: {
+      id: mutationId,
+      entity: "event",
+      operation: "delete",
+      entityId: id,
+      baseVersion: version,
+    },
   });
 }
 

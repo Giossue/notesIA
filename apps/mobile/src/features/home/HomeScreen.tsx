@@ -8,7 +8,9 @@ import { Animated, LayoutAnimation, ScrollView, StyleSheet, View } from "react-n
 import { ActivityIndicator, Icon, Text, TouchableRipple, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { getActivitySummary, listActivities, transitionActivity } from "@/core/api/activities";
+import { OfflineQueuedError } from "@/core/api/api-error";
 import { getProfile } from "@/core/api/profile";
+import { patchCached } from "@/core/offline/optimistic";
 import { layout } from "@/core/theme/layout";
 import { categoryColors } from "@/core/theme/theme";
 import { OfflineBanner } from "@/features/offline/OfflineBanner";
@@ -55,13 +57,31 @@ export function HomeScreen() {
     retry: false,
   });
   const toggle = useMutation({
-    mutationFn: (activity: Activity) =>
-      transitionActivity(
+    mutationFn: (activity: Activity) => {
+      const completing = activity.status !== "completed";
+      // Se marca al instante; sin conexión queda en el teléfono y se envía después.
+      patchCached<Activity>(
+        queryClient,
+        [["agenda-upcoming-home"], ["activities"], ["agenda"], ["activity", activity.id]],
+        activity.id,
+        {
+          status: completing ? "completed" : "backlog",
+          version: activity.version + 1,
+          ...(completing ? { progressPercent: 100 } : {}),
+        },
+      );
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      return transitionActivity(
         activity.id,
         activity.version,
         uuidv4(),
-        activity.status === "completed" ? "reopen" : "complete",
-      ),
+        completing ? "complete" : "reopen",
+      );
+    },
+    onError: (error) => {
+      if (!(error instanceof OfflineQueuedError))
+        void queryClient.invalidateQueries({ queryKey: ["agenda-upcoming-home"] });
+    },
     onSuccess: async () => {
       await Promise.all(
         ["agenda-upcoming-home", "activity-summary", "agenda", "activities"].map((key) =>
@@ -262,7 +282,7 @@ export function HomeScreen() {
             <View key={item.id} style={[styles.taskRow, { backgroundColor: theme.colors.surface }]}>
               <TouchableRipple
                 borderless
-                disabled={offline || toggle.isPending}
+                disabled={toggle.isPending}
                 onPress={() => toggle.mutate(item)}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: done }}

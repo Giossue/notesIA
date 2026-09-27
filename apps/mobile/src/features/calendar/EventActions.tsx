@@ -5,12 +5,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Portal, Text } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
+import { OfflineQueuedError } from "@/core/api/api-error";
 import { deleteCalendarEvent } from "@/core/api/calendar-events";
 import { sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { Button, Dialog } from "@/shared/paper";
 
-export function EventActions({ event, offline }: { event: CalendarEvent; offline: boolean }) {
+export function EventActions({ event }: { event: CalendarEvent }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -24,6 +25,12 @@ export function EventActions({ event, offline }: { event: CalendarEvent; offline
       setConfirmOpen(false);
       navigation.goBack();
     },
+    onError: (error) => {
+      if (!(error instanceof OfflineQueuedError)) return;
+      setConfirmOpen(false);
+      void queryClient.invalidateQueries({ queryKey: ["offline-outbox"] });
+      navigation.goBack();
+    },
   });
 
   return (
@@ -31,7 +38,7 @@ export function EventActions({ event, offline }: { event: CalendarEvent; offline
       <Button
         mode="outlined"
         icon="delete-outline"
-        disabled={offline || remove.isPending}
+        disabled={remove.isPending}
         onPress={() => setConfirmOpen(true)}
         contentStyle={sharedStyles.actionContent}
       >

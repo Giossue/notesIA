@@ -113,7 +113,17 @@ export function setActivityArchived(id: string, version: number, archived: boole
   return requestJson(
     `/activities/${encodeURIComponent(id)}/${archived ? "archive" : "restore"}`,
     activitySchema,
-    { method: "POST", body: versionSchema.parse({ version }) },
+    {
+      method: "POST",
+      body: versionSchema.parse({ version }),
+      queue: {
+        id: uuidv4(),
+        entity: "activity",
+        operation: "update",
+        entityId: id,
+        baseVersion: version,
+      },
+    },
   );
 }
 
@@ -126,6 +136,14 @@ export function transitionActivity(
   return requestJson(`/activities/${encodeURIComponent(id)}/${action}`, activitySchema, {
     method: "POST",
     body: activityTransitionSchema.parse({ version, mutationId }),
+    // Sin conexión, completar o cambiar el estado queda pendiente y se envía después.
+    queue: {
+      id: mutationId,
+      entity: "activity",
+      operation: "update",
+      entityId: id,
+      baseVersion: version,
+    },
   });
 }
 

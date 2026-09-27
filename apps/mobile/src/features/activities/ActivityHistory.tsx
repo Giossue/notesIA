@@ -29,8 +29,7 @@ export function ActivityHistory({ id }: { id: string }) {
   const items = history.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <View style={{ gap: layout.itemGap, paddingTop: layout.sectionGap }}>
-      <Text variant="titleMedium">Historial</Text>
+    <View style={{ gap: layout.itemGap }}>
       {history.isPending && !offline && (
         <ActivityIndicator accessibilityLabel="Cargando historial" />
       )}
@@ -45,7 +44,7 @@ export function ActivityHistory({ id }: { id: string }) {
       )}
       {items.map((item) => (
         <Text key={item.id}>
-          {eventLabels[item.eventType]} · {item.createdAt.slice(0, 16).replace("T", " ")} UTC
+          {eventLabels[item.eventType]} · {new Date(item.createdAt).toLocaleString()}
         </Text>
       ))}
       {history.hasNextPage && (

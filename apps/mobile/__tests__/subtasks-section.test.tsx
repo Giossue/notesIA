@@ -2,7 +2,7 @@ import type { Activity, Subtask } from "@notesia/contracts";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { PaperProvider } from "react-native-paper";
-import { createSubtask, updateSubtask } from "@/core/api/subtasks";
+import { createSubtask, setSubtaskArchived, updateSubtask } from "@/core/api/subtasks";
 import { SubtasksSection } from "@/features/activities/SubtasksSection";
 
 const mockInvalidate = jest.fn(async () => {});
@@ -14,16 +14,22 @@ jest.mock("@react-native-vector-icons/material-design-icons", () => ({
 jest.mock("uuid", () => ({ v4: () => "11111111-1111-4111-8111-111111111111" }));
 jest.mock("@tanstack/react-query", () => ({
   useInfiniteQuery: jest.fn(),
-  useQueryClient: () => ({ invalidateQueries: mockInvalidate }),
+  useQueryClient: () => ({
+    invalidateQueries: mockInvalidate,
+    setQueryData: jest.fn(),
+    setQueriesData: jest.fn(),
+  }),
   useMutation: (options: {
     mutationFn: (value?: unknown) => Promise<unknown>;
-    onSuccess?: (value: unknown) => void;
+    onSettled?: (data: unknown, error: unknown) => void;
   }) => ({
     mutate: (value?: unknown) => {
-      void options.mutationFn(value).then((result) => options.onSuccess?.(result));
+      void options
+        .mutationFn(value)
+        .then((result) => options.onSettled?.(result, null))
+        .catch((error) => options.onSettled?.(undefined, error));
     },
     isPending: false,
-    isError: false,
   }),
 }));
 jest.mock("@/core/api/subtasks", () => ({
@@ -38,40 +44,47 @@ const activity = {
   title: "Proyecto",
   archivedAt: null,
 } as Activity;
+const subtask = {
+  id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  activityId: activity.id,
+  title: "Preparar índice",
+  estimatedMinutes: null,
+  isCompleted: false,
+  archivedAt: null,
+  version: 2,
+} as Subtask;
 const mockedQuery = useInfiniteQuery as jest.Mock;
-const mockedCreate = createSubtask as jest.Mock;
-const mockedUpdate = updateSubtask as jest.Mock;
 
-async function showSection(offline = false) {
+function withItems(items: Subtask[]) {
+  mockedQuery.mockReturnValue({
+    data: { pages: [{ items, nextCursor: null }] },
+    isPending: false,
+    hasNextPage: false,
+  });
+}
+
+async function showSection() {
   return render(
     <PaperProvider>
-      <SubtasksSection activity={activity} offline={offline} />
+      <SubtasksSection activity={activity} />
     </PaperProvider>,
   );
 }
 
 describe("SubtasksSection", () => {
   beforeEach(() => {
-    mockedQuery.mockReset();
-    mockedCreate.mockReset();
-    mockedUpdate.mockReset();
-    mockInvalidate.mockClear();
+    jest.clearAllMocks();
   });
 
-  test("shows the empty state and sends a new subtask to the API", async () => {
-    mockedQuery.mockReturnValue({
-      data: { pages: [{ items: [], nextCursor: null }] },
-      isPending: false,
-      isError: false,
-      hasNextPage: false,
-    });
-    mockedCreate.mockResolvedValue({ id: "11111111-1111-4111-8111-111111111111" });
+  test("agrega una subtarea y la envía a la API", async () => {
+    withItems([]);
+    (createSubtask as jest.Mock).mockResolvedValue({ id: subtask.id });
     await showSection();
-    expect(screen.getByText("Aún no hay subtareas.")).toBeOnTheScreen();
-    fireEvent.changeText(screen.getByLabelText("Título de la subtarea"), "Preparar índice");
-    await userEvent.setup().press(screen.getByText("Añadir subtarea"));
+    const input = screen.getByPlaceholderText("Nueva subtarea");
+    await fireEvent.changeText(input, "Preparar índice");
+    await fireEvent(input, "submitEditing");
     await waitFor(() =>
-      expect(mockedCreate).toHaveBeenCalledWith(activity.id, {
+      expect(createSubtask).toHaveBeenCalledWith(activity.id, {
         id: "11111111-1111-4111-8111-111111111111",
         title: "Preparar índice",
         estimatedMinutes: null,
@@ -82,59 +95,32 @@ describe("SubtasksSection", () => {
     );
   });
 
-  test("shows a saved subtask and sends its completion with a version", async () => {
-    const subtask = {
-      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-      activityId: activity.id,
-      title: "Preparar índice",
-      estimatedMinutes: 30,
-      isCompleted: false,
-      archivedAt: null,
-      version: 2,
-    } as Subtask;
-    mockedQuery.mockReturnValue({
-      data: { pages: [{ items: [subtask], nextCursor: null }] },
-      isPending: false,
-      isError: false,
-      hasNextPage: false,
-    });
-    mockedUpdate.mockResolvedValue({ ...subtask, isCompleted: true, version: 3 });
+  test("marca una subtarea con su versión", async () => {
+    withItems([subtask]);
+    (updateSubtask as jest.Mock).mockResolvedValue({ ...subtask, isCompleted: true, version: 3 });
     await showSection();
-    await userEvent.setup().press(screen.getByLabelText("Completar subtarea Preparar índice"));
-    expect(mockedUpdate).toHaveBeenCalledWith(activity.id, subtask.id, {
+    expect(screen.getByText("Subtareas · 0/1")).toBeOnTheScreen();
+    await userEvent.setup().press(screen.getByLabelText("Marcar Preparar índice"));
+    expect(updateSubtask).toHaveBeenCalledWith(activity.id, subtask.id, {
       title: subtask.title,
-      estimatedMinutes: 30,
+      estimatedMinutes: null,
       isCompleted: true,
       version: 2,
       mutationId: "11111111-1111-4111-8111-111111111111",
     });
   });
 
-  test("shows retry when loading subtasks fails", async () => {
-    mockedQuery.mockReturnValue({
-      data: undefined,
-      isPending: false,
-      isError: true,
-      error: new Error("Sin respuesta del servidor"),
-      hasNextPage: false,
-      refetch: jest.fn(),
-    });
+  test("quita una subtarea", async () => {
+    withItems([subtask]);
+    (setSubtaskArchived as jest.Mock).mockResolvedValue(subtask);
     await showSection();
-    expect(screen.getByText("Sin respuesta del servidor")).toBeOnTheScreen();
-    expect(screen.getByText("Reintentar subtareas")).toBeOnTheScreen();
-  });
-
-  test("explains that saving needs a connection", async () => {
-    mockedQuery.mockReturnValue({
-      data: undefined,
-      isPending: true,
-      isError: false,
-      hasNextPage: false,
-    });
-    await showSection(true);
-    expect(
-      screen.getByText("Sin conexión. Se muestran los datos guardados en esta sesión."),
-    ).toBeOnTheScreen();
-    expect(screen.getByText("Añadir subtarea")).toBeDisabled();
+    await userEvent.setup().press(screen.getByLabelText("Quitar Preparar índice"));
+    expect(setSubtaskArchived).toHaveBeenCalledWith(
+      activity.id,
+      subtask.id,
+      true,
+      2,
+      "11111111-1111-4111-8111-111111111111",
+    );
   });
 });

@@ -13,11 +13,10 @@ import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import { createActivity, getActivity, updateActivity } from "@/core/api/activities";
 import { createActivitySeries } from "@/core/api/activity-series";
+import { OfflineQueuedError } from "@/core/api/api-error";
 import { getProfile } from "@/core/api/profile";
 import { createSubtask } from "@/core/api/subtasks";
 import { layout, sharedStyles } from "@/core/theme/layout";
-import { ManualTimeForm } from "@/features/time/ManualTimeForm";
-import { TimerPanel } from "@/features/time/TimerPanel";
 import type { RootStackParamList } from "@/navigation/types";
 import { kindChoices } from "@/shared/activity-kinds";
 import { userMessage } from "@/shared/errors";
@@ -31,10 +30,8 @@ import {
 import { Button, TextInput } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { Tabs } from "@/shared/Tabs";
-import { ActivityActions } from "./ActivityActions";
-import { ActivityHistory } from "./ActivityHistory";
-import { ActivityProgressForm } from "./ActivityProgressForm";
-import { SubtasksSection } from "./SubtasksSection";
+import { TaskMenu } from "./ActivityActions";
+import { TaskDetail } from "./TaskDetail";
 
 const localDateTime = z
   .string()
@@ -102,10 +99,25 @@ export function ActivityFormScreen({
     retry: false,
   });
 
+  // Una tarea existente se muestra; el formulario queda para crear o para "Editar".
+  const [editing, setEditing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const showing = !!activity.data && !editing;
+
   return (
     <ScreenLayout
       keyboardShouldPersistTaps="handled"
-      header={{ title: id ? "Tarea" : "Nueva tarea" }}
+      header={{
+        title: !id ? "Nueva tarea" : editing ? "Editar tarea" : "Tarea",
+        ...(editing
+          ? { left: { icon: "close", label: "Cancelar edición", onPress: () => setEditing(false) } }
+          : {}),
+        ...(showing
+          ? {
+              right: { icon: "dots-vertical", label: "Opciones", onPress: () => setMenuOpen(true) },
+            }
+          : {}),
+      }}
     >
       {(profile.isPending || (id && activity.isPending)) && (
         <ActivityIndicator accessibilityLabel="Cargando tarea" />
@@ -122,13 +134,25 @@ export function ActivityFormScreen({
           <Button onPress={() => void activity.refetch()}>Reintentar tarea</Button>
         </View>
       )}
-      {profile.data && (!id || activity.data) && (
+      {profile.data && showing && activity.data && (
+        <>
+          <TaskDetail activity={activity.data} profile={profile.data} />
+          <TaskMenu
+            activity={activity.data}
+            visible={menuOpen}
+            onDismiss={() => setMenuOpen(false)}
+            onEdit={() => setEditing(true)}
+          />
+        </>
+      )}
+      {profile.data && (!id || (activity.data && editing)) && (
         <ActivityForm
           key={`${activity.data?.id ?? "new"}-${activity.data?.version ?? 0}-${JSON.stringify(draft)}-${date}`}
           activity={activity.data}
           profile={profile.data}
           draft={draft}
           date={date}
+          onSaved={() => setEditing(false)}
         />
       )}
     </ScreenLayout>
@@ -140,11 +164,14 @@ function ActivityForm({
   profile,
   draft,
   date,
+  onSaved,
 }: {
   activity?: Activity;
   profile: Profile;
   draft?: { title?: string; description?: string; estimatedMinutes?: number };
   date?: string;
+  /** Al editar una tarea existente, vuelve a su vista en lugar de salir. */
+  onSaved(): void;
 }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
@@ -227,18 +254,42 @@ function ActivityForm({
           ...fields,
           version: activity.version,
         });
-      const created = await createActivity(activityCreateSchema.parse({ ...fields, id: newId }));
-      // Mismos ids al reintentar: los pasos ya creados no se duplican.
+      // Sin conexión la tarea y sus subtareas quedan en el teléfono, en orden.
+      let queued: OfflineQueuedError | null = null;
+      const keep = async <T,>(request: Promise<T>) => {
+        try {
+          return await request;
+        } catch (error) {
+          if (!(error instanceof OfflineQueuedError)) throw error;
+          queued = error;
+          return null;
+        }
+      };
+      const created = await keep(
+        createActivity(activityCreateSchema.parse({ ...fields, id: newId })),
+      );
+      // Mismos ids al reintentar: las subtareas ya creadas no se duplican.
       for (const step of steps)
-        await createSubtask(created.id, { id: step.id, title: step.title, estimatedMinutes: null });
+        await keep(
+          createSubtask(newId, { id: step.id, title: step.title, estimatedMinutes: null }),
+        );
       if (steps.length > 0) void queryClient.invalidateQueries({ queryKey: ["subtasks"] });
+      if (queued) throw queued;
       return created;
+    },
+    onError: (error) => {
+      // Guardada en el teléfono: el aviso ya lo muestra el toast; se sale del formulario.
+      if (!(error instanceof OfflineQueuedError)) return;
+      void queryClient.invalidateQueries({ queryKey: ["offline-outbox"] });
+      if (activity) onSaved();
+      else navigation.goBack();
     },
     onSuccess: (updated) => {
       if (updated) queryClient.setQueryData(["activity", updated.id], updated);
       void queryClient.invalidateQueries({ queryKey: ["activities"] });
       void queryClient.invalidateQueries({ queryKey: ["agenda"] });
-      navigation.goBack();
+      if (activity) onSaved();
+      else navigation.goBack();
     },
   });
 
@@ -357,10 +408,10 @@ function ActivityForm({
 
       {offline && (
         <Text style={{ color: theme.colors.error }}>
-          Sin conexión. La tarea quedará pendiente en este dispositivo.
+          Sin conexión: la tarea se guarda en tu teléfono y se envía cuando vuelva el internet.
         </Text>
       )}
-      {!activity && repeat === "none" && !offline && (
+      {!activity && repeat === "none" && (
         <FormSection
           title="Subtareas (opcional)"
           hint="Divide la tarea en pasos más chicos. Después los marcas a medida que avanzas."
@@ -431,16 +482,6 @@ function ActivityForm({
       >
         Guardar tarea
       </Button>
-      {activity && <ActivityProgressForm activity={activity} />}
-      {activity && <ActivityActions activity={activity} offline={offline} />}
-      {activity && !activity.archivedAt && (
-        <>
-          <TimerPanel activityId={activity.id} />
-          <ManualTimeForm activityId={activity.id} />
-        </>
-      )}
-      {activity && <SubtasksSection activity={activity} offline={offline} />}
-      {activity && <ActivityHistory id={activity.id} />}
     </View>
   );
 }

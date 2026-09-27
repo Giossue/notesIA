@@ -29,7 +29,7 @@ const outboxRowSchema = z.object({
 export type QueuedMutation = z.infer<typeof outboxRowSchema>;
 export type QueueMetadata = {
   id: string;
-  entity: "activity" | "progress" | "time_entry";
+  entity: "activity" | "progress" | "time_entry" | "subtask" | "event";
   operation: "create" | "update" | "delete";
   entityId: string;
   baseVersion?: number;

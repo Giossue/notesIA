@@ -5,19 +5,9 @@ import { getSessionCookie } from "@/core/auth/session-storage";
 import { getApiBaseUrl } from "@/core/config/api";
 import { readApiCache, writeApiCache } from "@/core/offline/cache";
 import { enqueueMutation, type QueueMetadata } from "@/core/offline/outbox";
-import { ApiError } from "./api-error";
+import { ApiError, OfflineQueuedError } from "./api-error";
 
-export { ApiError } from "./api-error";
-
-export class OfflineQueuedError extends ApiError {
-  constructor() {
-    super(
-      "Sin internet: lo guardamos en tu teléfono y se enviará cuando vuelva la conexión.",
-      "OFFLINE_QUEUED",
-    );
-    this.name = "OfflineQueuedError";
-  }
-}
+export { ApiError, OfflineQueuedError } from "./api-error";
 
 async function cachedJson<T extends z.ZodType>(path: string, schema: T) {
   const cached = await readApiCache(path).catch(() => null);
@@ -66,7 +56,8 @@ export async function requestJson<T extends z.ZodType>(
 ): Promise<z.output<T>> {
   const method = options.method ?? "GET";
   const network = await NetInfo.fetch().catch(() => null);
-  if (network?.isConnected === false) {
+  // Wifi sin internet cuenta como sin conexión: el cambio se guarda en el teléfono.
+  if (network?.isConnected === false || network?.isInternetReachable === false) {
     if (method === "GET") {
       const cached = await cachedJson(path, schema);
       if (cached !== null) return cached;
