@@ -8,12 +8,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, HelperText, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, HelperText, IconButton, Text, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import { createActivity, getActivity, updateActivity } from "@/core/api/activities";
 import { createActivitySeries } from "@/core/api/activity-series";
 import { getProfile } from "@/core/api/profile";
+import { createSubtask } from "@/core/api/subtasks";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import { ManualTimeForm } from "@/features/time/ManualTimeForm";
 import { TimerPanel } from "@/features/time/TimerPanel";
@@ -180,6 +181,15 @@ function ActivityForm({
   // Solo al crear: repetir la tarea cada día o cada semana hasta una fecha.
   const [repeat, setRepeat] = useState<"none" | "daily" | "weekly">("none");
   const [repeatUntil, setRepeatUntil] = useState("");
+  // Pasos al crear la tarea: se guardan como subtareas justo después de crearla.
+  const [steps, setSteps] = useState<{ id: string; title: string }[]>([]);
+  const [stepDraft, setStepDraft] = useState("");
+  const addStep = () => {
+    const title = stepDraft.trim();
+    if (!title) return;
+    setSteps((current) => [...current, { id: uuidv4(), title: title.slice(0, 240) }]);
+    setStepDraft("");
+  };
   const save = useMutation({
     mutationFn: async (values: FormValues) => {
       if (!activity && repeat !== "none") {
@@ -217,7 +227,12 @@ function ActivityForm({
           ...fields,
           version: activity.version,
         });
-      return createActivity(activityCreateSchema.parse({ ...fields, id: newId }));
+      const created = await createActivity(activityCreateSchema.parse({ ...fields, id: newId }));
+      // Mismos ids al reintentar: los pasos ya creados no se duplican.
+      for (const step of steps)
+        await createSubtask(created.id, { id: step.id, title: step.title, estimatedMinutes: null });
+      if (steps.length > 0) void queryClient.invalidateQueries({ queryKey: ["subtasks"] });
+      return created;
     },
     onSuccess: (updated) => {
       if (updated) queryClient.setQueryData(["activity", updated.id], updated);
@@ -345,6 +360,49 @@ function ActivityForm({
           Sin conexión. La tarea quedará pendiente en este dispositivo.
         </Text>
       )}
+      {!activity && repeat === "none" && !offline && (
+        <FormSection
+          title="Subtareas (opcional)"
+          hint="Divide la tarea en pasos más chicos. Después los marcas a medida que avanzas."
+        >
+          {steps.map((step, index) => (
+            <View key={step.id} style={styles.stepRow}>
+              <Text style={[styles.stepNumber, { color: theme.colors.onSurfaceVariant }]}>
+                {index + 1}.
+              </Text>
+              <Text style={styles.stepTitle}>{step.title}</Text>
+              <IconButton
+                icon="close"
+                size={18}
+                accessibilityLabel={`Quitar la subtarea ${step.title}`}
+                onPress={() => setSteps((current) => current.filter((item) => item.id !== step.id))}
+              />
+            </View>
+          ))}
+          {steps.length < 20 && (
+            <View style={styles.stepRow}>
+              <TextInput
+                mode="outlined"
+                dense
+                placeholder="Por ejemplo: leer el capítulo 3"
+                value={stepDraft}
+                onChangeText={setStepDraft}
+                onSubmitEditing={addStep}
+                returnKeyType="done"
+                style={styles.stepInput}
+                accessibilityLabel="Nueva subtarea"
+              />
+              <IconButton
+                icon="plus"
+                mode="contained"
+                disabled={!stepDraft.trim()}
+                accessibilityLabel="Agregar subtarea"
+                onPress={addStep}
+              />
+            </View>
+          )}
+        </FormSection>
+      )}
       {!activity && (
         <FormSection
           title="Repetir"
@@ -388,6 +446,10 @@ function ActivityForm({
 }
 
 const styles = StyleSheet.create({
+  stepRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  stepNumber: { width: 22 },
+  stepTitle: { flex: 1 },
+  stepInput: { flex: 1 },
   form: { gap: layout.sectionGap },
   message: { gap: layout.itemGap },
 });
