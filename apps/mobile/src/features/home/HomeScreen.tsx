@@ -12,6 +12,7 @@ import { getProfile } from "@/core/api/profile";
 import { layout } from "@/core/theme/layout";
 import { categoryColors } from "@/core/theme/theme";
 import { OfflineBanner } from "@/features/offline/OfflineBanner";
+import { StreakCard } from "@/features/streak/StreakCard";
 import type { RootStackParamList } from "@/navigation/types";
 import { useExitOnDoubleBack } from "@/navigation/useExitOnDoubleBack";
 import { categoryInfo, kindColor, kindLabel } from "@/shared/activity-kinds";
@@ -114,38 +115,49 @@ export function HomeScreen() {
       )}
       <OfflineBanner />
 
-      <View style={[styles.card, styles.ringsCard, { backgroundColor: theme.colors.surface }]}>
-        {summary.isPending && <ActivityIndicator accessibilityLabel="Cargando resumen" />}
-        {summary.isError && (
-          <ErrorRetry message={userMessage(summary.error)} onRetry={() => void summary.refetch()} />
-        )}
-        {counts && (
-          <>
-            <ProgressRings
-              size={150}
-              stroke={12}
-              rings={ringRows.map((row) => ({ progress: row.value / 100, color: row.color }))}
+      <StreakCard />
+
+      <View style={styles.section}>
+        <SectionHeading
+          title="Tu progreso"
+          onMore={() => navigation.navigate("Progress", { direction: "right" })}
+        />
+        <View style={[styles.card, styles.ringsCard, { backgroundColor: theme.colors.surface }]}>
+          {summary.isPending && <ActivityIndicator accessibilityLabel="Cargando resumen" />}
+          {summary.isError && (
+            <ErrorRetry
+              message={userMessage(summary.error)}
+              onRetry={() => void summary.refetch()}
             />
-            <View style={styles.legend}>
-              {ringRows.map((row) => (
-                <View key={row.label} style={styles.legendRow}>
-                  <View style={[styles.dot, { backgroundColor: row.color }]} />
-                  <Text variant="bodyLarge" numberOfLines={1} style={styles.legendLabel}>
-                    {row.label}
+          )}
+          {counts && (
+            <>
+              <ProgressRings
+                size={150}
+                stroke={12}
+                rings={ringRows.map((row) => ({ progress: row.value / 100, color: row.color }))}
+              />
+              <View style={styles.legend}>
+                {ringRows.map((row) => (
+                  <View key={row.label} style={styles.legendRow}>
+                    <View style={[styles.dot, { backgroundColor: row.color }]} />
+                    <Text variant="bodyLarge" numberOfLines={1} style={styles.legendLabel}>
+                      {row.label}
+                    </Text>
+                    <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+                      {row.value}%
+                    </Text>
+                  </View>
+                ))}
+                {counts.overdue > 0 && (
+                  <Text variant="bodySmall" style={{ color: theme.colors.error }}>
+                    {counts.overdue} {counts.overdue === 1 ? "atrasada" : "atrasadas"}
                   </Text>
-                  <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
-                    {row.value}%
-                  </Text>
-                </View>
-              ))}
-              {counts.overdue > 0 && (
-                <Text variant="bodySmall" style={{ color: theme.colors.error }}>
-                  {counts.overdue} {counts.overdue === 1 ? "atrasada" : "atrasadas"}
-                </Text>
-              )}
-            </View>
-          </>
-        )}
+                )}
+              </View>
+            </>
+          )}
+        </View>
       </View>
 
       <View style={styles.section}>
