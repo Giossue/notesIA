@@ -52,6 +52,7 @@ test("estadísticas muestra el avance semanal y los tipos de tarea", async () =>
   // Leyenda de los anillos y tarjeta del tipo.
   expect(screen.getAllByText("Académica")).toHaveLength(2);
   expect(screen.getByText("7 de 10")).toBeOnTheScreen();
-  expect(screen.getByText("Cotidiana")).toBeOnTheScreen();
+  // Los tres tipos salen siempre en la leyenda, aunque no tengan tareas.
+  expect(screen.getAllByText("Cotidiana")).toHaveLength(2);
   expect(screen.getByLabelText("Mié: 3 completadas de 4 con plazo")).toBeOnTheScreen();
 });

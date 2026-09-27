@@ -28,13 +28,13 @@ export function ProgressScreen() {
   const weekPercent = data ? percent(data.week.completedDue, data.week.due) : 0;
   const rings = data
     ? [
-        { progress: weekPercent / 100, color: categories.blue },
-        ...data.categories
-          .filter((row) => row.total > 0)
-          .map((row) => ({
-            progress: row.completed / row.total,
-            color: categories[categoryInfo[row.category].color],
-          })),
+        // Entregas en naranja: el azul es de lo académico.
+        { progress: weekPercent / 100, color: categories.orange },
+        // Los tres tipos siempre; sin tareas, su anillo queda vacío.
+        ...data.categories.map((row) => ({
+          progress: row.total > 0 ? row.completed / row.total : 0,
+          color: categories[categoryInfo[row.category].color],
+        })),
       ]
     : [];
   const barMax = data
@@ -78,17 +78,15 @@ export function ProgressScreen() {
                   {shortRange(data.week.from, shiftLocalDate(data.week.through, -1))}
                 </Text>
               </View>
-              <LegendRow color={categories.blue} label="Entregas" value={weekPercent} />
-              {data.categories
-                .filter((row) => row.total > 0)
-                .map((row) => (
-                  <LegendRow
-                    key={row.category}
-                    color={categories[categoryInfo[row.category].color]}
-                    label={categoryInfo[row.category].label}
-                    value={percent(row.completed, row.total)}
-                  />
-                ))}
+              <LegendRow color={categories.orange} label="Entregas" value={weekPercent} />
+              {data.categories.map((row) => (
+                <LegendRow
+                  key={row.category}
+                  color={categories[categoryInfo[row.category].color]}
+                  label={categoryInfo[row.category].label}
+                  value={percent(row.completed, row.total)}
+                />
+              ))}
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                 {data.week.completedDue} de {data.week.due} entregas de la semana
               </Text>
