@@ -18,6 +18,7 @@ import { StreakCard } from "@/features/streak/StreakCard";
 import type { RootStackParamList } from "@/navigation/types";
 import { useExitOnDoubleBack } from "@/navigation/useExitOnDoubleBack";
 import { categoryInfo, kindColor, kindLabel } from "@/shared/activity-kinds";
+import { streakInfo } from "@/shared/concepts";
 import { EmptyState } from "@/shared/EmptyState";
 import { userMessage } from "@/shared/errors";
 import { clockTime, longDate, percent, shortWeekday } from "@/shared/format";
@@ -25,6 +26,7 @@ import { useBounce } from "@/shared/motion";
 import { PieIcon } from "@/shared/PieIcon";
 import { ProgressRings } from "@/shared/ProgressRings";
 import { Button } from "@/shared/paper";
+import { type HeaderInfo, InfoButton } from "@/shared/ScreenHeader";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { HomeHeader } from "./HomeHeader";
 
@@ -139,7 +141,7 @@ export function HomeScreen() {
       <OfflineBanner />
 
       <View style={styles.section}>
-        <SectionHeading title="Tu racha" />
+        <SectionHeading title="Tu racha" info={streakInfo} />
         <StreakCard />
       </View>
 
@@ -343,13 +345,24 @@ function CheckCircle({ done }: { done: boolean }) {
   );
 }
 
-function SectionHeading({ title, onMore }: { title: string; onMore?: () => void }) {
+function SectionHeading({
+  title,
+  onMore,
+  info,
+}: {
+  title: string;
+  onMore?: () => void;
+  info?: HeaderInfo;
+}) {
   const theme = useTheme();
   return (
     <View style={styles.sectionHeading}>
-      <Text variant="titleLarge" style={styles.sectionTitle}>
-        {title}
-      </Text>
+      <View style={styles.headingTitle}>
+        <Text variant="titleLarge" style={styles.sectionTitle}>
+          {title}
+        </Text>
+        {info && <InfoButton info={info} />}
+      </View>
       {onMore && (
         <TouchableRipple
           borderless
@@ -396,6 +409,7 @@ const styles = StyleSheet.create({
   bold: { fontWeight: "600" },
   section: { gap: 12 },
   sectionTitle: { fontWeight: "700" },
+  headingTitle: { flexDirection: "row", alignItems: "center", gap: 4 },
   sectionHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   more: { borderRadius: layout.smallRadius, paddingVertical: 6, paddingLeft: 8 },
   moreContent: { flexDirection: "row", alignItems: "center", gap: 2 },

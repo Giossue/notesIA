@@ -17,6 +17,7 @@ import {
 } from "@/core/api/availability";
 import { getPreferences, updatePreferences } from "@/core/api/preferences";
 import { layout } from "@/core/theme/layout";
+import { studyHoursInfo } from "@/shared/concepts";
 import { userMessage } from "@/shared/errors";
 import { DateField, FormSection, TimeField } from "@/shared/fields";
 import { Button } from "@/shared/paper";
@@ -56,7 +57,10 @@ export function AvailabilityScreen() {
   const [generation, setGeneration] = useState(0);
   const [result, setResult] = useState<{ error?: unknown } | null>(null);
   return (
-    <ScreenLayout keyboardShouldPersistTaps="handled" header={{ title: "Mi horario de estudio" }}>
+    <ScreenLayout
+      keyboardShouldPersistTaps="handled"
+      header={{ title: "Mi horario de estudio", info: studyHoursInfo }}
+    >
       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
         Indica cuándo puedes estudiar cada semana. El planificador solo propone sesiones en esos
         horarios.

@@ -55,7 +55,7 @@ export function ScreenHeader({
   );
 }
 
-function InfoButton({ info }: { info: HeaderInfo }) {
+export function InfoButton({ info }: { info: HeaderInfo }) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   return (
