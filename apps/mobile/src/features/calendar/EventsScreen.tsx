@@ -59,7 +59,11 @@ export function EventsScreen() {
         </View>
       )}
       {!events.isPending && !events.isError && items.length === 0 && (
-        <EmptyState message="Aún no tienes compromisos." />
+        <EmptyState
+          variant="centered"
+          icon="calendar-lock-outline"
+          message="Aún no tienes compromisos."
+        />
       )}
       {items.map((item) => (
         <Card

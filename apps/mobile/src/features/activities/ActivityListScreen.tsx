@@ -79,6 +79,8 @@ export function ActivityListScreen() {
       )}
       {!activities.isPending && !activities.isError && items.length === 0 && (
         <EmptyState
+          variant="centered"
+          icon="checkbox-marked-circle-outline"
           message={
             view === "archived"
               ? "No tienes tareas archivadas."

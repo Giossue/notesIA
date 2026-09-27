@@ -95,7 +95,11 @@ export function OfflineChangesScreen() {
         </View>
       )}
       {queue.data?.length === 0 && (
-        <EmptyState icon="cloud-check-outline" message="No hay cambios pendientes." />
+        <EmptyState
+          variant="centered"
+          icon="cloud-check-outline"
+          message="No hay cambios pendientes."
+        />
       )}
       {queue.data?.map((item) => (
         <Card key={item.id} mode="contained">

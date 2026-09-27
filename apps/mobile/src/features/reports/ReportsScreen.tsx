@@ -38,7 +38,9 @@ export function ReportsScreen() {
           <Button onPress={() => void reports.refetch()}>Reintentar</Button>
         </View>
       )}
-      {reports.data?.items.length === 0 && <EmptyState message="Todavía no enviaste reportes." />}
+      {reports.data?.items.length === 0 && (
+        <EmptyState variant="centered" icon="lifebuoy" message="Todavía no enviaste reportes." />
+      )}
       {reports.data?.items.map((report) => (
         <Card key={report.id} mode="contained">
           <Card.Content style={styles.group}>
