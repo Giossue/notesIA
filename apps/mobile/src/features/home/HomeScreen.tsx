@@ -86,23 +86,13 @@ export function HomeScreen() {
   const categoryOf = (kind: Activity["kind"]) => categories[kindColor(kind)];
 
   const counts = summary.data;
-  const ringRows = counts?.categories.some((row) => row.total > 0)
-    ? counts.categories
-        .filter((row) => row.total > 0)
-        .map((row) => ({
-          label: categoryInfo[row.category].label,
-          value: percent(row.completed, row.total),
-          color: categories[categoryInfo[row.category].color],
-        }))
-    : counts
-      ? [
-          {
-            label: "Esta semana",
-            value: percent(counts.week.completedDue, counts.week.due),
-            color: categories.blue,
-          },
-        ]
-      : [];
+  // Los tres tipos siempre (académica, personal, cotidiana); sin tareas, su anillo queda vacío.
+  const ringRows =
+    counts?.categories.map((row) => ({
+      label: categoryInfo[row.category].label,
+      value: percent(row.completed, row.total),
+      color: categories[categoryInfo[row.category].color],
+    })) ?? [];
 
   return (
     <ScreenLayout
