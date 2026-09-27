@@ -32,7 +32,6 @@ export function TimeStatisticsPanel() {
   });
   return (
     <View style={styles.group}>
-      <Text variant="titleMedium">Estadísticas</Text>
       {(["from", "through"] as const).map((name) => (
         <View key={name}>
           <Controller

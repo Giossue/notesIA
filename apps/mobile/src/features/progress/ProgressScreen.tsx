@@ -58,102 +58,100 @@ export function ProgressScreen() {
 
       {data && (
         <>
-          <View style={[styles.card, styles.ringsCard, { backgroundColor: theme.colors.surface }]}>
-            <ProgressRings rings={rings} size={148} stroke={11} gap={6}>
-              <Text variant="headlineSmall" style={styles.bold}>
-                {weekPercent}%
-              </Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                Completado
-              </Text>
-            </ProgressRings>
-            <View style={styles.legend}>
-              <View>
-                <Text variant="titleMedium" style={styles.bold}>
-                  Esta semana
+          <View style={styles.section}>
+            <SectionTitle
+              title="Esta semana"
+              subtitle={shortRange(data.week.from, shiftLocalDate(data.week.through, -1))}
+            />
+            <View
+              style={[styles.card, styles.ringsCard, { backgroundColor: theme.colors.surface }]}
+            >
+              <ProgressRings rings={rings} size={148} stroke={11} gap={6}>
+                <Text variant="headlineSmall" style={styles.bold}>
+                  {weekPercent}%
                 </Text>
-                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                  {shortRange(data.week.from, shiftLocalDate(data.week.through, -1))}
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  Completado
+                </Text>
+              </ProgressRings>
+              <View style={styles.legend}>
+                <LegendRow color={categories.orange} label="Entregas" value={weekPercent} />
+                {data.categories.map((row) => (
+                  <LegendRow
+                    key={row.category}
+                    color={categories[categoryInfo[row.category].color]}
+                    label={categoryInfo[row.category].label}
+                    value={percent(row.completed, row.total)}
+                  />
+                ))}
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  {data.week.completedDue} de {data.week.due} entregas de la semana
                 </Text>
               </View>
-              <LegendRow color={categories.orange} label="Entregas" value={weekPercent} />
-              {data.categories.map((row) => (
-                <LegendRow
-                  key={row.category}
-                  color={categories[categoryInfo[row.category].color]}
-                  label={categoryInfo[row.category].label}
-                  value={percent(row.completed, row.total)}
-                />
-              ))}
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                {data.week.completedDue} de {data.week.due} entregas de la semana
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.card, styles.chartCard, { backgroundColor: theme.colors.surface }]}>
-            <View>
-              <Text variant="titleLarge" style={styles.bold}>
-                Tarea de la semana
-              </Text>
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                Tareas completadas por día
-              </Text>
-            </View>
-            <View style={styles.bars}>
-              {data.week.days.map((row) => {
-                const isToday = row.date === data.day;
-                const ghost = (Math.max(row.due, row.completed) / barMax) * BAR_HEIGHT;
-                const fill = (row.completed / barMax) * BAR_HEIGHT;
-                return (
-                  <View
-                    key={row.date}
-                    style={styles.barColumn}
-                    accessible
-                    accessibilityLabel={`${shortWeekday(row.date)}: ${row.completed} completadas de ${row.due} con plazo`}
-                  >
-                    <Text variant="labelLarge" style={styles.bold}>
-                      {row.completed}
-                    </Text>
-                    <View style={[styles.barTrack, { height: BAR_HEIGHT }]}>
-                      <View
-                        style={[
-                          styles.bar,
-                          {
-                            height: Math.max(ghost, 8),
-                            backgroundColor: theme.colors.surfaceVariant,
-                          },
-                        ]}
-                      />
-                      {fill > 0 && (
-                        <View
-                          style={[
-                            styles.bar,
-                            styles.barFill,
-                            { height: Math.max(fill, 8), backgroundColor: theme.colors.primary },
-                          ]}
-                        />
-                      )}
-                    </View>
-                    <Text
-                      variant="labelMedium"
-                      style={[
-                        { color: isToday ? theme.colors.primary : theme.colors.onSurfaceVariant },
-                        isToday && styles.bold,
-                      ]}
-                    >
-                      {shortWeekday(row.date)}
-                    </Text>
-                  </View>
-                );
-              })}
             </View>
           </View>
 
           <View style={styles.section}>
-            <Text variant="titleLarge" style={styles.bold}>
-              Por tipo de tarea
-            </Text>
+            <SectionTitle
+              title="Tareas por día"
+              subtitle="Completadas frente a las que tenían entrega"
+            />
+            <View
+              style={[styles.card, styles.chartCard, { backgroundColor: theme.colors.surface }]}
+            >
+              <View style={styles.bars}>
+                {data.week.days.map((row) => {
+                  const isToday = row.date === data.day;
+                  const ghost = (Math.max(row.due, row.completed) / barMax) * BAR_HEIGHT;
+                  const fill = (row.completed / barMax) * BAR_HEIGHT;
+                  return (
+                    <View
+                      key={row.date}
+                      style={styles.barColumn}
+                      accessible
+                      accessibilityLabel={`${shortWeekday(row.date)}: ${row.completed} completadas de ${row.due} con plazo`}
+                    >
+                      <Text variant="labelLarge" style={styles.bold}>
+                        {row.completed}
+                      </Text>
+                      <View style={[styles.barTrack, { height: BAR_HEIGHT }]}>
+                        <View
+                          style={[
+                            styles.bar,
+                            {
+                              height: Math.max(ghost, 8),
+                              backgroundColor: theme.colors.surfaceVariant,
+                            },
+                          ]}
+                        />
+                        {fill > 0 && (
+                          <View
+                            style={[
+                              styles.bar,
+                              styles.barFill,
+                              { height: Math.max(fill, 8), backgroundColor: theme.colors.primary },
+                            ]}
+                          />
+                        )}
+                      </View>
+                      <Text
+                        variant="labelMedium"
+                        style={[
+                          { color: isToday ? theme.colors.primary : theme.colors.onSurfaceVariant },
+                          isToday && styles.bold,
+                        ]}
+                      >
+                        {shortWeekday(row.date)}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <SectionTitle title="Por tipo de tarea" />
             <View style={styles.categories}>
               {data.categories.map((row) => {
                 const info = categoryInfo[row.category];
@@ -193,8 +191,31 @@ export function ProgressScreen() {
         </>
       )}
       {/* Tiempo estudiado frente al estimado; se registra desde cada tarea. */}
-      <TimeStatisticsPanel />
+      <View style={styles.section}>
+        <SectionTitle
+          title="Tiempo de estudio"
+          subtitle="Lo que estimaste frente a lo que estudiaste"
+        />
+        <TimeStatisticsPanel />
+      </View>
     </ScreenLayout>
+  );
+}
+
+/** Título de sección fuera de la tarjeta, igual en toda la pantalla. */
+function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {
+  const theme = useTheme();
+  return (
+    <View>
+      <Text variant="titleLarge" style={styles.bold}>
+        {title}
+      </Text>
+      {subtitle && (
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+          {subtitle}
+        </Text>
+      )}
+    </View>
   );
 }
 

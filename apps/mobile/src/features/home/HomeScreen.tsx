@@ -115,7 +115,10 @@ export function HomeScreen() {
       )}
       <OfflineBanner />
 
-      <StreakCard />
+      <View style={styles.section}>
+        <SectionHeading title="Tu racha" />
+        <StreakCard />
+      </View>
 
       <View style={styles.section}>
         <SectionHeading
@@ -307,27 +310,29 @@ export function HomeScreen() {
   );
 }
 
-function SectionHeading({ title, onMore }: { title: string; onMore: () => void }) {
+function SectionHeading({ title, onMore }: { title: string; onMore?: () => void }) {
   const theme = useTheme();
   return (
     <View style={styles.sectionHeading}>
       <Text variant="titleLarge" style={styles.sectionTitle}>
         {title}
       </Text>
-      <TouchableRipple
-        borderless
-        onPress={onMore}
-        accessibilityRole="button"
-        accessibilityLabel={`Ver todas: ${title}`}
-        style={styles.more}
-      >
-        <View style={styles.moreContent}>
-          <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
-            Ver todas
-          </Text>
-          <Icon source="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
-        </View>
-      </TouchableRipple>
+      {onMore && (
+        <TouchableRipple
+          borderless
+          onPress={onMore}
+          accessibilityRole="button"
+          accessibilityLabel={`Ver todas: ${title}`}
+          style={styles.more}
+        >
+          <View style={styles.moreContent}>
+            <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+              Ver todas
+            </Text>
+            <Icon source="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
+          </View>
+        </TouchableRipple>
+      )}
     </View>
   );
 }
