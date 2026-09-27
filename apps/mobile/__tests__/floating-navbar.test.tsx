@@ -12,6 +12,10 @@ jest.mock("@react-native-vector-icons/material-design-icons", () => ({
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => ({ reset: mockReset, navigate: mockNavigate }),
 }));
+// La barra es una sola, fuera de las pantallas: cambia de pestaña con la referencia global.
+jest.mock("@/navigation/navigation-ref", () => ({
+  navigationRef: { reset: (...args: unknown[]) => mockReset(...args) },
+}));
 
 describe("FloatingNavBar", () => {
   beforeEach(() => {

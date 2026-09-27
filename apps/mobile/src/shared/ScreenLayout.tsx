@@ -5,7 +5,7 @@ import { useTheme } from "react-native-paper";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { layout } from "@/core/theme/layout";
 import { CreateFab, type FabOptions } from "@/navigation/CreateMenu";
-import { FloatingNavBar, type MainTab } from "@/navigation/FloatingNavBar";
+import type { MainTab } from "@/navigation/FloatingNavBar";
 import { type HeaderAction, type HeaderInfo, ScreenHeader } from "./ScreenHeader";
 
 type SheetHeader = {
@@ -122,7 +122,6 @@ export function ScreenLayout({
         {children}
       </ScrollView>
       {footer}
-      {tab && <FloatingNavBar active={tab} />}
       {fab && <CreateFab {...(fab === true ? {} : fab)} hidden={fabHidden} />}
     </SafeAreaView>
   );

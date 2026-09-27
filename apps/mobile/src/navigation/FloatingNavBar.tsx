@@ -1,12 +1,10 @@
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import { Icon, Surface, Text, TouchableRipple, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { layout } from "@/core/theme/layout";
 import { CreateMenu, FAB_SIZE, SpinningPlus } from "./CreateMenu";
-import type { RootStackParamList } from "./types";
+import { navigationRef } from "./navigation-ref";
 
 export type MainTab = "Home" | "Agenda" | "Progress" | "Profile";
 
@@ -28,7 +26,6 @@ const tabs: { route: MainTab; label: string; icon: string }[] = [
 const BAR_TOP_PADDING = 10;
 
 export function FloatingNavBar({ active }: { active: MainTab }) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [createOpen, setCreateOpen] = useState(false);
@@ -45,7 +42,8 @@ export function FloatingNavBar({ active }: { active: MainTab }) {
           if (!selected) {
             const order = tabs.map((item) => item.route);
             const direction = order.indexOf(tab.route) > order.indexOf(active) ? "right" : "left";
-            navigation.reset({
+            // La barra vive fuera de las pantallas: navega con la referencia global.
+            navigationRef.reset({
               index: tab.route === "Home" ? 0 : 1,
               routes:
                 tab.route === "Home"
@@ -127,9 +125,10 @@ export function FloatingNavBar({ active }: { active: MainTab }) {
  * corto (se encoge un poco y rebota a su tamaño).
  */
 function TabIcon({ icon, color, selected }: { icon: string; color: string; selected: boolean }) {
-  const scale = useRef(new Animated.Value(selected ? 0.75 : 1)).current;
+  const scale = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (!selected) return;
+    scale.setValue(0.75);
     Animated.spring(scale, {
       toValue: 1,
       friction: 3,

@@ -47,6 +47,7 @@ import { ProgressScreen } from "@/features/progress/ProgressScreen";
 import { ReportFormScreen } from "@/features/reports/ReportFormScreen";
 import { ReportsScreen } from "@/features/reports/ReportsScreen";
 import { StreakCelebration } from "@/features/streak/StreakCelebration";
+import { FloatingNavBar, type MainTab } from "@/navigation/FloatingNavBar";
 import { flushPendingNavigation, navigationRef } from "@/navigation/navigation-ref";
 import type { RootStackParamList, TabParams } from "@/navigation/types";
 import { userMessage } from "@/shared/errors";
@@ -143,7 +144,11 @@ function TimeZoneSync() {
   return null;
 }
 
+/** Pantallas con la barra inferior fija. */
+const tabRoutes: MainTab[] = ["Home", "Progress", "Profile"];
+
 function Main() {
+  const [route, setRoute] = useState<string | undefined>();
   const currentQueryClient = useQueryClient();
   const session = useQuery({
     queryKey: ["session"],
@@ -182,8 +187,11 @@ function Main() {
       <OnboardingGate>
         <PushRegistrationProvider>
           <NavigationContainer
+            // La barra inferior es una sola, fija: solo cambia la pestaña activa.
+            onStateChange={() => setRoute(navigationRef.getCurrentRoute()?.name)}
             ref={navigationRef}
             onReady={() => {
+              setRoute(navigationRef.getCurrentRoute()?.name);
               hideSplash();
               flushPendingNavigation();
             }}
@@ -217,6 +225,9 @@ function Main() {
               <Stack.Screen name="Reports" component={ReportsScreen} />
               <Stack.Screen name="ReportForm" component={ReportFormScreen} />
             </Stack.Navigator>
+            {route && tabRoutes.includes(route as MainTab) && (
+              <FloatingNavBar active={route as MainTab} />
+            )}
           </NavigationContainer>
         </PushRegistrationProvider>
       </OnboardingGate>
