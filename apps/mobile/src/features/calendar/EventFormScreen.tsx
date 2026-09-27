@@ -20,6 +20,7 @@ import {
 import { getProfile } from "@/core/api/profile";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
+import { commitmentInfo } from "@/shared/concepts";
 import { userMessage } from "@/shared/errors";
 import { DateField, DateTimeField, FormSection, SelectField } from "@/shared/fields";
 import { Button, TextInput } from "@/shared/paper";
@@ -73,7 +74,7 @@ export function EventFormScreen({ id, date }: { id?: string; date?: string }) {
   return (
     <ScreenLayout
       keyboardShouldPersistTaps="handled"
-      header={{ title: id ? "Compromiso" : "Nuevo compromiso" }}
+      header={{ title: id ? "Compromiso" : "Nuevo compromiso", info: commitmentInfo }}
     >
       {(profile.isPending || (id && event.isPending)) && (
         <ActivityIndicator accessibilityLabel="Cargando compromiso" />

@@ -11,6 +11,7 @@ import { getProfile } from "@/core/api/profile";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { kindLabel } from "@/shared/activity-kinds";
+import { taskInfo } from "@/shared/concepts";
 import { EmptyState } from "@/shared/EmptyState";
 import { userMessage } from "@/shared/errors";
 import { FadeUp } from "@/shared/motion";
@@ -52,7 +53,7 @@ export function ActivityListScreen() {
 
   return (
     <ScreenLayout
-      header={{ title: "Tareas" }}
+      header={{ title: "Tareas", info: taskInfo }}
       fab={{ label: "Nueva tarea", onPress: () => navigation.navigate("ActivityForm", {}) }}
     >
       <Tabs

@@ -6,7 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { layout } from "@/core/theme/layout";
 import { CreateFab, type FabOptions } from "@/navigation/CreateMenu";
 import { FloatingNavBar, type MainTab } from "@/navigation/FloatingNavBar";
-import { type HeaderAction, ScreenHeader } from "./ScreenHeader";
+import { type HeaderAction, type HeaderInfo, ScreenHeader } from "./ScreenHeader";
 
 type SheetHeader = {
   title: string;
@@ -15,6 +15,8 @@ type SheetHeader = {
   right?: HeaderAction;
   /** Segunda acción a la derecha, junto a `right`. */
   rightExtra?: HeaderAction;
+  /** «i» junto al título con una explicación corta. */
+  info?: HeaderInfo;
   /** Contenido extra dentro del panel, bajo el título (por ejemplo, los días de la Agenda). */
   extra?: ReactNode;
 };
@@ -139,6 +141,7 @@ function SheetTitle({ header }: { header: SheetHeader }) {
       left={left}
       right={header.right}
       rightExtra={header.rightExtra}
+      info={header.info}
     />
   );
 }

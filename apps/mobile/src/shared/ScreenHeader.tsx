@@ -1,6 +1,10 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Icon, Text, TouchableRipple, useTheme } from "react-native-paper";
+import { Icon, Portal, Text, TouchableRipple, useTheme } from "react-native-paper";
+import { Button, Dialog } from "@/shared/paper";
+
+/** Explicación corta que se abre con la «i» junto al título. */
+export type HeaderInfo = { title: string; text: string };
 
 export type HeaderAction = { icon: string; label: string; onPress: () => void };
 
@@ -10,9 +14,11 @@ export function ScreenHeader({
   left,
   right,
   rightExtra,
+  info,
   children,
   compact,
 }: {
+  info?: HeaderInfo;
   title?: string;
   left?: HeaderAction;
   right?: HeaderAction;
@@ -30,19 +36,51 @@ export function ScreenHeader({
       {rightExtra && <View style={styles.slot} />}
       <View style={styles.middle}>
         {children ?? (
-          <Text
-            variant="titleLarge"
-            style={styles.title}
-            numberOfLines={1}
-            accessibilityRole="header"
-          >
-            {title}
-          </Text>
+          <View style={styles.titleRow}>
+            <Text
+              variant="titleLarge"
+              style={styles.title}
+              numberOfLines={1}
+              accessibilityRole="header"
+            >
+              {title}
+            </Text>
+            {info && <InfoButton info={info} />}
+          </View>
         )}
       </View>
       {rightExtra && <HeaderButton {...rightExtra} />}
       {right ? <HeaderButton {...right} /> : <View style={styles.slot} />}
     </View>
+  );
+}
+
+function InfoButton({ info }: { info: HeaderInfo }) {
+  const theme = useTheme();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <TouchableRipple
+        borderless
+        onPress={() => setOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel={info.title}
+        style={styles.info}
+      >
+        <Icon source="information-outline" size={20} color={theme.colors.onSurfaceVariant} />
+      </TouchableRipple>
+      <Portal>
+        <Dialog visible={open} onDismiss={() => setOpen(false)}>
+          <Dialog.Title>{info.title}</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">{info.text}</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setOpen(false)}>Entendido</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+    </>
   );
 }
 
@@ -72,5 +110,7 @@ const styles = StyleSheet.create({
   },
   compact: { marginTop: -16, marginBottom: -12 },
   middle: { flex: 1, alignItems: "center" },
-  title: { fontWeight: "700" },
+  title: { fontWeight: "700", flexShrink: 1 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 4, maxWidth: "100%" },
+  info: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
 });

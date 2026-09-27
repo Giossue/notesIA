@@ -19,6 +19,7 @@ import { createSubtask } from "@/core/api/subtasks";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
 import { kindChoices } from "@/shared/activity-kinds";
+import { taskInfo } from "@/shared/concepts";
 import { userMessage } from "@/shared/errors";
 import {
   DateField,
@@ -109,6 +110,7 @@ export function ActivityFormScreen({
       keyboardShouldPersistTaps="handled"
       header={{
         title: !id ? "Nueva tarea" : editing ? "Editar tarea" : "Tarea",
+        info: taskInfo,
         ...(editing
           ? { left: { icon: "close", label: "Cancelar edición", onPress: () => setEditing(false) } }
           : {}),

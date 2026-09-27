@@ -8,6 +8,7 @@ import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 import { listCalendarEvents } from "@/core/api/calendar-events";
 import { layout, sharedStyles } from "@/core/theme/layout";
 import type { RootStackParamList } from "@/navigation/types";
+import { commitmentInfo } from "@/shared/concepts";
 import { EmptyState } from "@/shared/EmptyState";
 import { userMessage } from "@/shared/errors";
 import { Button, Card } from "@/shared/paper";
@@ -37,7 +38,7 @@ export function EventsScreen() {
 
   return (
     <ScreenLayout
-      header={{ title: "Mis compromisos" }}
+      header={{ title: "Mis compromisos", info: commitmentInfo }}
       fab={{ label: "Nuevo compromiso", onPress: () => navigation.navigate("EventForm", {}) }}
     >
       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
