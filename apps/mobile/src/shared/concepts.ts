@@ -23,5 +23,5 @@ export const streakInfo: HeaderInfo = {
 
 export const agendaInfo: HeaderInfo = {
   title: "¿Qué ves en la agenda?",
-  text: "Tu día a día en un solo lugar: tus compromisos (clases, trabajo, citas), las entregas de tus tareas y las sesiones de estudio que la app arma sola en tu horario libre. Elige un día arriba para verlo; con el botón del calendario ves todos tus compromisos.",
+  text: "Tu día a día en un solo lugar: tus compromisos (clases, trabajo, citas), las entregas de tus tareas y las sesiones de estudio que la app arma sola en tu horario libre. Elige un día arriba para verlo o toca el mes y año para saltar a otra fecha; con el botón del calendario ves todos tus compromisos.",
 };

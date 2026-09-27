@@ -11,7 +11,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, Text, TouchableRipple, useTheme } from "react-native-paper";
+import { ActivityIndicator, Icon, Text, TouchableRipple, useTheme } from "react-native-paper";
 import Svg, { Circle } from "react-native-svg";
 import { listActivities } from "@/core/api/activities";
 import { listCalendarEvents } from "@/core/api/calendar-events";
@@ -29,6 +29,7 @@ import { Button } from "@/shared/paper";
 import { HeaderButton } from "@/shared/ScreenHeader";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { type AgendaEntry, DayAgendaList } from "./DayAgendaList";
+import { MonthYearPicker, monthNames } from "./MonthYearPicker";
 
 const eventKinds: Record<
   CalendarEvent["kind"],
@@ -41,21 +42,6 @@ const eventKinds: Record<
   unavailable: { label: "No disponible", color: "gray", icon: "cancel" },
   other: { label: "Otro", color: "gray", icon: "dots-horizontal" },
 };
-
-const monthNames = [
-  "Enero",
-  "Febrero",
-  "Marzo",
-  "Abril",
-  "Mayo",
-  "Junio",
-  "Julio",
-  "Agosto",
-  "Septiembre",
-  "Octubre",
-  "Noviembre",
-  "Diciembre",
-];
 
 type TimelineItem = {
   key: string;
@@ -75,8 +61,8 @@ export function AgendaScreen() {
   const theme = useTheme();
   const categories = categoryColors[theme.dark ? "dark" : "light"];
   const offline = useNetInfo().isConnected === false;
-  const [weekOffset, setWeekOffset] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   // Reloj para la línea de la hora actual; se actualiza cada minuto.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -85,17 +71,12 @@ export function AgendaScreen() {
   }, []);
   const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
   const timeZone = profile.data?.timeZone;
-  const today = timeZone ? todayInTimeZone(new Date().toISOString(), timeZone) : null;
-  const week = today ? calendarRangeForDate(today, "week", weekOffset) : null;
+  const today = timeZone ? todayInTimeZone(now.toISOString(), timeZone) : null;
+  const selectedDay = selected ?? today;
+  const week = selectedDay ? calendarRangeForDate(selectedDay, "week") : null;
   const weekDays = week
     ? Array.from({ length: 7 }, (_, index) => shiftLocalDate(week.from, index))
     : [];
-  const selectedDay =
-    selected && weekDays.includes(selected)
-      ? selected
-      : today && weekDays.includes(today)
-        ? today
-        : (weekDays[0] ?? null);
 
   const deadlines = useInfiniteQuery({
     queryKey: ["agenda", "week", week?.from, week?.through],
@@ -175,6 +156,15 @@ export function AgendaScreen() {
   const monthLabel = selectedDay
     ? `${monthNames[Number(selectedDay.slice(5, 7)) - 1]} ${selectedDay.slice(0, 4)}`
     : "";
+  const selectMonth = (year: number, month: number) => {
+    const first = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-01`;
+    const lastDay = Number(
+      shiftLocalDate(calendarRangeForDate(first, "month").through, -1).slice(8),
+    );
+    const day = Math.min(Number(selectedDay?.slice(8) ?? 1), lastDay);
+    setSelected(`${first.slice(0, 8)}${String(day).padStart(2, "0")}`);
+    setPickerOpen(false);
+  };
 
   // Minutos locales desde la medianoche del día elegido (lo que pasa a otro día se recorta).
   const minuteOf = (instant: string) => {
@@ -206,26 +196,26 @@ export function AgendaScreen() {
         <HeaderButton
           icon="chevron-left"
           label="Semana anterior"
-          onPress={() => setWeekOffset((value) => value - 1)}
+          onPress={() => setSelected(shiftLocalDate(selectedDay ?? week.from, -7))}
         />
         <TouchableRipple
           borderless
-          onPress={() => {
-            setWeekOffset(0);
-            setSelected(null);
-          }}
+          onPress={() => setPickerOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel="Volver a hoy"
+          accessibilityLabel={`Elegir mes y año, actual ${monthLabel}`}
           style={styles.monthButton}
         >
-          <Text variant="titleMedium" style={styles.bold}>
-            {monthLabel}
-          </Text>
+          <View style={styles.monthButtonContent}>
+            <Text variant="titleMedium" style={styles.bold} numberOfLines={1}>
+              {monthLabel}
+            </Text>
+            <Icon source="menu-down" size={20} color={theme.colors.onSurfaceVariant} />
+          </View>
         </TouchableRipple>
         <HeaderButton
           icon="chevron-right"
           label="Semana siguiente"
-          onPress={() => setWeekOffset((value) => value + 1)}
+          onPress={() => setSelected(shiftLocalDate(selectedDay ?? week.from, 7))}
         />
       </View>
       <View style={styles.strip}>
@@ -280,6 +270,17 @@ export function AgendaScreen() {
           );
         })}
       </View>
+      {selectedDay !== today && (
+        <Button
+          mode="text"
+          icon="calendar"
+          onPress={() => setSelected(null)}
+          contentStyle={styles.todayButtonContent}
+          style={styles.todayButton}
+        >
+          Volver a hoy
+        </Button>
+      )}
     </View>
   ) : null;
 
@@ -342,6 +343,14 @@ export function AgendaScreen() {
           )}
         </View>
       )}
+      {pickerOpen && selectedDay && (
+        <MonthYearPicker
+          year={Number(selectedDay.slice(0, 4))}
+          month={Number(selectedDay.slice(5, 7))}
+          onSelect={selectMonth}
+          onDismiss={() => setPickerOpen(false)}
+        />
+      )}
     </ScreenLayout>
   );
 }
@@ -362,7 +371,20 @@ const styles = StyleSheet.create({
   weekBlock: { gap: 12 },
   // Flechas junto al mes, lejos de las acciones del encabezado.
   weekHeader: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 },
-  monthButton: { borderRadius: layout.smallRadius, paddingHorizontal: 12, paddingVertical: 6 },
+  monthButton: {
+    flex: 1,
+    minHeight: layout.minTouch,
+    borderRadius: layout.smallRadius,
+    justifyContent: "center",
+  },
+  monthButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  todayButton: { alignSelf: "flex-end" },
+  todayButtonContent: { minHeight: layout.minTouch },
   strip: { flexDirection: "row", gap: 6 },
   day: { flex: 1, borderRadius: 26 },
   dayContent: { alignItems: "center", paddingVertical: 8, gap: 1 },
