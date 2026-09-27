@@ -13,6 +13,7 @@ import type { RootStackParamList } from "@/navigation/types";
 import { kindLabel } from "@/shared/activity-kinds";
 import { EmptyState } from "@/shared/EmptyState";
 import { userMessage } from "@/shared/errors";
+import { FadeUp } from "@/shared/motion";
 import { Button, Card } from "@/shared/paper";
 import { ScreenLayout } from "@/shared/ScreenLayout";
 import { Tabs } from "@/shared/Tabs";
@@ -90,26 +91,27 @@ export function ActivityListScreen() {
           }
         />
       )}
-      {items.map((item) => (
-        <Card
-          key={item.id}
-          mode="contained"
-          onPress={() => navigation.navigate("ActivityForm", { id: item.id })}
-          accessibilityLabel={`Abrir tarea ${item.title}`}
-        >
-          <Card.Content style={sharedStyles.listItem}>
-            <Text variant="titleMedium">{item.title}</Text>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              {statusLabels[item.status]} · {kindLabel(item.kind)}
-            </Text>
-            {item.deadlineAt && profile.data && (
-              <Text variant="bodySmall">
-                Fecha límite:{" "}
-                {utcToLocalDateTime(item.deadlineAt, profile.data.timeZone).replace("T", " ")}
+      {items.map((item, index) => (
+        <FadeUp key={item.id} index={Math.min(index, 8)}>
+          <Card
+            mode="contained"
+            onPress={() => navigation.navigate("ActivityForm", { id: item.id })}
+            accessibilityLabel={`Abrir tarea ${item.title}`}
+          >
+            <Card.Content style={sharedStyles.listItem}>
+              <Text variant="titleMedium">{item.title}</Text>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                {statusLabels[item.status]} · {kindLabel(item.kind)}
               </Text>
-            )}
-          </Card.Content>
-        </Card>
+              {item.deadlineAt && profile.data && (
+                <Text variant="bodySmall">
+                  Fecha límite:{" "}
+                  {utcToLocalDateTime(item.deadlineAt, profile.data.timeZone).replace("T", " ")}
+                </Text>
+              )}
+            </Card.Content>
+          </Card>
+        </FadeUp>
       ))}
       {activities.hasNextPage && (
         <Button

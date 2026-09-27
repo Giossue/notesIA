@@ -1,11 +1,12 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
-import { StyleSheet, View } from "react-native";
+import { Animated, StyleSheet, View } from "react-native";
 import { Icon, Text, TouchableRipple, useTheme } from "react-native-paper";
 import { listNotifications } from "@/core/api/notifications";
 import { getProfile } from "@/core/api/profile";
 import type { RootStackParamList } from "@/navigation/types";
+import { usePulse } from "@/shared/motion";
 import { UserAvatar } from "@/shared/UserAvatar";
 
 export function HomeHeader({ name, dateLabel }: { name: string; dateLabel: string }) {
@@ -18,6 +19,8 @@ export function HomeHeader({ name, dateLabel }: { name: string; dateLabel: strin
     retry: false,
   });
   const unread = recent.data?.items.some((item) => !item.readAt) ?? false;
+  // El punto de avisos sin leer late suave para llamar la atención.
+  const pulse = usePulse(unread, 1.35, 700);
   const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile, retry: false });
 
   return (
@@ -50,7 +53,14 @@ export function HomeHeader({ name, dateLabel }: { name: string; dateLabel: strin
       >
         <View>
           <Icon source="bell-outline" size={24} color={theme.colors.onSurface} />
-          {unread && <View style={[styles.dot, { backgroundColor: theme.colors.error }]} />}
+          {unread && (
+            <Animated.View
+              style={[
+                styles.dot,
+                { backgroundColor: theme.colors.error, transform: [{ scale: pulse }] },
+              ]}
+            />
+          )}
         </View>
       </TouchableRipple>
     </View>

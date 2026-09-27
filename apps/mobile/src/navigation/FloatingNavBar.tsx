@@ -1,7 +1,7 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, StyleSheet, View } from "react-native";
 import { Icon, Surface, Text, TouchableRipple, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { layout } from "@/core/theme/layout";
@@ -62,7 +62,7 @@ export function FloatingNavBar({ active }: { active: MainTab }) {
         accessibilityLabel={`Ir a ${tab.label}`}
       >
         <View style={styles.tabContent}>
-          <Icon source={tab.icon} color={color} size={26} />
+          <TabIcon icon={tab.icon} color={color} selected={selected} />
           <Text
             variant="labelMedium"
             numberOfLines={1}
@@ -119,6 +119,28 @@ export function FloatingNavBar({ active }: { active: MainTab }) {
         bottom={bottomInset + BAR_TOP_PADDING + layout.navTabHeight + FAB_SIZE / 2 + 16}
       />
     </>
+  );
+}
+
+/**
+ * Cada pantalla trae su barra: al llegar a una pestaña, su ícono da un salto
+ * corto (se encoge un poco y rebota a su tamaño).
+ */
+function TabIcon({ icon, color, selected }: { icon: string; color: string; selected: boolean }) {
+  const scale = useRef(new Animated.Value(selected ? 0.75 : 1)).current;
+  useEffect(() => {
+    if (!selected) return;
+    Animated.spring(scale, {
+      toValue: 1,
+      friction: 3,
+      tension: 140,
+      useNativeDriver: true,
+    }).start();
+  }, [selected, scale]);
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Icon source={icon} color={color} size={26} />
+    </Animated.View>
   );
 }
 

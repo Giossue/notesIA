@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { StyleSheet, View } from "react-native";
+import { Animated, StyleSheet, View } from "react-native";
 import { Icon, Text, useTheme } from "react-native-paper";
 import { getStreak } from "@/core/api/streak";
 import { layout } from "@/core/theme/layout";
+import { usePulse } from "@/shared/motion";
 import { StreakWeek } from "./StreakWeek";
 import { daysLabel, flame } from "./streak-colors";
 
@@ -11,12 +12,16 @@ export function StreakCard() {
   const theme = useTheme();
   const streak = useQuery({ queryKey: ["streak"], queryFn: getStreak, retry: false });
   const data = streak.data;
+  // Con el día ganado, la llama "respira".
+  const breathe = usePulse(!!data?.todayDone, 1.08, 1100);
   if (!data) return null;
   const lit = data.todayDone;
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
       <View style={styles.head}>
-        <Icon source="fire" size={52} color={lit ? flame.orange : flame.off} />
+        <Animated.View style={{ transform: [{ scale: breathe }] }}>
+          <Icon source="fire" size={52} color={lit ? flame.orange : flame.off} />
+        </Animated.View>
         <View style={styles.flex}>
           <Text
             variant="headlineMedium"

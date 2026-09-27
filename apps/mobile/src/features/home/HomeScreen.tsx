@@ -4,7 +4,7 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Animated, LayoutAnimation, ScrollView, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Icon, Text, TouchableRipple, useTheme } from "react-native-paper";
 import { v4 as uuidv4 } from "uuid";
 import { getActivitySummary, listActivities, transitionActivity } from "@/core/api/activities";
@@ -19,6 +19,7 @@ import { categoryInfo, kindColor, kindLabel } from "@/shared/activity-kinds";
 import { EmptyState } from "@/shared/EmptyState";
 import { userMessage } from "@/shared/errors";
 import { clockTime, longDate, percent, shortWeekday } from "@/shared/format";
+import { useBounce } from "@/shared/motion";
 import { PieIcon } from "@/shared/PieIcon";
 import { ProgressRings } from "@/shared/ProgressRings";
 import { Button } from "@/shared/paper";
@@ -67,6 +68,8 @@ export function HomeScreen() {
           queryClient.invalidateQueries({ queryKey: [key] }),
         ),
       );
+      // Lo que cambia de lugar o sale de las listas se acomoda con una transición suave.
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     },
   });
 
@@ -266,16 +269,7 @@ export function HomeScreen() {
                 accessibilityLabel={done ? `Reabrir ${item.title}` : `Completar ${item.title}`}
                 style={styles.check}
               >
-                <View
-                  style={[
-                    styles.checkCircle,
-                    done
-                      ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
-                      : { borderColor: theme.colors.outline },
-                  ]}
-                >
-                  {done && <Icon source="check" size={16} color={theme.colors.onPrimary} />}
-                </View>
+                <CheckCircle done={done} />
               </TouchableRipple>
               <TouchableRipple
                 onPress={() => navigation.navigate("ActivityForm", { id: item.id })}
@@ -307,6 +301,25 @@ export function HomeScreen() {
         })}
       </View>
     </ScreenLayout>
+  );
+}
+
+/** Círculo de completar: al marcarse, el check aparece con un «pop». */
+function CheckCircle({ done }: { done: boolean }) {
+  const theme = useTheme();
+  const pop = useBounce(done);
+  return (
+    <Animated.View
+      style={[
+        styles.checkCircle,
+        { transform: [{ scale: pop }] },
+        done
+          ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
+          : { borderColor: theme.colors.outline },
+      ]}
+    >
+      {done && <Icon source="check" size={16} color={theme.colors.onPrimary} />}
+    </Animated.View>
   );
 }
 

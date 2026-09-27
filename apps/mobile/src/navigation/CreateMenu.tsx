@@ -6,6 +6,7 @@ import { Icon, Portal, Surface, Text, TouchableRipple, useTheme } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { layout } from "@/core/theme/layout";
 import { categoryColors } from "@/core/theme/theme";
+import { FadeUp } from "@/shared/motion";
 import type { RootStackParamList } from "./types";
 
 export const FAB_SIZE = 64;
@@ -70,27 +71,28 @@ export function CreateMenu({
           { backgroundColor: theme.colors.surface, bottom },
         ]}
       >
-        {actions.map((action) => (
-          <TouchableRipple
-            key={action.route}
-            accessibilityRole="button"
-            accessibilityLabel={action.label}
-            rippleColor={theme.colors.surfaceVariant}
-            style={styles.action}
-            onPress={() => {
-              onClose();
-              action.open();
-            }}
-          >
-            <View style={styles.actionContent}>
-              <View style={[styles.actionIcon, { backgroundColor: action.color }]}>
-                <Icon source={action.icon} size={20} color="#FFFFFF" />
+        {actions.map((action, index) => (
+          <FadeUp key={action.route} index={index}>
+            <TouchableRipple
+              accessibilityRole="button"
+              accessibilityLabel={action.label}
+              rippleColor={theme.colors.surfaceVariant}
+              style={styles.action}
+              onPress={() => {
+                onClose();
+                action.open();
+              }}
+            >
+              <View style={styles.actionContent}>
+                <View style={[styles.actionIcon, { backgroundColor: action.color }]}>
+                  <Icon source={action.icon} size={20} color="#FFFFFF" />
+                </View>
+                <Text variant="bodyLarge" style={styles.actionLabel}>
+                  {action.label}
+                </Text>
               </View>
-              <Text variant="bodyLarge" style={styles.actionLabel}>
-                {action.label}
-              </Text>
-            </View>
-          </TouchableRipple>
+            </TouchableRipple>
+          </FadeUp>
         ))}
       </Surface>
     </Portal>
