@@ -183,6 +183,38 @@ Para comprobar los requisitos sin abrir ninguna ventana:
 Cerrar la ventana **NotesIA local** detiene sus procesos. PostgreSQL sigue siendo
 el servicio local compartido del sistema.
 
+### Inicio rápido en Windows
+
+`iniciar-notesia-local.sh` no se ejecuta en Windows: depende de bash, Kitty,
+`systemctl`, `ss`, `pgrep` y `pg_isready`. La variante
+`iniciar-notesia-local.ps1` reproduce sus comprobaciones con PowerShell y abre
+API, worker, admin, Metro y Android en pestañas de Windows Terminal. Si Windows
+Terminal no está instalado, abre cinco ventanas de PowerShell.
+
+```powershell
+.\iniciar-notesia-local.ps1
+.\iniciar-notesia-local.ps1 -Check
+.\iniciar-notesia-local.ps1 -Help
+```
+
+Si la política de ejecución bloquea el archivo, usar
+`powershell -ExecutionPolicy Bypass -File .\iniciar-notesia-local.ps1` o
+`bun run dev:windows`.
+
+El script requiere Bun, Node.js 20.12 o superior (recomendado 22 LTS),
+PostgreSQL, JDK 17 y Android platform-tools en el `PATH`. Node es necesario
+porque Metro y Vite se ejecutan con Node; con versiones anteriores falla
+`util.styleText`. Detecta la raíz del SDK en `ANDROID_HOME`, `ANDROID_SDK_ROOT` o
+`%LOCALAPPDATA%\Android\Sdk` (debe contener la carpeta `platform-tools`), y
+busca JDK 17 en `JAVA_HOME`,
+`NOTESIA_JAVA_HOME` o las rutas habituales de Temurin, Microsoft y Corretto.
+Como las migraciones se conectan como `postgres` por TCP, si la autenticación
+falla el script pide la contraseña y la usa mediante `PGPASSWORD` solo durante
+la migración; después la elimina del entorno para que las pestañas hijas no la
+hereden. Si falta `apps/mobile/android/app/debug.keystore` (está fuera de Git),
+el script lo genera con `keytool` del JDK 17. Los secretos de `.env` no se
+generan automáticamente.
+
 ### Inicio manual
 
 Desde la raíz del proyecto:

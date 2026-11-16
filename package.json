@@ -11,6 +11,7 @@
   },
   "scripts": {
     "dev:kitty": "./iniciar-notesia-local.sh",
+    "dev:windows": "powershell -ExecutionPolicy Bypass -File ./iniciar-notesia-local.ps1",
     "dev:api": "bun --watch apps/api/src/index.ts",
     "dev:admin": "cd apps/admin && bun run dev",
     "dev:worker": "bun --watch apps/worker/src/index.ts",

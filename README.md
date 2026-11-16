@@ -99,6 +99,10 @@ una pestaña por proceso:
 ./iniciar-notesia-local.sh
 ```
 
+En Windows, usar la variante `.\iniciar-notesia-local.ps1` o
+`bun run dev:windows`; requiere Windows Terminal para agrupar los procesos en
+pestañas.
+
 El lanzador prepara la base, inicia API, worker, admin y Metro, y espera el
 dispositivo Android para instalar y abrir la app. La ejecución manual sigue
 disponible desde la raíz, usando una terminal distinta para cada proceso:
