@@ -198,21 +198,22 @@ const assistantModels: Record<
 > = {
   anthropic: [
     {
-      id: "claude-haiku-4-5",
-      name: "Claude Haiku 4.5",
+      id: "claude-haiku-5-5",
+      name: "Claude Haiku 5.5",
       hint: "Rápido y económico · recomendado",
-      input: "1",
-      output: "5",
-    },
-    {
-      id: "claude-sonnet-5",
-      name: "Claude Sonnet 5",
-      hint: "Más preciso, algo más lento",
-      input: "2",
-      output: "10",
+      input: "0.10",
+      output: "0.50",
     },
   ],
-  openai: [],
+  openai: [
+    {
+      id: "gpt-6-luna",
+      name: "GPT-6 Luna",
+      hint: "Económico · recomendado",
+      input: "0.10",
+      output: "0.50",
+    },
+  ],
   // Precio de horario pico (el valle cuesta la mitad): el tope diario queda del lado seguro.
   deepseek: [
     {
@@ -221,13 +222,6 @@ const assistantModels: Record<
       hint: "Muy económico · recomendado para la configuración inicial",
       input: "0.30",
       output: "1.20",
-    },
-    {
-      id: "deepseek-v4-pro",
-      name: "DeepSeek V4 Pro",
-      hint: "Más preciso, más caro",
-      input: "1.32",
-      output: "3.96",
     },
   ],
 };

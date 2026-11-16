@@ -152,3 +152,29 @@ test("provider keys are authenticated ciphertext and bound to the provider", () 
   expect(cipher.decrypt("openai", encrypted)).toBe("test-secret");
   expect(() => cipher.decrypt("deepseek", encrypted)).toThrow();
 });
+
+// Cada generación de Claude rechaza (400) una forma distinta de apagar el razonamiento.
+const anthropicThinking: Array<[string, unknown]> = [
+  ["claude-haiku-5-5", { type: "disabled" }],
+  ["claude-sonnet-5-5", { type: "between_tools" }],
+  ["claude-sonnet-5", { type: "disabled" }],
+  ["claude-haiku-4-5", undefined],
+];
+for (const [modelId, expected] of anthropicThinking) {
+  test(`anthropic ${modelId} sends the thinking setting its generation accepts`, async () => {
+    let body: Record<string, unknown> = {};
+    const fetcher: AiFetch = async (_url, init) => {
+      body = JSON.parse(String(init.body));
+      return Response.json(fixtures.anthropic);
+    };
+    await generateWithProvider(
+      { provider: "anthropic", apiKey: "k", modelId, timeoutMs: 3000, maxOutputTokens: 256 },
+      "extract_activity",
+      aiCases.extract_activity.instruction,
+      aiCases.extract_activity.jsonSchema,
+      { text: "Preparar un resumen" },
+      fetcher,
+    );
+    expect(body.thinking).toEqual(expected);
+  });
+}

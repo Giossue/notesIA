@@ -64,6 +64,19 @@ function reportedTokens(input: unknown, output: unknown) {
   };
 }
 
+/**
+ * Sonnet 5.x y Haiku 5.5 razonan por defecto: gastarían el tope de tokens antes del JSON y
+ * tardarían más, y estas respuestas son cortas. Cada generación apaga el razonamiento a su
+ * manera: Sonnet 5.5 rechaza `disabled` (400) y exige `between_tools`. Haiku 4.5 no razona
+ * salvo que se le pida, así que no necesita nada.
+ */
+function anthropicThinking(modelId: string): { thinking?: { type: string } } {
+  if (modelId.startsWith("claude-sonnet-5-5")) return { thinking: { type: "between_tools" } };
+  if (modelId.startsWith("claude-sonnet-5") || modelId.startsWith("claude-haiku-5"))
+    return { thinking: { type: "disabled" } };
+  return {};
+}
+
 export async function generateWithProvider(
   route: AiRoute,
   useCase: AiUseCase,
@@ -100,9 +113,7 @@ export async function generateWithProvider(
       messages: [{ role: "user", content: message }],
       max_tokens: route.maxOutputTokens,
       output_config: { format: { type: "json_schema", schema: jsonSchema } },
-      // Sonnet 5 piensa por defecto: gastaría el tope de tokens antes del JSON y
-      // tardaría más. Estas respuestas son cortas y no lo necesitan.
-      ...(route.modelId.startsWith("claude-sonnet-5") ? { thinking: { type: "disabled" } } : {}),
+      ...anthropicThinking(route.modelId),
     };
   } else {
     url = "https://api.deepseek.com/chat/completions";
