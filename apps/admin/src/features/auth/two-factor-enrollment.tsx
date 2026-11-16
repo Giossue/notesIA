@@ -1,17 +1,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { KeyRound } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldContent,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -62,7 +60,6 @@ export function TwoFactorEnrollment() {
       await queryClient.invalidateQueries();
     },
   });
-  const secret = setup ? new URL(setup.totpURI).searchParams.get("secret") : null;
 
   if (!setup)
     return (
@@ -105,7 +102,7 @@ export function TwoFactorEnrollment() {
     <div className="mx-auto flex w-full flex-col justify-center space-y-8 py-6 sm:w-[350px]">
       <AuthHeading
         title="Completa el segundo factor"
-        description="Añade la cuenta en tu app de autenticación y guarda los códigos de respaldo"
+        description="Escanea el código QR con tu app de autenticación y guarda los códigos de respaldo"
       />
       <form
         noValidate
@@ -113,20 +110,15 @@ export function TwoFactorEnrollment() {
         className="flex flex-col gap-4"
       >
         <FieldGroup className="gap-4">
-          <Alert>
-            <KeyRound />
-            <AlertTitle>Clave manual</AlertTitle>
-            <AlertDescription>
-              <code className="break-all font-mono">{secret}</code>
-            </AlertDescription>
-          </Alert>
-          <Field className="gap-1.5">
-            <FieldLabel htmlFor="totp-uri">Enlace de configuración</FieldLabel>
-            <Input id="totp-uri" value={setup.totpURI} readOnly />
-            <FieldDescription>
-              Puedes abrir este enlace desde un dispositivo con una aplicación autenticadora
-            </FieldDescription>
-          </Field>
+          <div className="flex justify-center rounded-lg border bg-white p-3">
+            <QRCodeSVG
+              value={setup.totpURI}
+              size={192}
+              marginSize={2}
+              level="M"
+              title="Código QR para tu app de autenticación"
+            />
+          </div>
           <Field className="gap-1.5">
             <FieldLabel>Códigos de respaldo</FieldLabel>
             <ul

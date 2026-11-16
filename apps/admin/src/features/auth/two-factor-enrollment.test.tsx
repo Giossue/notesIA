@@ -34,7 +34,9 @@ test("enrolls TOTP only after showing backup codes and recording acknowledgement
   await user.type(screen.getByLabelText("Contraseña actual"), "ExamplePassword2026!");
   await user.click(screen.getByRole("button", { name: "Configurar autenticador" }));
 
-  expect(await screen.findByText("ABCDEFGHIJKLMNOP")).toBeInTheDocument();
+  expect(await screen.findByTitle("Código QR para tu app de autenticación")).toBeInTheDocument();
+  expect(screen.queryByText("ABCDEFGHIJKLMNOP")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Enlace de configuración")).not.toBeInTheDocument();
   expect(screen.getByText("backup-one")).toBeInTheDocument();
   await user.type(screen.getByLabelText("Primer código de la app"), "123456");
   await user.click(screen.getByRole("button", { name: "Activar segundo factor" }));
