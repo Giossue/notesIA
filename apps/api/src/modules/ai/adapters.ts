@@ -70,10 +70,17 @@ function reportedTokens(input: unknown, output: unknown) {
  * manera: Sonnet 5.5 rechaza `disabled` (400) y exige `between_tools`. Haiku 4.5 no razona
  * salvo que se le pida, así que no necesita nada.
  */
-function anthropicThinking(modelId: string): { thinking?: { type: string } } {
+function anthropicThinking(
+  modelId: string,
+  useCase: AiUseCase,
+): { thinking?: { type: string }; effort?: string } {
+  const current = modelId.startsWith("claude-sonnet-5") || modelId.startsWith("claude-haiku-5");
+  // El chat decide si consulta datos o responde y convierte horarios a fechas: sin razonar
+  // pedía esperar o armaba acciones inválidas. Razona poco (effort low) para no gastar el tope.
+  if (current && useCase === "assistant_chat")
+    return { thinking: { type: "adaptive" }, effort: "low" };
   if (modelId.startsWith("claude-sonnet-5-5")) return { thinking: { type: "between_tools" } };
-  if (modelId.startsWith("claude-sonnet-5") || modelId.startsWith("claude-haiku-5"))
-    return { thinking: { type: "disabled" } };
+  if (current) return { thinking: { type: "disabled" } };
   return {};
 }
 
@@ -107,13 +114,17 @@ export async function generateWithProvider(
       "anthropic-version": "2023-06-01",
       "Content-Type": "application/json",
     };
+    const { effort, ...thinking } = anthropicThinking(route.modelId, useCase);
     body = {
       model: route.modelId,
       system: instruction,
       messages: [{ role: "user", content: message }],
       max_tokens: route.maxOutputTokens,
-      output_config: { format: { type: "json_schema", schema: jsonSchema } },
-      ...anthropicThinking(route.modelId),
+      output_config: {
+        format: { type: "json_schema", schema: jsonSchema },
+        ...(effort ? { effort } : {}),
+      },
+      ...thinking,
     };
   } else {
     url = "https://api.deepseek.com/chat/completions";

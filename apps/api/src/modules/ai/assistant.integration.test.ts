@@ -177,7 +177,7 @@ test("the assistant looks up the student's data and only proposes changes", asyn
     kind: "reply",
     source: "ai",
     requiresConfirmation: true,
-    promptVersion: 9,
+    promptVersion: 10,
     reply: "Te propongo marcar tu deber de Cálculo como completado y crear el examen.",
     actions: [
       {
@@ -259,9 +259,9 @@ test("the assistant does not promise a confirmation card when no action survives
     const result = await runAssistantTurn(dependencies, userId, { message, history: [] }, now);
     expect(result).toMatchObject({
       kind: "reply",
-      promptVersion: 9,
+      promptVersion: 10,
       reply:
-        "No pude preparar una propuesta para confirmar. Intenta pedírmela de nuevo o haz el cambio desde Tareas u Horario.",
+        "No pude armar ese cambio con lo que me dijiste. Cuéntame el título y la fecha u hora exactas, o hazlo desde Tareas u Horario.",
       actions: [],
     });
   }
@@ -281,5 +281,112 @@ test("the assistant keeps advice that says propongo without a confirmation card"
     { message: "Tengo tres entregas el mismo día, ¿qué hago?", history: [] },
     now,
   );
-  expect(result).toMatchObject({ kind: "reply", promptVersion: 9, reply, actions: [] });
+  expect(result).toMatchObject({ kind: "reply", promptVersion: 10, reply, actions: [] });
+});
+
+/** Usuario nuevo con consentimiento: el límite de llamadas por minuto es por usuario. */
+async function freshStudent(withActivity = false) {
+  const id = crypto.randomUUID();
+  await seed.query(
+    `INSERT INTO autenticacion.usuarios (id, nombre, correo, correo_verificado)
+     VALUES ($1, 'Nuevo', $2, true)`,
+    [id, `${id}@example.test`],
+  );
+  await seed.query(
+    `INSERT INTO dominio.consentimientos (id, usuario_id, documento_id, decision)
+     SELECT $1, $2, id, 'accepted' FROM dominio.documentos_privacidad LIMIT 1`,
+    [crypto.randomUUID(), id],
+  );
+  if (withActivity)
+    await seed.query(
+      `INSERT INTO dominio.actividades (id, usuario_id, tipo, titulo, fecha_limite)
+       VALUES ($1, $2, 'academic_task', 'Deber de Cálculo', '2026-10-05T04:59:00Z')`,
+      [crypto.randomUUID(), id],
+    );
+  return id;
+}
+
+test("the assistant never answers with a waiting phrase after the server already looked up the data", async () => {
+  const wait = (text: string) => ({
+    reply: "Para saber tus tareas necesito consultarlas. Dame un momento.",
+    actions: [],
+    queries: [{ type: "activities", text, from: null, to: null, includeDone: false }],
+  });
+  const dependencies = (outputs: unknown[]) => ({
+    gateway: createAiGateway(createAiRepository(runtime), cipher, fakeProvider(outputs).fetcher),
+    context: createAiContextRepository(runtime),
+  });
+  // Nada coincide: respuesta determinística de "no hay".
+  const empty = await runAssistantTurn(
+    dependencies([wait("zzz"), wait("zzz")]),
+    await freshStudent(),
+    { message: "¿Tengo tareas pendientes sobre zzz?", history: [] },
+    now,
+  );
+  expect(empty).toMatchObject({
+    kind: "reply",
+    reply:
+      "No encontré tareas pendientes que coincidan. Si quieres, cuéntame qué tienes por entregar y lo registramos con su plazo y prioridad.",
+    actions: [],
+  });
+  // Hay datos: se listan sin depender del modelo.
+  const found = await runAssistantTurn(
+    dependencies([wait("cálculo"), wait("cálculo")]),
+    await freshStudent(true),
+    { message: "¿Tengo tareas pendientes?", history: [] },
+    now,
+  );
+  expect(found).toMatchObject({ kind: "reply", actions: [] });
+  expect((found as { reply: string }).reply).toStartWith("Esto encontré:\n• Deber de Cálculo");
+  // Frase de espera sin consulta alguna: no se muestra tal cual.
+  const noQuery = await runAssistantTurn(
+    dependencies([{ reply: "Dame un momento.", actions: [], queries: [] }]),
+    await freshStudent(),
+    { message: "¿Tengo tareas pendientes?", history: [] },
+    now,
+  );
+  expect(noQuery).toMatchObject({
+    kind: "reply",
+    reply: "No pude consultar tus datos esta vez. Inténtalo de nuevo en un momento.",
+    actions: [],
+  });
+});
+
+test("a dropped assistant action is logged with its type and reason only", async () => {
+  const logged: unknown[][] = [];
+  const original = console.warn;
+  console.warn = (...args: unknown[]) => {
+    logged.push(args);
+  };
+  try {
+    const provider = fakeProvider([
+      {
+        reply: "Propongo crear el examen. Confírmalo en la tarjeta.",
+        actions: [
+          flat({
+            type: "create_activity",
+            title: "Secreto personal",
+            deadlineAt: "2020-01-01T00:00:00Z",
+          }),
+        ],
+        queries: [],
+      },
+    ]);
+    await runAssistantTurn(
+      {
+        gateway: createAiGateway(createAiRepository(runtime), cipher, provider.fetcher),
+        context: createAiContextRepository(runtime),
+      },
+      await freshStudent(),
+      { message: "Tengo un examen", history: [] },
+      now,
+    );
+  } finally {
+    console.warn = original;
+  }
+  expect(logged).toContainEqual([
+    "AI assistant action dropped",
+    { type: "create_activity", reason: "invalid_date" },
+  ]);
+  expect(JSON.stringify(logged)).not.toContain("Secreto");
 });

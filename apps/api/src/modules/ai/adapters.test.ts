@@ -178,3 +178,31 @@ for (const [modelId, expected] of anthropicThinking) {
     expect(body.thinking).toEqual(expected);
   });
 }
+
+// El chat razona poco (effort low) porque decide si consultar y convierte horarios a fechas.
+for (const modelId of ["claude-haiku-5-5", "claude-sonnet-5-5"]) {
+  test(`anthropic ${modelId} thinks at low effort only for the assistant chat`, async () => {
+    const send = async (useCase: "assistant_chat" | "extract_activity") => {
+      let body: Record<string, unknown> = {};
+      const fetcher: AiFetch = async (_url, init) => {
+        body = JSON.parse(String(init.body));
+        return Response.json(fixtures.anthropic);
+      };
+      await generateWithProvider(
+        { provider: "anthropic", apiKey: "k", modelId, timeoutMs: 3000, maxOutputTokens: 256 },
+        useCase,
+        aiCases[useCase].instruction,
+        aiCases[useCase].jsonSchema,
+        { text: "Preparar un resumen" },
+        fetcher,
+      );
+      return body as { thinking?: unknown; output_config: { effort?: string; format: unknown } };
+    };
+    const chat = await send("assistant_chat");
+    expect(chat.thinking).toEqual({ type: "adaptive" });
+    expect(chat.output_config.effort).toBe("low");
+    expect(chat.output_config.format).toBeDefined();
+    const other = await send("extract_activity");
+    expect(other.output_config.effort).toBeUndefined();
+  });
+}

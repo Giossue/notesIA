@@ -148,14 +148,20 @@ export function toAssistantAction(
   known: Known,
   timeZone: string,
   now: Date,
+  /** Recibe solo un código del motivo (nunca el contenido del estudiante). */
+  onDrop?: (reason: string) => void,
 ): AssistantAction | null {
+  const drop = (reason: string) => {
+    onDrop?.(reason);
+    return null;
+  };
   const dates = {
     startAfterAt: modelDate(flat.startAfterAt, now),
     deadlineAt: modelDate(flat.deadlineAt, now),
     startsAt: modelDate(flat.startsAt, now),
     endsAt: modelDate(flat.endsAt, now),
   };
-  if (Object.values(dates).includes(undefined)) return null;
+  if (Object.values(dates).includes(undefined)) return drop("invalid_date");
   const activity = flat.activityId ? known.get(flat.activityId) : undefined;
   const event = flat.eventId ? known.get(flat.eventId) : undefined;
   const activityTarget =
@@ -185,7 +191,7 @@ export function toAssistantAction(
       };
       break;
     case "update_activity":
-      if (!activityTarget) return null;
+      if (!activityTarget) return drop("unknown_activity");
       candidate = {
         type: flat.type,
         ...activityTarget,
@@ -201,19 +207,19 @@ export function toAssistantAction(
       };
       break;
     case "set_activity_progress":
-      if (!activityTarget) return null;
+      if (!activityTarget) return drop("unknown_activity");
       candidate = { type: flat.type, ...activityTarget, progressPercent: flat.progressPercent };
       break;
     case "transition_activity":
-      if (!activityTarget) return null;
+      if (!activityTarget) return drop("unknown_activity");
       candidate = { type: flat.type, ...activityTarget, transition: flat.transition };
       break;
     case "delete_activity":
-      if (!activityTarget) return null;
+      if (!activityTarget) return drop("unknown_activity");
       candidate = { type: flat.type, ...activityTarget };
       break;
     case "create_subtasks":
-      if (!activityTarget) return null;
+      if (!activityTarget) return drop("unknown_activity");
       candidate = {
         type: flat.type,
         ...activityTarget,
@@ -239,7 +245,7 @@ export function toAssistantAction(
       break;
     }
     case "update_event":
-      if (!eventTarget) return null;
+      if (!eventTarget) return drop("unknown_event");
       candidate = {
         type: flat.type,
         ...eventTarget,
@@ -253,22 +259,59 @@ export function toAssistantAction(
       };
       break;
     case "archive_event":
-      if (!eventTarget) return null;
+      if (!eventTarget) return drop("unknown_event");
       candidate = { type: flat.type, ...eventTarget };
       break;
   }
   const parsed = assistantActionSchema.safeParse(candidate);
-  if (!parsed.success) return null;
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return drop(`schema:${issue?.path.join(".") ?? ""}:${issue?.code ?? "invalid"}`);
+  }
   if (
     (parsed.data.type === "update_activity" || parsed.data.type === "update_event") &&
     Object.keys(parsed.data.changes).length === 0
   )
-    return null;
+    return drop("empty_changes");
   return parsed.data;
 }
 
 const weekday = (date: Date, timeZone: string) =>
   new Intl.DateTimeFormat("es", { timeZone, weekday: "long" }).format(date);
+
+/** Frases con las que el modelo pide esperar en lugar de responder. */
+const WAITING_REPLY =
+  /\b(?:dame\s+un\s+(?:momento|segundo|instante)|un\s+(?:momento|segundito)|d[eé]jame\s+(?:consultar|revisar|ver|buscar)|voy\s+a\s+(?:consultar|revisar|buscar))\b/i;
+
+const NO_PROPOSAL_REPLY =
+  "No pude armar ese cambio con lo que me dijiste. Cuéntame el título y la fecha u hora exactas, o hazlo desde Tareas u Horario.";
+
+/** Respuesta determinística con lo que se encontró, cuando el modelo no llegó a responder. */
+export function replyFromResults(
+  asked: AssistantQuery[],
+  results: { activities: Record<string, unknown>[]; events: Record<string, unknown>[] },
+) {
+  const lines = [
+    ...results.activities.map((row) => ({
+      title: String(row.title ?? ""),
+      when: typeof row.deadlineLabel === "string" ? row.deadlineLabel : null,
+    })),
+    ...results.events.map((row) => ({
+      title: String(row.title ?? ""),
+      when: typeof row.startsLabel === "string" ? row.startsLabel : null,
+    })),
+  ].slice(0, 10);
+  if (lines.length > 0)
+    return `Esto encontré:\n${lines.map((line) => `• ${line.title}${line.when ? ` (${line.when})` : ""}`).join("\n")}`;
+  const kinds = new Set(asked.map((query) => query.type));
+  const what =
+    kinds.has("activities") && kinds.has("events")
+      ? "tareas ni horas ocupadas"
+      : kinds.has("events")
+        ? "horas ocupadas"
+        : "tareas pendientes";
+  return `No encontré ${what} que coincidan. Si quieres, cuéntame qué tienes por entregar y lo registramos con su plazo y prioridad.`;
+}
 
 type TurnDependencies = { gateway: AiGateway; context: AiContextRepository };
 type TurnValue = { reply: string; actions: AssistantFlatAction[]; queries: AssistantQuery[] };
@@ -296,16 +339,13 @@ export async function runAssistantTurn(
     results: null,
   });
   let known: Known = new Map();
+  let resolved: Awaited<ReturnType<typeof resolveQueries>> | null = null;
+  let asked: AssistantQuery[] = [];
   if (result.kind === "suggestion") {
     const first = result.value as TurnValue;
     if (first.queries.length > 0) {
-      const resolved = await resolveQueries(
-        dependencies.context,
-        userId,
-        first.queries,
-        timeZone,
-        now,
-      );
+      asked = first.queries;
+      resolved = await resolveQueries(dependencies.context, userId, first.queries, timeZone, now);
       known = resolved.known;
       result = await dependencies.gateway.suggest(userId, "assistant_chat", {
         ...base,
@@ -316,7 +356,12 @@ export async function runAssistantTurn(
   if (result.kind !== "suggestion") return result;
   const value = result.value as TurnValue;
   const actions = value.actions
-    .map((flat) => toAssistantAction(flat, known, timeZone, now))
+    .map((flat) =>
+      toAssistantAction(flat, known, timeZone, now, (reason) =>
+        // Solo tipo y motivo: sin títulos ni texto del estudiante.
+        console.warn("AI assistant action dropped", { type: flat.type, reason }),
+      ),
+    )
     .filter((action) => action !== null)
     .slice(0, 5);
   // "Propongo priorizar..." también es una respuesta de consejo. Solo se
@@ -329,14 +374,23 @@ export async function runAssistantTurn(
       /\bpropong\w*\s+(?:crear|editar|actualizar|eliminar|borrar|archivar|registrar|mover|agregar|añadir|cambiar)\s+(?:(?:una?|el|la)\s+)?(?:tarea|examen|hora ocupada)\b/i.test(
         value.reply,
       ));
+  // El servidor ya consultó: una frase de espera, o pedir otra consulta, no es una respuesta.
+  const stalled =
+    resolved !== null && (value.queries.length > 0 || WAITING_REPLY.test(value.reply));
+  const waitedWithoutData = resolved === null && WAITING_REPLY.test(value.reply);
+  const reply = stalled
+    ? replyFromResults(asked, resolved?.results ?? { activities: [], events: [] })
+    : waitedWithoutData
+      ? "No pude consultar tus datos esta vez. Inténtalo de nuevo en un momento."
+      : promisedCardWithoutAction
+        ? NO_PROPOSAL_REPLY
+        : value.reply;
   return {
     kind: "reply",
     source: "ai",
     requiresConfirmation: true,
     promptVersion: result.promptVersion,
-    reply: promisedCardWithoutAction
-      ? "No pude preparar una propuesta para confirmar. Intenta pedírmela de nuevo o haz el cambio desde Tareas u Horario."
-      : value.reply,
-    actions,
+    reply,
+    actions: stalled || waitedWithoutData ? [] : actions,
   };
 }
