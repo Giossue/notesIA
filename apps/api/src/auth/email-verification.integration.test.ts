@@ -241,3 +241,76 @@ test("registration requires an encrypted, expiring email verification before any
     await created.pool.end();
   }
 });
+
+test("the verification link can return to a web page so the app is not needed", async () => {
+  const secret = crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
+  const returnUrl = "https://panel.example.test/email-verified";
+  const created = createAuth({
+    databaseUrl: url.toString(),
+    secret,
+    baseURL: "http://127.0.0.1:3000",
+    allowSignUp: true,
+    rateLimitEnabled: false,
+    verificationMail: { tokenTtlSeconds: 2 },
+    trustedOrigins: ["https://panel.example.test"],
+    verificationReturnUrl: returnUrl,
+  });
+  const app = createApp(async () => {}, created.handler, {
+    getSession: created.getSession,
+    profiles: createProfileRepository(created.pool),
+  });
+  const mail = createVerificationMailRepository(created.pool, secret);
+  const authPost = (path: string, body: unknown) =>
+    app.request(`/v1/auth/${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "http://127.0.0.1:3000" },
+      body: JSON.stringify(body),
+    });
+  const register = async (label: string) => {
+    const email = `${label}-${crypto.randomUUID()}@example.test`;
+    expect(
+      (await authPost("sign-up/email", { name: label, email, password: "WebReturn2026!Ok" }))
+        .status,
+    ).toBe(200);
+    let sent = "";
+    await mail.processOne(async (_to, sentUrl) => {
+      sent = sentUrl;
+    });
+    return { email, link: new URL(sent) };
+  };
+
+  try {
+    const { email, link } = await register("web");
+    expect(link.searchParams.get("callbackURL")).toBe(returnUrl);
+    // Un correo enviado antes con el retorno a la app sigue siendo válido.
+    const legacy = new URL(link);
+    legacy.searchParams.set("callbackURL", "notesia://email-verified");
+    expect(
+      (await app.request(`${legacy.pathname}${legacy.search}&x=1`, { redirect: "manual" })).status,
+    ).not.toBe(400);
+    const other = new URL(link);
+    other.searchParams.set("callbackURL", "https://attacker.example.test/email-verified");
+    expect((await app.request(`${other.pathname}${other.search}`)).status).toBe(400);
+
+    const verified = await app.request(`${link.pathname}${link.search}`, { redirect: "manual" });
+    expect(verified.status).toBe(302);
+    expect(verified.headers.get("location")).toBe(returnUrl);
+    expect(verified.headers.get("set-cookie")).toBeNull();
+    // La verificación ocurrió al abrir el enlace: ya puede iniciar sesión.
+    const signedIn = await authPost("sign-in/email", { email, password: "WebReturn2026!Ok" });
+    expect(signedIn.status).toBe(200);
+
+    // Un enlace vencido vuelve a la página con el error, no a un JSON sin salida.
+    const expired = await register("expired");
+    await Bun.sleep(2100);
+    const late = await app.request(`${expired.link.pathname}${expired.link.search}`, {
+      redirect: "manual",
+    });
+    expect(late.status).toBe(302);
+    const location = new URL(late.headers.get("location") ?? "");
+    expect(`${location.origin}${location.pathname}`).toBe(returnUrl);
+    expect(location.searchParams.get("error")).toBeTruthy();
+  } finally {
+    await created.pool.end();
+  }
+});

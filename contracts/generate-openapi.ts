@@ -433,7 +433,7 @@ const delegatedEntries: Definition[] = [
     statuses: [200, 302],
     emptyStatuses: [302],
     description:
-      "Verifica el token. Los enlaces emitidos por el servidor redirigen a notesia://email-verified y no crean una sesión.",
+      "Verifica el token al abrir el enlace, sin necesitar la app. Los enlaces emitidos por el servidor redirigen a la página web del panel /email-verified (con ?error=… si falla) y no crean una sesión; los enviados antes redirigen a notesia://email-verified.",
   },
   {
     method: "POST",
@@ -601,8 +601,9 @@ const queries: Record<string, object[]> = {
       in: "query",
       name: "callbackURL",
       required: false,
-      description: "Retorno fijo a la aplicación móvil.",
-      schema: { type: "string", const: "notesia://email-verified" },
+      description:
+        "Retorno fijo: la página web /email-verified del panel o, en enlaces antiguos, la aplicación móvil.",
+      schema: { type: "string", format: "uri" },
     },
   ],
   "/admin/ai/usage": rangeQuery(),

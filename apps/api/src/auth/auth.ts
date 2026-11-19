@@ -22,5 +22,7 @@ export const { auth, getSession, handler, pool } = createAuth({
   allowSignUp: process.env.ALLOW_SIGNUP === "true",
   recovery: mailConfig?.resetUrl ? { resetUrl: mailConfig.resetUrl } : undefined,
   verificationMail: mailConfig ? {} : undefined,
+  // El panel web muestra el resultado: el correo se verifica al abrir el enlace, sin la app.
+  verificationReturnUrl: new URL("/email-verified", adminOrigin).toString(),
   requireSignupConsent: true,
 });

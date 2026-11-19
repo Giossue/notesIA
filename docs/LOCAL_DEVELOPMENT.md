@@ -524,9 +524,12 @@ token ni cookie y encola un enlace cifrado que vence en una hora. Hasta verifica
 el inicio de sesión responde `EMAIL_NOT_VERIFIED`, las rutas privadas responden
 `401` y cualquier sesión creada antes de aplicar esta política deja de autorizar.
 
-El enlace apunta a `GET /v1/auth/verify-email` y usa el retorno fijo
-`notesia://email-verified`, declarado en los proyectos nativos Android e iOS. La
-verificación no crea sesión: la persona vuelve a la pantalla de acceso e inicia
+El enlace apunta a `GET /v1/auth/verify-email` y verifica la cuenta al abrirse, sin
+necesitar la app. Redirige a la página web `/email-verified` del panel (en
+`ADMIN_ORIGIN`, con `?error=…` si el enlace falló o venció), que ofrece un botón
+opcional para abrir la app. Los enlaces enviados antes usan el retorno
+`notesia://email-verified`, declarado en Android e iOS, y siguen siendo válidos
+hasta que caduquen. La verificación no crea sesión: la persona vuelve a la pantalla de acceso e inicia
 sesión con su contraseña. `POST /v1/auth/send-verification-email` permite reenviar;
 su respuesta no distingue entre una dirección inexistente, pendiente o ya
 verificada. No registrar correo, URL ni token. El worker borra el contenido cifrado

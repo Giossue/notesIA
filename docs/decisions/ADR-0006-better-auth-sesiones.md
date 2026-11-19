@@ -34,8 +34,9 @@ en Android Keystore/iOS Keychain mediante react-native-keychain.
 - El cliente nativo usa el origen `notesia://` en las peticiones de autenticación.
 - El registro crea una cuenta pendiente, no crea sesión y encola una verificación
   cifrada que vence en una hora. La cuenta no puede iniciar sesión ni conservar una
-  sesión anterior mientras `correo_verificado` sea falso. El enlace vuelve solo a
-  `notesia://email-verified`; Android e iOS declaran esa ruta y la verificación no
+  sesión anterior mientras `correo_verificado` sea falso. El enlace verifica al
+  abrirse y vuelve solo a la página web `/email-verified` del panel (sin necesitar la
+  app) o, en enlaces antiguos, a `notesia://email-verified`; la verificación no
   inicia sesión automáticamente.
 - El reenvío devuelve la misma respuesta para cuentas inexistentes, pendientes o
   verificadas. El worker borra el enlace cifrado después de entregarlo o agotar los

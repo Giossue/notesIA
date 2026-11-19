@@ -10,6 +10,7 @@ import { AdminGate } from "@/app/admin-gate";
 import { AiPage } from "@/features/ai/ai-page";
 import { AnnouncementsPage } from "@/features/announcements/announcements-page";
 import { AuditPage } from "@/features/audit/audit-page";
+import { EmailVerifiedPage } from "@/features/auth/email-verified-page";
 import { LoginPage } from "@/features/auth/login-page";
 import { ResetPasswordPage } from "@/features/auth/reset-password-page";
 import { TwoFactorChallengePage } from "@/features/auth/two-factor-challenge-page";
@@ -42,6 +43,11 @@ const resetPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/reset-password",
   component: ResetPasswordPage,
+});
+const emailVerifiedRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/email-verified",
+  component: EmailVerifiedPage,
 });
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -93,6 +99,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   twoFactorRoute,
   resetPasswordRoute,
+  emailVerifiedRoute,
   adminRoute.addChildren([
     healthRoute,
     usersRoute,

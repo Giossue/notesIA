@@ -54,7 +54,7 @@ export function createAuthSmtpSender(config: AuthMailConfig["smtp"]) {
       return send(
         email,
         "Verifica tu correo de NotesIA",
-        `Abre este enlace para verificar tu correo y activar tu cuenta. Caduca en 15 minutos:\n\n${verificationUrl}\n\nSi no creaste esta cuenta, ignora este mensaje.`,
+        `Abre este enlace para verificar tu correo y activar tu cuenta. Se verifica al abrirlo, sin necesidad de tener la app abierta; después inicia sesión en NotesIA. Caduca en 15 minutos:\n\n${verificationUrl}\n\nSi no creaste esta cuenta, ignora este mensaje.`,
       );
     },
   };

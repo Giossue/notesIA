@@ -23,6 +23,12 @@ type AuthOptions = {
   verificationMail?: { tokenTtlSeconds?: number };
   allowUnverifiedEmailForTests?: boolean;
   trustedOrigins?: string[];
+  /**
+   * Página web a la que lleva el enlace del correo de verificación. El correo se verifica al
+   * abrir el enlace, sin necesitar la app; la página solo muestra el resultado. Sin esto, el
+   * enlace redirige a notesia://email-verified (abre la app).
+   */
+  verificationReturnUrl?: string;
   /** Exige aceptar los términos y la privacidad vigentes al registrarse y lo guarda. */
   requireSignupConsent?: boolean;
 };
@@ -50,6 +56,19 @@ export function createAuth(options: AuthOptions) {
       recoveryUrl.searchParams.has("token"))
   )
     throw new Error("PASSWORD_RESET_URL must be HTTPS without credentials, hash or token");
+  const returnUrl = options.verificationReturnUrl ? new URL(options.verificationReturnUrl) : null;
+  if (
+    returnUrl &&
+    (!["http:", "https:"].includes(returnUrl.protocol) ||
+      returnUrl.username ||
+      returnUrl.password ||
+      returnUrl.hash ||
+      returnUrl.search)
+  )
+    throw new Error("Verification return URL must be HTTP(S) without credentials, query or hash");
+  const verificationCallbackUrl = returnUrl?.toString() ?? VERIFICATION_CALLBACK_URL;
+  // Los correos ya enviados con el retorno anterior siguen siendo válidos hasta que caduquen.
+  const allowedCallbackUrls = new Set([verificationCallbackUrl, VERIFICATION_CALLBACK_URL]);
   const tokenTtlSeconds = options.recovery?.tokenTtlSeconds ?? 900;
   if (!Number.isInteger(tokenTtlSeconds) || tokenTtlSeconds < 1 || tokenTtlSeconds > 3600)
     throw new Error("Invalid recovery token lifetime");
@@ -156,7 +175,7 @@ export function createAuth(options: AuthOptions) {
           sendVerificationEmail: async ({ user, token }) => {
             const url = new URL("/v1/auth/verify-email", options.baseURL);
             url.searchParams.set("token", token);
-            url.searchParams.set("callbackURL", VERIFICATION_CALLBACK_URL);
+            url.searchParams.set("callbackURL", verificationCallbackUrl);
             await verificationMail.enqueue(user.id, url.toString(), verificationTtlSeconds);
           },
         }
@@ -233,7 +252,12 @@ export function createAuth(options: AuthOptions) {
         : undefined,
       password: { hash: hashPassword, verify: verifyPassword },
     },
-    trustedOrigins: [MOBILE_ORIGIN, VERIFICATION_CALLBACK_URL, ...(options.trustedOrigins ?? [])],
+    trustedOrigins: [
+      MOBILE_ORIGIN,
+      VERIFICATION_CALLBACK_URL,
+      ...(returnUrl ? [returnUrl.origin] : []),
+      ...(options.trustedOrigins ?? []),
+    ],
     plugins: [
       twoFactor({
         issuer: "NotesIA",
@@ -267,7 +291,7 @@ export function createAuth(options: AuthOptions) {
     if (
       requestUrl.pathname === "/v1/auth/verify-email" &&
       callbackUrl !== null &&
-      callbackUrl !== VERIFICATION_CALLBACK_URL
+      !allowedCallbackUrls.has(callbackUrl)
     )
       return Response.json(
         { code: "INVALID_CALLBACK_URL", message: "El retorno de verificación no es válido." },
